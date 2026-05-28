@@ -34,23 +34,23 @@
   - _Boundary: CreatorDashboard-Export_
 
 ### 3. クイズリスト詳細画面のUI実装
-- [ ] 3.1 クイズリスト基本情報と収録クイズ表示の実装 (P)
-  - `src/app/list/[id]/page.tsx` および `list.module.css` を作成し、リストタイトル、作成者アバター、カバー画像、および収録クイズのカード一覧を表示する。
+- [x] 3.1 クイズリスト基本情報と収録クイズ表示の実装 (P)
+  - `src/app/list/[id]/page.tsx` および `list.module.css` を作成し、リストタイトル、作成者アバター、カバー画像、および収録クイズ of カード一覧を表示する。
   - _Requirements: 3.1_
   - _Boundary: QuizListDetail_
-- [ ] 3.2 リスト連続プレイおよび編集動線の実装
+- [x] 3.2 リスト連続プレイおよび編集動線の実装
   - 「リストプレイ開始」クリック時に `attempts.listId` にリストIDを設定し、`mode = 'list'` として記録しながら順番にプレイを連続トラッキングするUI接続を実装する。
   - ログイン中の作成者本人である場合に「リストを編集する」ボタンを表示するガードを構築する。
   - _Requirements: 3.2, 3.3_
   - _Boundary: QuizListDetail-Actions_
-
+ 
 ### 4. リスト作成・編集画面のUI実装
-- [ ] 4.1 リストメタデータフォームとクイズ検索アタッチUIの実装 (P)
+- [x] 4.1 リストメタデータフォームとクイズ検索アタッチUIの実装 (P)
   - `src/app/list/create/page.tsx` および `edit.module.css` を作成し、タイトル、説明、公開/非公開トグルなどのフォームを実装する。
   - 自作クイズやお気に入りから検索し、リストにアタッチ/デタッチするUIを構築する。
   - _Requirements: 4.1_
   - _Boundary: QuizListEditor_
-- [ ] 4.2 HTML5 Drag and Dropによる並び替えとパッケージエクスポートの実装
+- [x] 4.2 HTML5 Drag and Dropによる並び替えとパッケージエクスポートの実装
   - アタッチしたクイズを HTML5 D&D API を用いてビジュアルに並べ替えるドラッグハンドルUIを実装する。
   - リスト情報および自作収録クイズをパッケージングした JSON のダウンロードエクスポート処理を実装する。※インポート用UIは設置しない。
   - _Requirements: 4.2, 4.3_
