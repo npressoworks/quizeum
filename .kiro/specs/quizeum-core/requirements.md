@@ -33,7 +33,7 @@
 **Objective:** As a Quizeum User, I want to manage my account and profile securely, so that I can persist my progress, customize my public identity, and control my data visibility.
 
 #### Acceptance Criteria
-1. When a user registers or logs in, the User Authentication System shall verify credentials using email/password or third-party social identity providers.
+1. When a user registers or logs in, the User Authentication System shall verify credentials using third-party social identity providers, preventing direct email and password authentication.
 2. When an authenticated user updates their profile, the Quizeum System shall validate and save their display name (maximum 30 characters) and biography (maximum 200 characters).
 3. When specific milestones (total play count, published quiz count, follower count) are reached by a user, the Quizeum System shall automatically award the corresponding achievement badge and append it to the user's profile.
 4. When an authenticated user requests account deletion, the Quizeum System shall immediately delete the user's account from the User Authentication System, allowing immediate re-registration with the same email address.
