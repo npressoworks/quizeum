@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   firebaseUser: null,
   loading: true,
-  refreshUser: async () => {},
+  refreshUser: async () => { },
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -36,12 +36,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fUser) => {
       setFirebaseUser(fUser);
-      
+
       if (fUser) {
         try {
           // 1. Firestore からユーザー情報を取得
           let dbUser = await getUser(fUser.uid);
-          
+
           // 2. 存在しない場合 (新規会員登録直後など) は初期ドキュメントを作成
           if (!dbUser) {
             const tempUser: Omit<User, 'createdAt' | 'updatedAt'> = {
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUser(null);
       }
-      
+
       setLoading(false);
     });
 

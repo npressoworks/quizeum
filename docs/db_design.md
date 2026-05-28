@@ -62,9 +62,10 @@ erDiagram
 | `updatedAt` | `timestamp` | **必須** | `request.time` (サーバー時間) | プロフィールの最終更新日時。 |
 | `reputationScore` | `number` | **必須** | `0` | コミュニティへの貢献度を定量化した信頼スコア。日次バッチで再計算。下限は0（マイナスにならない）。 |
 | `moderationTier` | `string` | **必須** | `'newcomer'` | モデレータ認資ティアー（`'newcomer' \| 'contributor' \| 'moderator' \| 'senior_moderator'`）。`reputationScore`に指定値で自動判定・変更。 |
-| `reputationHistory` | `array (object)` | **必須** | `[]` | 直近30件のスコア変動ログリスト（デバッグ・不正調査用）。各要素は `{ eventId, delta, reason, createdAt }` を持つ。最多30件を超えた場合は古い要素から履歴済みとして削除。 |
+| `reputationHistory` | `array (object)` | **必須** | `[]` | 直近30件 of スコア変動ログリスト（デバッグ・不正調査用）。各要素は `{ eventId, delta, reason, createdAt }` を持つ。最多30件を超えた場合は古い要素から履歴済みとして削除。 |
 | `lastReputationCalculatedAt` | `timestamp` | **必須** | `null` | 日次バッチによるスコア再計算の最終実行日時。冪等性保証用（当日処理済みはスキップ）。 |
 | `totalFailedQuestionsCount` | `number` | **必須** | `0` | 未復習の間違い問題の総数（プロフィール画面での弱点克服セクション表示用の高速化ショートカット）。 |
+| `deleteStatus` | `string` | **必須** | `'active'` | **[NEW]** アカウントの削除状態（`'active' \| 'delete_pending'`）。`delete_pending` に変更されると、Firestore Security Rulesにより本人以外の非公開情報へのアクセスを遮断し、退会済みユーザーと同等の制限がかかる。 |
 
 #### ネストされる `Badge` オブジェクト型
 * `id` (`string`): バッジ一意ID（例: `badge_play_100`, `badge_creator_tier1`）
@@ -72,6 +73,11 @@ erDiagram
 * `description` (`string`): 獲得条件やバッジの説明文。
 * `iconName` (`string`): Lucide Reactアイコン名。
 * `unlockedAt` (`timestamp`): バッジ獲得日時のタイムスタンプ。
+
+#### 2.1.1 `users/{uid}/reputationLimits` サブコレクション (ドキュメントID: `senderId`)
+同一評価者（`senderId`）からこのクリエイターへの信頼スコア加算累計（最大 +5 pt制限）をアトミックに管理するサブコレクション。
+* `id` (`string`): 評価者の `uid` (`senderId` と一致)。
+* `totalDelta` (`number`): これまでに該当評価者の 👍 やリアクション等によってこのクリエイターに加算された信頼スコアの累計ポイント数（上限 5）。
 
 ---
 
@@ -89,15 +95,24 @@ erDiagram
 | `thumbnailUrl` | `string` | 任意 | カバー画像参照先 | クイズの一覧カード等に表示するカバー画像URL。 |
 | `difficulty` | `number` | **必須** | `1` 〜 `10` の整数値 | クイズの全体的な難易度レベル（10段階評価。作成者による初期設定値、月次バッチで自動変化）。 |
 | `genre` | `string` | **必須** | 1ジャンル名 | クイズのカテゴリジャンル。 |
-| `tags` | `array (string)` | **必須** | 最大5要素 / `[]` | クイズに付与されたキーワードタグ。 |
+| `tags` | `array (string)` | **必須** | 最大5要素 / `[]` | 表記揺れ（空白や大文字など）を排除した標準タグID配列（例：`['reactjs', '歴史']`）。通常時の画面表示用（ハッシュタグ表示に使用）。クイズの「新規作成」「編集」時のみ更新。 |
+| `originalTags` | `array (string)` | **必須** | 最大5要素 / `[]` | **[NEW]** ユーザーが画面から入力した生のオリジナル文字列の配列（例：`['React.js', '歴史']`）。データの保護・復旧用マスターソース（不変フィールド）。モデレータの誤マージ発生時のロールバック再計算用。 |
 | `questions` | `array (Question)`| **必須** | 最低1要素 | クイズに含まれる全問題のネスト配列。 |
 | `questionCount` | `number` | **必須** | 最低1以上 | 複合検索用の問題数フィールド（Firestoreの配列長検索不可の制約対策）。 |
 | `status` | `string` | **必須** | `'draft' \| 'published' \| 'suspended'` | クイズのステータス（下書き、公開中、通報保留中）。`'published'` のみ検索・探索一覧に表示。 |
 | `flagsCount` | `number` | **必須** | `0` | このクイズに対して送信された累計通報数（5回以上で自動保留化）。 |
 | `playCount` | `number` | **必須** | `0` (非負整数) | クイズが完遂された総プレイ回数（カウンター）。 |
 | `bookmarksCount`| `number` | **必須** | `0` (非負整数) | このクイズをブックマークに登録した総ユーザー数。 |
-| `ratingAverage` | `number` | **必須** | `0.0` (範囲: 0.0〜5.0) | 面白さ評価の平均星数。 |
-| `ratingsCount` | `number` | **必須** | `0` (非負整数) | 面白さ評価を投票した総人数。 |
+| `positiveCount` | `number` | **必須** | `0` (非負整数) | 良問（👍）と評価投票された総数（アトミック加減算）。 |
+| `negativeCount` | `number` | **必須** | `0` (非負整数) | 悪問（👎）と評価投票された総数（アトミック加減算）。 |
+| `tempPositiveCount` | `number` | **必須** | `0` (非負整数) | **[NEW]** 仮リセット期間中に新規投票された良問（👍）の総数。 |
+| `tempNegativeCount` | `number` | **必須** | `0` (非負整数) | **[NEW]** 仮リセット期間中に新規投票された悪問（👎）の総数。 |
+| `reviewScore` | `number \| null`| **必須** | `null` | 良問率（%）。評価数が10件以上の場合 `(positiveCount / (positiveCount + negativeCount)) * 100` で動的算出。10件未満は `null`。 |
+| `reviewBadge` | `string \| null`| **必須** | `null` | 良問率と評価数に応じて週次で自動更新・付与される評価バッジ（例: `'overwhelmingly_positive'`, `'mostly_positive'`, `'needs_improvement'` 等）。 |
+| `isReviewMasked` | `boolean` | **必須** | `false` | **[NEW]** クイズ作成者が「リセット」を申請し、7日間の仮リセット（再評価）期間中にある場合に `true` となり、画面上での評価やバッジ表示を一時的にマスク（非表示）する。 |
+| `activeResetRequestId` | `string \| null` | 任意 | `null` | **[NEW]** 現在進行中の良問評価リセット申請ドキュメントのID。マスク解除時または申請解決時に `null` に戻される。 |
+| `canonicalGenreId` | `string` | **必須** | 既存ジャンルID | 仮想統合の書き込み時解決用。タグ/ジャンルマージ関係を書き込み時に解決した、統合先の正規ジャンルID。 |
+| `canonicalTagIds` | `array (string)` | **必須** | `[]` | 仮想統合の書き込み時解決用。クイズに付与された各タグIDの統合先正規タグIDの配列（例：`['react', '歴史']`）。検索（クエリ）の高速化専用。クイズ作成・編集時およびマージ可決時に非同期で更新される。 |
 | `leaderboard` | `array (Record)`| **必須** | 最大5要素 / `[]` | 全問正解者のハイスコア＆最速全問正解ランキング。 |
 | `createdAt` | `timestamp` | **必須** | `request.time` | クイズ作成（下書き開始）日時。 |
 | `updatedAt` | `timestamp` | **必須** | `request.time` | クイズ内容・問題等の最終更新日時。 |
@@ -114,7 +129,7 @@ erDiagram
 * `choices` (`array (Choice)`, 任意): 選択肢配列。
 * `sortingItems` (`array (SortingItem)`, 任意): 並び替え用ソート対象要素リスト。
 * `associationHints` (`array (string)`, 任意): 連想ヒントリスト。
-* `aiContextDetails` (`string`, 任意): ウミガメのスープ用詳細裏設定（AI判定用コンテキスト）。
+* `aiContextDetails` (`string`, 任意): ウミガメのスープ用詳細裏設定（AI判定用コンテキスト）。20文字以上2000文字以内。
 * `correctCount` (`number`): 正解した累計回数。
 * `incorrectCount` (`number`): 不正解だった累計回数。
 
@@ -393,6 +408,7 @@ erDiagram
 | :--- | :--- | :--- | :--- | :--- |
 | `type` | `string` | **必須** | イベントID | イベント識別子（例: `'QUIZ_CREATED'`, `'QUIZ_PLAY_RECEIVED'`）。 |
 | `delta` | `number` | **必須** | 小数点数値 | ポイント変動量（例: `+10` or `-30`）。 |
+| `senderId` | `string` | **必須** | `users.id` 参照 | アクションを起こした（送信した）ユーザーの `uid`（チート検知・同一ユーザー加算上限チェック用）。 |
 | `sourceId` | `string` | **必須** | 対象リソースID | イベントのトリガーとなったリソースID（quizId, requestId 等）。 |
 | `createdAt` | `timestamp` | **必須** | `request.time` | イベント発生日時。 |
 | `processedAt` | `timestamp | null` | **必須** | `null` | バッチ処理済みフラグ（`null` = 未処理）。バッチ処理はこの値が `null` のイベントのみを集計。 |

@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { auth } from '@/lib/firebase/config';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  GoogleAuthProvider 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider
 } from 'firebase/auth';
 import { Header } from '@/components/layout/header';
 import { Mail, Lock, User as UserIcon, Chrome, AlertCircle, ArrowRight } from 'lucide-react';
@@ -17,15 +17,15 @@ import styles from './login.module.css';
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  
+
   // ログイン / 新規登録のトグル状態 ('login' | 'register')
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  
+
   // フォーム入力データ
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  
+
   // エラーとステータス
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -63,12 +63,12 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    
+
     if (!email || !password) {
       setErrorMsg('すべての項目を入力してください。');
       return;
     }
-    
+
     if (mode === 'register' && !displayName) {
       setErrorMsg('お名前（ニックネーム）を入力してください。');
       return;
@@ -128,7 +128,7 @@ export default function LoginPage() {
         <div className={`${styles.authCard} glass-card animate-fade-in`}>
           {/* Tabs */}
           <div className={styles.tabContainer}>
-            <button 
+            <button
               className={`${styles.tabButton} ${mode === 'login' ? styles.activeTab : ''}`}
               onClick={() => {
                 setMode('login');
@@ -137,7 +137,7 @@ export default function LoginPage() {
             >
               ログイン
             </button>
-            <button 
+            <button
               className={`${styles.tabButton} ${mode === 'register' ? styles.activeTab : ''}`}
               onClick={() => {
                 setMode('register');
@@ -153,8 +153,8 @@ export default function LoginPage() {
               {mode === 'login' ? 'おかえりなさい！' : 'はじめましょう！'}
             </h1>
             <p className={styles.subtitle}>
-              {mode === 'login' 
-                ? 'quizeumにログインしてクイズに挑戦しましょう' 
+              {mode === 'login'
+                ? 'quizeumにログインしてクイズに挑戦しましょう'
                 : 'アカウントを作成して、オリジナルのクイズを投稿しましょう'}
             </p>
           </div>
@@ -219,8 +219,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className={`btn btn-primary ${styles.submitBtn} ${submitting ? 'btn-disabled' : ''}`}
               disabled={submitting}
             >
@@ -235,9 +235,9 @@ export default function LoginPage() {
           </div>
 
           {/* Social Auth */}
-          <button 
-            type="button" 
-            onClick={handleGoogleLogin} 
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
             className={`btn btn-secondary ${styles.socialBtn} ${submitting ? 'btn-disabled' : ''}`}
             disabled={submitting}
           >

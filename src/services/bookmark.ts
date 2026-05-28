@@ -40,7 +40,7 @@ export async function toggleBookmark(
 ): Promise<boolean> {
   const bookmarkDocId = getBookmarkDocId(userId, targetId);
   const bookmarkDocRef = doc(bookmarksRef, bookmarkDocId);
-  
+
   // 対象オブジェクトのドキュメント参照を取得
   const targetDocRef = targetType === 'quiz'
     ? doc(quizzesRef, targetId)
@@ -49,7 +49,7 @@ export async function toggleBookmark(
   return await runTransaction(db, async (transaction) => {
     const bookmarkSnap = await transaction.get(bookmarkDocRef);
     const targetSnap = await transaction.get(targetDocRef);
-    
+
     if (!targetSnap.exists()) {
       throw new Error('Target document does not exist.');
     }
@@ -60,11 +60,11 @@ export async function toggleBookmark(
     if (isAlreadyBookmarked) {
       // 1. 既にブックマークされている場合は、ブックマークを削除
       transaction.delete(bookmarkDocRef);
-      
+
       // 2. カウンタをデクリメント (0未満にならないようにガード)
       const newCount = Math.max(0, currentCount - 1);
       transaction.update(targetDocRef, { bookmarksCount: newCount });
-      
+
       return false; // 解除完了
     } else {
       // 1. 新規にブックマークを登録
@@ -76,11 +76,11 @@ export async function toggleBookmark(
         createdAt: new Date(),
       };
       transaction.set(bookmarkDocRef, newBookmark as any);
-      
+
       // 2. カウンタをインクリメント
       const newCount = currentCount + 1;
       transaction.update(targetDocRef, { bookmarksCount: newCount });
-      
+
       return true; // 登録完了
     }
   });
@@ -96,12 +96,12 @@ export async function getBookmarkedQuizzes(userId: string): Promise<Quiz[]> {
     where('targetType', '==', 'quiz'),
     orderBy('createdAt', 'desc')
   );
-  
+
   const snap = await getDocs(q);
   const quizIds = snap.docs.map((doc) => doc.data().targetId);
-  
+
   if (quizIds.length === 0) return [];
-  
+
   const quizzes: Quiz[] = [];
   const chunkSize = 10;
   for (let i = 0; i < quizIds.length; i += chunkSize) {
@@ -115,7 +115,7 @@ export async function getBookmarkedQuizzes(userId: string): Promise<Quiz[]> {
     const quizSnap = await getDocs(quizQuery);
     quizSnap.forEach((doc) => quizzes.push(doc.data()));
   }
-  
+
   // 最新のブックマーク順を維持するためにソート
   const idToIndex = new Map(quizIds.map((id, index) => [id, index]));
   return quizzes.sort((a, b) => (idToIndex.get(a.id) ?? 0) - (idToIndex.get(b.id) ?? 0));
@@ -131,12 +131,12 @@ export async function getBookmarkedLists(userId: string): Promise<QuizList[]> {
     where('targetType', '==', 'list'),
     orderBy('createdAt', 'desc')
   );
-  
+
   const snap = await getDocs(q);
   const listIds = snap.docs.map((doc) => doc.data().targetId);
-  
+
   if (listIds.length === 0) return [];
-  
+
   const lists: QuizList[] = [];
   const chunkSize = 10;
   for (let i = 0; i < listIds.length; i += chunkSize) {
@@ -149,7 +149,7 @@ export async function getBookmarkedLists(userId: string): Promise<QuizList[]> {
     const listSnap = await getDocs(listQuery);
     listSnap.forEach((doc) => lists.push(doc.data()));
   }
-  
+
   const idToIndex = new Map(listIds.map((id, index) => [id, index]));
   return lists.sort((a, b) => (idToIndex.get(a.id) ?? 0) - (idToIndex.get(b.id) ?? 0));
 }
