@@ -28,6 +28,19 @@
   line-height: 1.5;
 }
 
+/* 再評価期間警告バッジ */
+.maskedAlert {
+  background: rgba(255, 183, 3, 0.08);
+  border: 1px solid rgba(255, 183, 3, 0.2);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  animation: fadeIn 0.4s ease-out;
+}
+
 /* 結果サマリーカード */
 .summaryCard {
   background: var(--glass-bg);

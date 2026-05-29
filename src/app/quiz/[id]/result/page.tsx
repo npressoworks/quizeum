@@ -296,6 +296,15 @@ function QuizResultPageContent({ quizId }: ContentProps) {
 
       {/* 評価フィードバックパネル (オンライン時のみフル利用可能) */}
       <div className={styles.feedbackPanel}>
+        {/* 再評価期間中の表示：作成者がリセット申請し、7日間の仮リセット期間中の場合は警告バッジを表示 */}
+        {quiz.isReviewMasked && (
+          <div className={styles.maskedAlert}>
+            <AlertTriangle size={18} style={{ color: '#ffb703', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.9rem', color: '#ffb703', fontWeight: 600 }}>
+              ⚠️ 修正に伴う再評価期間中（過去の評価や「要改善」バッジは一時的にマスクされています）
+            </span>
+          </div>
+        )}
         <h2 className={styles.panelTitle}>クイズの品質向上にご協力ください</h2>
 
         {/* 1. 良問/悪問評価 */}

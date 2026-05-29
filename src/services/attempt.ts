@@ -41,6 +41,7 @@ export async function saveAttempt(
 
   const payload: Omit<Attempt, 'id'> = {
     ...attemptData,
+    listId: attemptData.listId ?? null, // undefined は Firestore がエラーを吐くため、ここで null に変換
     completedAt,
   };
 
@@ -54,6 +55,17 @@ export async function saveAttempt(
 
     const quiz = quizSnap.data() as Quiz;
 
+    // トランザクション内で最新のユーザーのdisplayNameを取得 (ゲストでない場合)
+    let displayName = 'ゲストプレイヤー';
+    if (attemptData.userId && attemptData.userId !== 'guest') {
+      const userDocRef = doc(usersRef, attemptData.userId);
+      const userSnap = await transaction.get(userDocRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        displayName = userData.displayName || '名無しさん';
+      }
+    }
+
     // attempt の追加
     transaction.set(attemptDocRef, payload);
 
@@ -66,7 +78,7 @@ export async function saveAttempt(
     if (attemptData.score === attemptData.totalQuestions) {
       const leaderboardEntry = {
         userId: attemptData.userId,
-        displayName: '', // 呼び出し元で非正規化した名前を設定する想定
+        displayName: displayName, // 取得したユーザー名を設定
         score: attemptData.score,
         elapsedSeconds: attemptData.elapsedSeconds,
         completedAt,

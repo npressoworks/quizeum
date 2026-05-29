@@ -93,6 +93,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
   const handlePlayComplete = async (finalScore = score, finalFailed = failedIds) => {
     if (!quiz) return;
 
+    // クイズリスト（問題集）のIDを取得。型定義（string | undefined）に合わせるため undefined を維持
     const listId = searchParams.get('listId') || undefined;
     const currentMode = listId ? 'list' : (playMode === 'lateral' ? 'normal' : playMode);
 

@@ -49,7 +49,7 @@ export interface PlayProgressData {
   /** 経過秒数 */
   elapsedSeconds: number;
   /** 問題集リストID（リストプレイ時のみ） */
-  listId?: string;
+  listId?: string | null;
 }
 
 /**
@@ -61,7 +61,7 @@ export interface PendingSyncAttempt {
   localId: string;
   quizId: string;
   userId: string;
-  listId?: string;
+  listId?: string | null;
   mode: Attempt['mode'];
   score: number;
   totalQuestions: number;

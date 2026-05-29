@@ -76,6 +76,11 @@ export default function QuizDetailPage({ params }: PageProps) {
     
     if (isLateral) {
       // ウミガメスープ問題は専用のプレイ遷移（モードは lateral となる）
+      // ゲストプレイアクセス制限：未ログインならログイン画面へリダイレクト
+      if (!user) {
+        router.push(`/login?redirect=/quiz/${quiz.id}/play?mode=lateral`);
+        return;
+      }
       router.push(`/quiz/${quiz.id}/play?mode=lateral`);
     } else {
       router.push(`/quiz/${quiz.id}/play?mode=${selectedMode}`);

@@ -15,7 +15,9 @@ import {
   LogOut, 
   ChevronDown, 
   Menu, 
-  X 
+  X,
+  Bell,
+  Bookmark
 } from 'lucide-react';
 import styles from './header.module.css';
 
@@ -42,11 +44,17 @@ export const Header: React.FC = () => {
     }
   };
 
+  // ログイン状態に応じて動的にヘッダーリンクを設定 (仕様書の "いつでもホーム、通知、ブックマークへ遷移可能" に準拠)
   const navLinks = [
     { href: '/', label: 'ホーム', icon: <Trophy size={18} /> },
-    { href: '/explore', label: 'さがす', icon: <Search size={18} /> },
-    { href: '/lists', label: '問題集', icon: <BookOpen size={18} /> },
   ];
+
+  if (user) {
+    navLinks.push(
+      { href: '/notifications', label: '通知', icon: <Bell size={18} /> },
+      { href: '/bookmarks', label: 'ブックマーク', icon: <Bookmark size={18} /> }
+    );
+  }
 
   return (
     <header className={`${styles.header} glass-card`}>
@@ -116,6 +124,23 @@ export const Header: React.FC = () => {
                       >
                         <UserIcon size={16} />
                         <span>マイページ</span>
+                      </Link>
+                      {/* 追加：通知一覧とブックマークへのリンク */}
+                      <Link 
+                        href="/notifications" 
+                        className={styles.dropdownItem}
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <Bell size={16} />
+                        <span>通知一覧</span>
+                      </Link>
+                      <Link 
+                        href="/bookmarks" 
+                        className={styles.dropdownItem}
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <Bookmark size={16} />
+                        <span>ブックマーク</span>
                       </Link>
                       <Link 
                         href="/creator/dashboard" 
@@ -202,6 +227,25 @@ export const Header: React.FC = () => {
                 >
                   <UserIcon size={18} />
                   <span>マイページ</span>
+                </Link>
+                
+                {/* モバイル用追加：通知一覧とブックマークへのリンク */}
+                <Link 
+                  href="/notifications" 
+                  className={styles.mobileDropdownItem}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Bell size={18} />
+                  <span>通知一覧</span>
+                </Link>
+                
+                <Link 
+                  href="/bookmarks" 
+                  className={styles.mobileDropdownItem}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Bookmark size={18} />
+                  <span>ブックマーク</span>
                 </Link>
                 
                 <Link 

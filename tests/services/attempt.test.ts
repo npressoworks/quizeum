@@ -73,7 +73,7 @@ describe('AttemptService - saveAttempt', () => {
     const attemptId = await saveAttempt(attemptData);
     expect(attemptId).toBeDefined();
 
-    expect(mockTransaction.get).toHaveBeenCalledTimes(1);
+    expect(mockTransaction.get).toHaveBeenCalledTimes(2); // クイズとユーザー情報の2回取得するため
     expect(mockTransaction.set).toHaveBeenCalledTimes(1); // attempt レコード登録
     expect(mockTransaction.update).toHaveBeenCalledTimes(1); // playCount インクリメント
 

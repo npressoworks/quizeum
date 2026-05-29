@@ -163,7 +163,7 @@ export interface Attempt {
   id: string;
   userId: string;
   quizId: string;
-  listId?: string;
+  listId?: string | null;
   mode: 'normal' | 'exam' | 'flashcard' | 'review' | 'list';
   score: number;          // 正解数
   totalQuestions: number; // 全問題数
