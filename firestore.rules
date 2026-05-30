@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // -----------------------------------------------------------------
+    // 共通ヘルパー関数
+    // -----------------------------------------------------------------
+    
+    // ユーザーが認証されているか確認
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // リクエスト送信者が指定されたUIDと一致するか確認
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // 指定されたUIDのユーザー文書を取得
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    // ユーザーが管理者（admin）またはシニアモデレータ（senior_moderator）か確認
+    function isSeniorModeratorOrAdmin() {
+      return isAuthenticated() && (
+        getUserData(request.auth.uid).moderationTier == 'senior_moderator' ||
+        getUserData(request.auth.uid).moderationTier == 'admin'
+      );
+    }
+    
+    // ユーザーがモデレータ（moderator）以上か確認
+    function isModeratorOrAbove() {
+      return isAuthenticated() && (
+        getUserData(request.auth.uid).moderationTier == 'moderator' ||
+        getUserData(request.auth.uid).moderationTier == 'senior_moderator' ||
+        getUserData(request.auth.uid).moderationTier == 'admin'
+      );
+    }
+
+    // -----------------------------------------------------------------
+    // users コレクションルール
+    // -----------------------------------------------------------------
+    match /users/{userId} {
+      // プロフィールやランキングのために全ユーザーの読み取りを許可
+      allow read: if true;
+      
+      // 新規作成時のルール
+      allow create: if isOwner(userId) 
+        // 一般ユーザーが勝手に特権ロールや高い評判スコアをセットできないようにする
+        && request.resource.data.moderationTier == 'newcomer'
+        && request.resource.data.reputationScore == 0
+        && request.resource.data.deleteStatus == 'active';
+        
+      // 更新時のルール
+      allow update: if isOwner(userId)
+        // 一般ユーザーが自分の特権情報を書き換えるのを禁止
+        && request.resource.data.moderationTier == resource.data.moderationTier
+        && request.resource.data.reputationScore == resource.data.reputationScore
+        && request.resource.data.deleteStatus == resource.data.deleteStatus
+        // 管理者またはシニアモデレータによる特権書き換えは許可
+        || isSeniorModeratorOrAdmin();
+        
+      // ユーザーの完全削除は原則禁止（物理削除は管理者のみ、通常は deleteStatus を変更）
+      allow delete: if isSeniorModeratorOrAdmin();
+    }
+
+    // -----------------------------------------------------------------
+    // quizzes コレクションルール
+    // -----------------------------------------------------------------
+    match /quizzes/{quizId} {
+      // 読み取りルール:
+      // 通常のクイズは誰でも閲覧可能。ただし保留状態 (suspended) は管理者・シニアモデレータのみ閲覧可能。
+      allow read: if resource.data.status != 'suspended' 
+        || isSeniorModeratorOrAdmin()
+        // 作成者本人も確認のため閲覧可能にする
+        || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+        
+      // 作成ルール:
+      // 認証済みユーザーのみ新規作成可能。初期の通報件数は0であり、ステータスは active であること。
+      allow create: if isAuthenticated()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.flagsCount == 0
+        && request.resource.data.status == 'active';
+        
+      // 更新ルール:
+      // 1. 作成者本人の場合は、タイトルや問題内容の変更のみ許可（ステータスや通報件数の不正操作を禁止）
+      // 2. モデレータ・シニアモデレータ・管理者の場合は、通報対応やステータス変更のための更新を許可
+      allow update: if (
+        isOwner(resource.data.authorId)
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.flagsCount == resource.data.flagsCount
+      ) || isModeratorOrAbove();
+      
+      // 削除ルール: 作成者本人、またはモデレータ以上のみ許可
+      allow delete: if isOwner(resource.data.authorId) || isModeratorOrAbove();
+    }
+
+    // -----------------------------------------------------------------
+    // flags (通報) コレクションルール
+    // -----------------------------------------------------------------
+    match /flags/{flagId} {
+      // 通報一覧の閲覧はモデレータ以上のみ許可
+      allow read: if isModeratorOrAbove();
+      
+      // 通報の作成ルール:
+      // 認証済みユーザーのみ新規作成可能。通報者IDは自身のUIDと一致すること。
+      allow create: if isAuthenticated()
+        && request.resource.data.reporterId == request.auth.uid;
+        
+      // 通報データの変更・削除はモデレータ以上のみ許可
+      allow update, delete: if isModeratorOrAbove();
+    }
+  }
+}
