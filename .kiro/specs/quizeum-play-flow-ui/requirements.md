@@ -6,7 +6,8 @@
 ## Boundary Context
 - **In scope**:
   - ホーム画面における新着・人気・トレンド・フォロータイムラインのタブ表示および複合検索。
-  - クイズ詳細画面における良問評価バッジ、リーダーボード、3つのプレイモード選択UI。
+  - クイズ詳細画面における良問評価バッジ、リーダーボード、3つのプレイモード選択UI、および作成者本人用の編集ボタン表示と編集画面遷移機能。
+  - クイズ編集画面（`/quiz/[id]/edit`）における他ユーザー（非作成者）による直接アクセス時の認可保護ガード処理。
   - 通常プレイ画面における設問表示、制限時間タイマー、ヒント表示、および `localStorage` を用いたセッション保護。
   - 水平思考（ウミガメのスープ）における2カラムレイアウト、AIチャット（入力制限、ターン制限、回答生成中の「・・・AIが質問を分析中です」グレー表示、キャッシュマーク）、および真相判定。
   - クイズ結果画面における正誤解説リスト、👍/👎良問評価、難易度投票、指摘フォーム、お礼リアクション、SNS共有。
@@ -35,6 +36,8 @@
 2. The Quiz Detail Screen shall display the `reviewBadge` and `reviewScore` (re-evaluation state masked if within the 7-day re-evaluation reset period).
 3. The Quiz Detail Screen shall display an interactive Play Panel offering three modes: "通常モード", "模擬試験モード", and "フラッシュカードモード".
 4. When the user clicks the play button in the Play Panel, the Quiz Detail Screen shall redirect the user to the corresponding Quiz Play Screen (`/quiz/[id]/play`) in the selected mode.
+5. If the currently authenticated user is the creator of the quiz, then the Quiz Detail Screen shall display an "Edit Quiz" button.
+6. When the user clicks the "Edit Quiz" button, the Quiz Detail Screen shall redirect the user to the Quiz Edit Screen (`/quiz/[id]/edit`).
 
 ### Requirement 3: クイズプレイ画面 (Page: `/quiz/[id]/play`)
 **Objective:** As a Quiz Player, I want to answer quiz questions with countdowns, hints, and session preservation, so that I can enjoy a fair and reliable playing experience.
@@ -82,3 +85,10 @@
 1. The Leaderboard Screen shall display tabs for "総合ハイスコア", "月間プレイ数", and "作家ランキング".
 2. The Tag Search Screen (`/tags/[tagName]`) and Genre Search Screen (`/genres/[genreName]`) shall display lists of matching quizzes sorted by popularity or newness.
 3. The Bookmarks Screen (`/bookmarks`) shall display bookmarked quizzes and lists with dynamic toggle actions.
+
+### Requirement 8: クイズ編集認可保護 (Page: `/quiz/[id]/edit`)
+**Objective:** As an Authenticated User, I want the system to restrict access to the Quiz Edit Screen, so that only the creator of the quiz can edit its content.
+
+#### Acceptance Criteria
+1. If an unauthenticated guest user attempts to access the Quiz Edit Screen directly, then the system shall redirect the user to the Authentication Screen (`/login`).
+2. If an authenticated user who is not the creator of the quiz (`user?.id !== quiz.authorId`) attempts to access the Quiz Edit Screen directly, then the Quiz Edit Screen shall display an "Unauthorized Access" (アクセス権限なし) error message and block the rendering of the editing form.

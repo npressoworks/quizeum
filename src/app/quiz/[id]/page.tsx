@@ -4,7 +4,7 @@ import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Star, Play, Award, Trophy, Timer, Layers, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Star, Play, Award, Trophy, Timer, Layers, HelpCircle, Edit } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { getQuiz } from '@/services/quiz';
 import { toggleBookmark, isBookmarked } from '@/services/bookmark';
@@ -188,7 +188,7 @@ export default function QuizDetailPage({ params }: PageProps) {
           </div>
 
           {/* 作者情報 */}
-          <div className={styles.authorSection}>
+          <div className={styles.authorSection} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <Link href={`/profile/${quiz.authorId}`} className={styles.authorLink}>
               <img 
                 src={quiz.authorAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${quiz.authorId}`} 
@@ -200,6 +200,29 @@ export default function QuizDetailPage({ params }: PageProps) {
                 <span className={styles.authorName}>{quiz.authorName}</span>
               </div>
             </Link>
+            {user && quiz.authorId === user.id && (
+              <Link 
+                href={`/quiz/${quiz.id}/edit`} 
+                className="btn btn-secondary" 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  color: 'var(--text-main)',
+                  border: '1px solid var(--border-light)',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  transition: 'var(--transition-smooth)',
+                  cursor: 'pointer'
+                }}
+              >
+                <Edit size={16} />
+                クイズを編集
+              </Link>
+            )}
           </div>
 
           {/* 説明 */}

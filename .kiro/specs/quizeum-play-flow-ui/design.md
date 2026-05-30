@@ -11,9 +11,10 @@
 - ウミガメのスーププレイにおける、2カラムレイアウトおよびAI回答生成中の「・・・AIが質問を分析中です」（グレー文字表示）を含むリッチなチャットインタラクション。
 - クイズ完了後の👍/👎評価、難易度投票、クローズド間違い指摘、作家への感謝のリアクションUIの実装。
 - オフライン時におけるプレイ進行・結果確認のフォールバック処理。
+- クイズ作成者本人に対する編集動線UIの提供、および他ユーザーによる直接編集URLアクセス時の認可保護（ガード）。
 
 ### Non-Goals
-- クイズおよびクイズリストの作成・編集UI（`quizeum-creator-dash-ui`が担当）。
+- クイズおよびクイズリストの作成・編集UIそのもの（ただし、詳細画面での作成者判定ボタン表示と、編集画面における他ユーザーによる直接アクセス時の認可保護ガード処理は本スペックで担当し、実際のエディタ処理自体は `quizeum-creator-dash-ui` に委ねます）。
 - 管理者モデレーション、タグ・ジャンル仮想マージなどの自治ガバナンスUI（`quizeum-moderation-governance-ui`が担当）。
 
 ---
@@ -21,10 +22,11 @@
 ## Boundary Commitments
 
 ### This Spec Owns
-- **UIルーティング設計**: `/`, `/quiz/[id]`, `/quiz/[id]/play`, `/quiz/[id]/result`, `/quiz/review`, `/leaderboard`, `/bookmarks`, `/tags/[tagName]`, `/genres/[genreName]` の各ページコンポーネント。
+- **UIルーティング設計**: `/`, `/quiz/[id]`, `/quiz/[id]/play`, `/quiz/[id]/result`, `/quiz/review`, `/leaderboard`, `/bookmarks`, `/tags/[tagName]`, `/genres/[genreName]`, `/quiz/[id]/edit` の各ページコンポーネント。
 - **クライアントサイドセッション保護**: プレイ進捗の `localStorage` シリアライズ・復元・オンライン復帰時のバックグラウンド自動同期。
 - **AI対話インタラクション**: ウミガメチャットUI、ターン制限・キャッシュバッジ、および回答生成待機メッセージのグレー文字表示制御。
 - **評価フィードバックUI**: 良問評価投票、難易度投票、指摘フォームモーダル、作家感謝リアクション。
+- **クイズ編集認可ガード**: 編集画面（`/quiz/[id]/edit`）における、ログイン状態および作成者所有権（`quiz.authorId === user.id`）に基づく直接アクセスの制限とアクセス拒否UI表示の制御。
 
 ### Out of Boundary
 - Gemini APIとの対話やプロンプト生成のバックエンドロジック本体。
@@ -92,14 +94,19 @@ src/
 │       │   ├── page.tsx           # 弱点克服プレイ画面 (6.1, 6.2, 6.3)
 │       │   └── review.module.css
 │       └── [id]/
-│           ├── page.tsx           # クイズ詳細画面 (2.1, 2.2, 2.3, 2.4)
+│           ├── page.tsx           # クイズ詳細画面 (2.1, 2.2, 2.3, 2.4, 2.5, 2.6)
 │           ├── page.module.css
+│           ├── edit/
+│           │   └── page.tsx       # クイズ編集画面ルーティング (8.1, 8.2)
 │           ├── play/
 │           │   ├── page.tsx       # クイズプレイ画面 (3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6)
 │           │   └── play.module.css
 │           └── result/
 │               ├── page.tsx       # クイズ結果画面 (5.1, 5.2, 5.3, 5.4, 5.5)
 │               └── result.module.css
+components/
+├── quiz/
+│   └── quiz-editor.tsx            # クイズエディタコンポーネント (修正: 8.1, 8.2 に基づく認可ガードの追加)
 └── hooks/
     ├── usePlayState.ts            # 通常プレイのセッション管理フック (3.4)
     └── useAiPlayState.ts          # ウミガメチャットのステート管理フック (4.3, 4.4)
@@ -142,6 +149,8 @@ sequenceDiagram
 | 2.2 | 良問評価バッジとマスク制御 | `/quiz/[id]` Page | `ReviewService` | - |
 | 2.3 | 3つのプレイモード選択UI | `/quiz/[id]` Page | Mode Panel | - |
 | 2.4 | プレイ画面へのリダイレクト遷移 | `/quiz/[id]` Page | `useRouter` | - |
+| 2.5 | 作成者本人用「クイズ編集」ボタンの表示 | `/quiz/[id]` Page | `useAuth` | - |
+| 2.6 | 編集ボタンクリック時のクイズ編集画面遷移 | `/quiz/[id]` Page | `useRouter` | - |
 | 3.1 | 個別/全体カウントダウンタイマー | `/quiz/[id]/play` Page | Timer Hook | - |
 | 3.2 | ヒント表示ポップアップ | `/quiz/[id]/play` Page | Dialog UI | - |
 | 3.3 | `localStorage` セッション保護と復元 | `/quiz/[id]/play` Page | `usePlayState` | - |
@@ -163,6 +172,8 @@ sequenceDiagram
 | 7.1 | 総合リーダーボード各種ランキング | `/leaderboard` Page | Ranking Tab | - |
 | 7.2 | タグ別・ジャンル別クイズ一覧表示 | `/tags/[tagName]`, `/genres/[genreName]` | Quiz Card Grid | - |
 | 7.3 | ブックマーク一覧とお気に入り解除 | `/bookmarks` Page | `BookmarkService` | - |
+| 8.1 | 未ログイン時のクイズ編集画面リダイレクト制限 | `QuizEditor` / `QuizEditPage` | `useAuth`, `useRouter` | - |
+| 8.2 | 非所有者のクイズ編集画面アクセス制限 | `QuizEditor` / `QuizEditPage` | `useAuth`, `QuizService` | - |
 
 ---
 
@@ -173,8 +184,9 @@ sequenceDiagram
 | Component | Domain/Layer | Intent | Req Coverage | Key Dependencies | Contracts |
 |-----------|--------------|--------|--------------|------------------|-----------|
 | `HomePage` | UI / Page | クイズ探索・複合検索・タブ切替 | 1.1, 1.2, 1.3, 1.4 | `QuizService`, `useAuth` | State |
-| `QuizDetailPage` | UI / Page | クイズのメタデータおよび良問評価、プレイモード選択 | 2.1, 2.2, 2.3, 2.4 | `QuizService`, `ReviewService` | State |
+| `QuizDetailPage` | UI / Page | クイズのメタデータおよび良問評価、プレイモード選択、作成者編集動線 | 2.1, 2.2, 2.3, 2.4, 2.5, 2.6 | `QuizService`, `ReviewService`, `useAuth` | State |
 | `QuizPlayPage` | UI / Page | クイズ解答画面（通常タイマー、ヒント、ウミガメスープチャット） | 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 | `usePlayState`, `useAiPlayState` | State, API |
+| `QuizEditor` | UI / Component | クイズ編集の認可ガード処理およびエディタUIの保護 | 8.1, 8.2 | `useAuth`, `QuizService`, `useRouter` | State |
 | `QuizResultPage` | UI / Page | 正誤解説、評価・難易度投票、指摘フォーム、お礼送信 | 5.1, 5.2, 5.3, 5.4, 5.5 | `ReviewService`, `ReactionService` | State, API |
 | `ReviewPage` | UI / Page | 間違えた設問の復習プレイとフィルタ制御 | 6.1, 6.2, 6.3 | `AttemptService` | State |
 | `LeaderboardPage` | UI / Page | プラットフォームランキングの可視化 | 7.1 | `QuizService` | State |
@@ -189,6 +201,8 @@ sequenceDiagram
   - API呼び出しに失敗した場合、待機表示（「・・・AIが質問を分析中です」）を解除し、「通信エラーが発生しました。もう一度質問を送信してください。」と赤文字のバブルをチャットに追加表示して親切にフォローします。
 - **オフライン時の制限処理**:
   - オフラインでのプレイ中、結果画面に遷移した際は、「現在オフラインのため、良問評価や間違い指摘、作家リアクションは送信できません。オンライン復帰後に自動同期されます。」と優しいトーンで警告ヘッダーを表示し、関連ボタンを非活性化（disabled）します。
+- **非作成者によるクイズ編集画面への直接アクセス保護**:
+  - ログイン中ユーザーが対象クイズの作成者ではない場合（`user.id !== quiz.authorId`）、編集コンポーネント（`QuizEditor`）は編集フォームをレンダリングせず、「アクセス権限がありません。このクイズは他のユーザーが作成したものです。」という警告メッセージUIを表示して操作を完全にブロックします。
 
 ---
 
@@ -202,6 +216,9 @@ sequenceDiagram
 - **ウミガメスープ AI回答中の状態監視**:
   - プレイヤーが質問を送信した瞬間、`useAiPlayState` の `pending` フラグが `true` となり、UI上にグレー文字の「・・・AIが質問を分析中です」が表示されることを検証。
   - APIレスポンス完了時に、`pending` フラグが `false` となり、結果テキストがチャットバブルに正しくマッピングされることを結合テスト。
+- **クイズ編集の認可ガード検証**:
+  - ログイン中ユーザーのID（`user.id`）とクイズの `authorId` が一致しない状態で編集画面をロードした際、編集フォームが表示されず、警告エラーUIが表示されることを結合テストで検証。
+  - 未ログイン状態で直接アクセスした際、直ちに `/login` へリダイレクトされることを検証。
 
 ### E2E/UI Tests
 - **複合検索フィルタ**:

@@ -393,4 +393,75 @@ test.describe('追加機能・複合テスト E2Eテスト', () => {
       }
     }
   });
+
+  test('作成者本人のクイズ詳細画面に「クイズを編集」ボタンが表示され、編集画面へ遷移できること', async ({ page }) => {
+    // 1. ダッシュボードへアクセスして自作のクイズを探す
+    await page.goto('/creator/dashboard');
+    
+    // クイズカードがあるか確認
+    const firstQuizLink = page.locator('a[href*="/quiz/"]').first();
+    
+    if (await firstQuizLink.isVisible()) {
+      const quizUrl = await firstQuizLink.getAttribute('href');
+      if (quizUrl) {
+        // 詳細画面へアクセス
+        await page.goto(quizUrl);
+        
+        // 2. 「クイズを編集」ボタンが表示されることを確認
+        const editBtn = page.locator('text=クイズを編集');
+        await expect(editBtn).toBeVisible();
+        
+        // 3. ボタンをクリックして編集画面へ遷移することを確認
+        await editBtn.click();
+        await expect(page).toHaveURL(/\/quiz\/[\w-]+\/edit/);
+        
+        // 編集フォームが表示されていることを確認
+        await expect(page.locator('h1').filter({ hasText: 'クイズを編集する' })).toBeVisible();
+      }
+    }
+  });
+
+  test('他人が作成したクイズの詳細画面に「クイズを編集」ボタンが表示されないこと', async ({ page }) => {
+    // 1. ホーム（探索）へアクセスし、自分以外のクイズを探す
+    await page.goto('/');
+    
+    // タイムラインなどのクイズ一覧からクイズ詳細へ
+    const firstQuizCard = page.locator('article').first()
+      .or(page.locator('[data-testid="quiz-card"]').first());
+      
+    if (await firstQuizCard.isVisible()) {
+      await firstQuizCard.click();
+      await page.waitForTimeout(500);
+      
+      // 2. 他人のクイズであることを想定し、「クイズを編集」ボタンが表示されないことを確認
+      const editBtn = page.locator('text=クイズを編集');
+      await expect(editBtn).not.toBeVisible();
+    }
+  });
+
+  test('他人が作成したクイズの編集画面に直接アクセスした際、認可エラーUIで保護されること', async ({ page }) => {
+    // 1. 他人が作成したクイズのURLを特定するためにホームへ遷移
+    await page.goto('/');
+    
+    const firstQuizCard = page.locator('article').first()
+      .or(page.locator('[data-testid="quiz-card"]').first());
+      
+    if (await firstQuizCard.isVisible()) {
+      await firstQuizCard.click();
+      await page.waitForTimeout(500);
+      
+      const currentUrl = page.url();
+      const quizId = currentUrl.split('/').pop();
+      
+      if (quizId) {
+        // 2. 直接他人のクイズの編集URL（/quiz/[id]/edit）へ遷移
+        await page.goto(`/quiz/${quizId}/edit`);
+        await page.waitForTimeout(1000);
+        
+        // 3. 認可エラーUI（アクセス権限がありません）が表示されることを確認
+        await expect(page.locator('h2').filter({ hasText: 'アクセス権限がありません' })).toBeVisible();
+        await expect(page.locator('text=このクイズは他のユーザーが作成したものであるため')).toBeVisible();
+      }
+    }
+  });
 });

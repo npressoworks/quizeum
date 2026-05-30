@@ -41,6 +41,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
   const [initialFetchLoading, setInitialFetchLoading] = useState(!!quizId);
   const [validationErrors, setValidationErrors] = useState<QuizPublishValidationError[]>([]);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   // フォームステート
   const [title, setTitle] = useState('');
@@ -90,7 +91,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     }
   };
 
-  // 編集モードの場合のデータ取得
+  // 編集モードの場合のデータ取得と所有者チェック
   useEffect(() => {
     if (!quizId) {
       // 新規作成時はデフォルトで1問追加しておく
@@ -102,6 +103,11 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       try {
         const quiz = await getQuiz(quizId);
         if (quiz) {
+          if (user && quiz.authorId !== user.id) {
+            setUnauthorized(true);
+            setErrorText('このクイズを編集する権限がありません。');
+            return;
+          }
           setTitle(quiz.title);
           setDescription(quiz.description);
           setThumbnailUrl(quiz.thumbnailUrl);
@@ -120,8 +126,10 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       }
     };
 
-    fetchQuiz();
-  }, [quizId]);
+    if (!authLoading) {
+      fetchQuiz();
+    }
+  }, [quizId, user, authLoading]);
 
   // 修正指摘からのスクロール連動 (要件 2.4)
   useEffect(() => {
@@ -481,6 +489,23 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
           <p>クイズを作成・編集するにはログインしてください。</p>
           <button className="btn btn-primary" style={{ marginTop: '20px' }} onClick={() => router.push('/login')}>
             ログイン画面へ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (unauthorized) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.editorCard}>
+          <div className={styles.errorTitle}>
+            <AlertTriangle size={24} />
+            <h2>アクセス権限がありません</h2>
+          </div>
+          <p>このクイズは他のユーザーが作成したものであるため、編集できません。</p>
+          <button className="btn btn-primary" style={{ marginTop: '20px' }} onClick={() => router.push(`/quiz/${quizId}`)}>
+            クイズ詳細画面へ戻る
           </button>
         </div>
       </div>
