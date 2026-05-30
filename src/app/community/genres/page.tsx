@@ -53,8 +53,8 @@ interface GenreRequest {
 
 type TabType = 'request' | 'vote' | 'history';
 
-/** PNG/SVG のみ許可 */
-const ALLOWED_ICON_TYPES = ['image/png', 'image/svg+xml'];
+/** PNG/JPEG/GIF のみ許可 (SEC-08 SVG-based XSS防御のためSVG形式を排除) */
+const ALLOWED_ICON_TYPES = ['image/png', 'image/jpeg', 'image/gif'];
 const MAX_ICON_SIZE = 2 * 1024 * 1024; // 2MB
 
 export default function CommunityGenresPage() {
@@ -159,9 +159,9 @@ export default function CommunityGenresPage() {
 
     if (!file) return;
 
-    // PNG/SVG のみ許可
+    // PNG/JPEG/GIF のみ許可 (SEC-08)
     if (!ALLOWED_ICON_TYPES.includes(file.type)) {
-      setIconError('PNG または SVG ファイルのみアップロード可能です。');
+      setIconError('PNG, JPEG, GIF ファイルのみアップロード可能です。');
       return;
     }
 
@@ -203,7 +203,9 @@ export default function CommunityGenresPage() {
 
     try {
       // 1. Firebase Storage にアイコンをアップロード
-      const extension = formIconFile.type === 'image/svg+xml' ? 'svg' : 'png';
+      // MIMEタイプから拡張子を抽出 (image/jpeg -> jpeg/jpg, image/png -> png, image/gif -> gif)
+      let extension = formIconFile.type.split('/')[1] || 'png';
+      if (extension === 'jpeg') extension = 'jpg';
       const path = getGenreIconPath(formGenreId, extension);
       const iconUrl = await uploadImage(formIconFile, path);
 
@@ -415,7 +417,7 @@ export default function CommunityGenresPage() {
               {/* アイコンアップロード */}
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>
-                  アイコン画像（PNG / SVG、最大2MB）
+                  アイコン画像（PNG / JPEG / GIF、最大2MB）
                 </label>
                 <div
                   className={styles.uploadArea}
@@ -430,7 +432,7 @@ export default function CommunityGenresPage() {
                     <div className={styles.uploadPlaceholder}>
                       <span className={styles.uploadIcon}>🖼️</span>
                       <span className={styles.uploadText}>クリックしてファイルを選択</span>
-                      <span className={styles.uploadHint}>PNG または SVG（最大2MB）</span>
+                      <span className={styles.uploadHint}>PNG, JPEG, GIF（最大2MB）</span>
                     </div>
                   )}
                 </div>
@@ -438,7 +440,7 @@ export default function CommunityGenresPage() {
                   ref={fileInputRef}
                   id="iconFile"
                   type="file"
-                  accept=".png,.svg,image/png,image/svg+xml"
+                  accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
                   onChange={handleIconChange}
                   className={styles.hiddenInput}
                 />

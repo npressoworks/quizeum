@@ -30,7 +30,7 @@ export async function uploadImage(file: File, path: string): Promise<string> {
 
   // 2. MIMEタイプチェック
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    throw new Error('無効なファイル形式です。PNG, JPEG, GIF, SVG のみアップロード可能です。');
+    throw new Error('無効なファイル形式です。PNG, JPEG, GIF のみアップロード可能です。');
   }
 
   // 3. Storage参照の取得とアップロード
@@ -105,9 +105,9 @@ export function getUserAvatarPath(uid: string, extension: string = 'png'): strin
 
 /**
  * ジャンルアイコンの保存パスを取得
- * 形式: genres/{genreId}/icon_{timestamp}.svg
+ * 形式: genres/{genreId}/icon_{timestamp}.png
  */
-export function getGenreIconPath(genreId: string, extension: string = 'svg'): string {
+export function getGenreIconPath(genreId: string, extension: string = 'png'): string {
   const timestamp = Date.now();
   return `genres/${genreId}/icon_${timestamp}.${extension}`;
 }

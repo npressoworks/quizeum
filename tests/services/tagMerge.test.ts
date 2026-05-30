@@ -57,7 +57,7 @@ describe('TagMergeService - createMergeRequest', () => {
 
     expect(newRequestId).toBeDefined();
     // 循環チェックとマスタ重複チェックが行われていること
-    expect(getDoc).toHaveBeenCalledTimes(1);
+    expect(getDoc).toHaveBeenCalledTimes(2);
     expect(getDocs).toHaveBeenCalledTimes(1);
   });
 
@@ -65,6 +65,37 @@ describe('TagMergeService - createMergeRequest', () => {
     await expect(
       createMergeRequest(sourceId, sourceId, 'tag', '同じタグ', userId)
     ).rejects.toThrow('同一のタグ/ジャンルをマージすることはできません。');
+  });
+
+  test('直接循環参照が発生する場合（ターゲットが既にソースを指している）、起案が拒否されること', async () => {
+    const { getDoc } = require('firebase/firestore');
+
+    (getDoc as jest.Mock).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ canonicalId: sourceId }),
+    });
+
+    await expect(
+      createMergeRequest(sourceId, targetId, 'tag', '循環マージテスト', userId)
+    ).rejects.toThrow('循環マージが発生するため、このマージ提案は起案できません。');
+  });
+
+  test('間接循環参照が発生する場合（A ➔ B ➔ C ➔ A）、起案が拒否されること', async () => {
+    const { getDoc } = require('firebase/firestore');
+
+    (getDoc as jest.Mock)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ canonicalId: 'C-tag' }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ canonicalId: sourceId }),
+      });
+
+    await expect(
+      createMergeRequest(sourceId, targetId, 'tag', '複数ホップ循環マージテスト', userId)
+    ).rejects.toThrow('循環マージが発生するため、このマージ提案は起案できません。');
   });
 });
 

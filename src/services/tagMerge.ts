@@ -89,6 +89,34 @@ export async function createMergeRequest(
     throw new Error('同一のタグ/ジャンルをマージすることはできません。');
   }
 
+  // 循環参照チェック (A ➔ B ➔ A や A ➔ B ➔ C ➔ A などの無限ループ防止)
+  const masterCollection = targetType === 'tag' ? metadataTagsCollection : metadataGenresCollection;
+  const targetMasterRef = doc(masterCollection, targetId);
+  const targetMasterSnap = await getDoc(targetMasterRef);
+
+  if (targetMasterSnap.exists()) {
+    const targetData = targetMasterSnap.data() as { canonicalId?: string | null };
+    let currentCanonicalId = targetData.canonicalId;
+    const visited = new Set<string>([targetId]);
+
+    while (currentCanonicalId) {
+      if (currentCanonicalId === sourceId) {
+        throw new Error('循環マージが発生するため、このマージ提案は起案できません。');
+      }
+      if (visited.has(currentCanonicalId)) {
+        break; // 循環検知時に無限ループを防止
+      }
+      visited.add(currentCanonicalId);
+
+      const nextSnap = await getDoc(doc(masterCollection, currentCanonicalId));
+      if (!nextSnap.exists()) {
+        break;
+      }
+      const nextData = nextSnap.data() as { canonicalId?: string | null };
+      currentCanonicalId = nextData.canonicalId;
+    }
+  }
+
   // 重複・循環参照チェック
   const proposerSnap = await getDoc(doc(usersRef, userId));
   if (!proposerSnap.exists()) throw new Error('起案ユーザーが見つかりません。');

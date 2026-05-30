@@ -13,6 +13,9 @@ import {
 import { AlertCircle } from 'lucide-react';
 import styles from './login.module.css';
 
+// 開発環境かつテスト環境のみ有効なフラグ (本番ビルド時は静的に false となりTree Shakingが機能します)
+const isMockAuthEnabled = process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_ENV === 'test';
+
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -58,8 +61,8 @@ export default function LoginPage() {
     }
   };
 
-  // E2Eテスト用の簡易ログイン (開発環境のみ有効)
-  const handleE2ETestLogin = async () => {
+  // E2Eテスト用の簡易ログイン (開発環境のみ有効。本番ビルド時にはTree Shakingで完全ストリップされます)
+  const handleE2ETestLogin = isMockAuthEnabled ? async () => {
     setErrorMsg('');
     setSubmitting(true);
     const email = 'e2e-test-user@example.com';
@@ -95,7 +98,7 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
-  };
+  } : undefined;
 
   if (loading || user) {
     return (
@@ -155,9 +158,8 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* E2E Test Auth (開発環境またはE2Eテスト環境、あるいはクエリパラメータで指定された場合のみ表示) */}
-        {(process.env.NODE_ENV !== 'production' || 
-          process.env.NEXT_PUBLIC_ENV === 'test') && (
+        {/* E2E Test Auth (本番ビルド時にはisMockAuthEnabledが静的にfalseとなり、SWCにより完全に排除されます) */}
+        {isMockAuthEnabled && handleE2ETestLogin && (
           <div style={{ marginTop: '12px', width: '100%' }}>
             <button
               id="e2e-test-login-btn"
