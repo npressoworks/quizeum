@@ -57,6 +57,38 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
 
   // 設問関連ステート
   const [questions, setQuestions] = useState<Question[]>([]);
+  
+  // ウミガメスープ必須キーワード入力用の一時ステート
+  const [keywordInputs, setKeywordInputs] = useState<Record<number, string>>({});
+
+  const handleKeywordInputChange = (qIdx: number, val: string) => {
+    setKeywordInputs({ ...keywordInputs, [qIdx]: val });
+  };
+
+  const handleAddKeyword = (qIdx: number) => {
+    const kw = (keywordInputs[qIdx] ?? '').trim();
+    if (!kw) return;
+
+    const nextQuestions = [...questions];
+    const currentKeywords = nextQuestions[qIdx].truthKeywords ?? [];
+
+    if (currentKeywords.includes(kw)) {
+      alert('すでに同じキーワードが登録されています。');
+      return;
+    }
+
+    nextQuestions[qIdx].truthKeywords = [...currentKeywords, kw];
+    setQuestions(nextQuestions);
+    setKeywordInputs({ ...keywordInputs, [qIdx]: '' });
+  };
+
+  const handleRemoveKeyword = (qIdx: number, kwIdx: number) => {
+    const nextQuestions = [...questions];
+    if (nextQuestions[qIdx].truthKeywords) {
+      nextQuestions[qIdx].truthKeywords = nextQuestions[qIdx].truthKeywords!.filter((_, i) => i !== kwIdx);
+      setQuestions(nextQuestions);
+    }
+  };
 
   // 編集モードの場合のデータ取得
   useEffect(() => {
@@ -169,6 +201,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       nextQuestions[idx].aiContextDetails = undefined;
     } else if (type === 'lateral-thinking') {
       nextQuestions[idx].aiContextDetails = '';
+      nextQuestions[idx].truthKeywords = [];
       nextQuestions[idx].choices = undefined;
       nextQuestions[idx].correctTextAnswerList = undefined;
     }
@@ -411,11 +444,19 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
           status,
         });
       } else {
-        await saveQuiz(quizData, status);
+        const newId = await saveQuiz(quizData, status);
+        if (status === 'published') {
+          router.push(`/quiz/${newId}/success`);
+          return;
+        }
       }
       
-      alert(status === 'published' ? 'クイズを公開しました！' : '下書きを保存しました！');
-      router.push('/creator/dashboard');
+      if (status === 'published') {
+        router.push(`/quiz/${quizId}/success`);
+      } else {
+        alert('下書きを保存しました！');
+        router.push('/creator/dashboard');
+      }
     } catch (err: any) {
       console.error(err);
       setErrorText(err.message || 'クイズの保存中にエラーが発生しました。');
@@ -627,25 +668,75 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                     </div>
                   )}
 
-                  {/* ウミガメスープ専用の真相（裏設定）入力エリア */}
+                  {/* ウミガメスープ専用の真相（裏設定）および必須キーワード入力エリア */}
                   {q.type === 'lateral-thinking' && (
-                    <div className={styles.formGroup} style={{ marginTop: '20px' }}>
-                      <label className={styles.label}>
-                        真相（ゲームマスター用の裏設定・解決情報）
-                        <span style={{ color: 'var(--color-danger)' }}> *</span>
-                      </label>
-                      <textarea
-                        className={styles.textarea}
-                        placeholder="AIがプレイヤーからの自由な質問に答える基準となる「真相（裏設定）」を、20文字以上2000文字以内で詳しく記述してください。"
-                        value={q.aiContextDetails || ''}
-                        onChange={(e) => {
-                          const nextQuestions = [...questions];
-                          nextQuestions[qIdx].aiContextDetails = e.target.value;
-                          setQuestions(nextQuestions);
-                        }}
-                        style={{ minHeight: '120px' }}
-                      />
-                    </div>
+                    <>
+                      <div className={styles.formGroup} style={{ marginTop: '20px' }}>
+                        <label className={styles.label}>
+                          真相（ゲームマスター用の裏設定・解決情報）
+                          <span style={{ color: 'var(--color-danger)' }}> *</span>
+                        </label>
+                        <textarea
+                          className={styles.textarea}
+                          placeholder="AIがプレイヤーからの自由な質問に答える基準となる「真相（裏設定）」を、20文字以上2000文字以内で詳しく記述してください。"
+                          value={q.aiContextDetails || ''}
+                          onChange={(e) => {
+                            const nextQuestions = [...questions];
+                            nextQuestions[qIdx].aiContextDetails = e.target.value;
+                            setQuestions(nextQuestions);
+                          }}
+                          style={{ minHeight: '120px' }}
+                        />
+                      </div>
+
+                      <div className={styles.formGroup} style={{ marginTop: '20px' }}>
+                        <label className={styles.label}>
+                          必須正解キーワード（真相判定に使用するエッセンス。複数指定可能）
+                          <span style={{ color: 'var(--color-danger)' }}> *</span>
+                        </label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            className={styles.input}
+                            placeholder="例: スープ (Enterで追加)"
+                            value={keywordInputs[qIdx] || ''}
+                            onChange={(e) => handleKeywordInputChange(qIdx, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddKeyword(qIdx);
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => handleAddKeyword(qIdx)}
+                            style={{ padding: '0 16px', height: '40px', minWidth: '80px' }}
+                          >
+                            追加
+                          </button>
+                        </div>
+
+                        <div className={styles.tagList} style={{ marginTop: '10px' }}>
+                          {(q.truthKeywords ?? []).map((kw, kwIdx) => (
+                            <div key={kwIdx} className={styles.tagBadge} style={{ background: 'var(--color-primary-glow)', borderColor: 'var(--color-primary)' }}>
+                              {kw}
+                              <button
+                                type="button"
+                                className={styles.removeTagBtn}
+                                onClick={() => handleRemoveKeyword(qIdx, kwIdx)}
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <span className={styles.tagLimitInfo} style={{ marginTop: '4px', display: 'block' }}>
+                          {(q.truthKeywords ?? []).length} 個の必須キーワード
+                        </span>
+                      </div>
+                    </>
                   )}
 
                   <div className={styles.formGroup} style={{ marginTop: '20px' }}>

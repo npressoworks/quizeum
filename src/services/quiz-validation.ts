@@ -98,8 +98,11 @@ function isQuestionAnswerValid(question: Question): boolean {
       return (question.associationHints ?? []).length > 0;
 
     case 'lateral-thinking':
-      // aiContextDetails（裏設定）が必要
-      return Boolean(question.aiContextDetails?.trim());
+      // aiContextDetails（裏設定）が必要、かつ必須キーワードが1つ以上指定されていること
+      return (
+        Boolean(question.aiContextDetails?.trim()) &&
+        (question.truthKeywords ?? []).filter((kw) => kw.trim()).length > 0
+      );
 
     default:
       return true;
@@ -145,9 +148,12 @@ export function validateQuizForPublish(quiz: Quiz): QuizPublishValidationError[]
     // ── 各問題の正解設定チェック ──────────────────────
     quiz.questions.forEach((q, idx) => {
       if (!isQuestionAnswerValid(q)) {
+        const detailMsg = q.type === 'lateral-thinking'
+          ? '裏設定（aiContextDetails）または必須キーワードが不足しています'
+          : '正解が設定されていません';
         errors.push({
           field: 'questions',
-          message: `問題 ${idx + 1}「${q.questionText.slice(0, 20)}」に正解が設定されていません`,
+          message: `問題 ${idx + 1}「${q.questionText.slice(0, 20)}」に${detailMsg}`,
           questionIndex: idx,
         });
       }

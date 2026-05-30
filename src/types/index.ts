@@ -70,6 +70,7 @@ export interface Question {
   sortingItems?: SortingItem[]; // 並び替え要素
   associationHints?: string[]; // 連想ヒント
   aiContextDetails?: string; // ウミガメのスープ用裏設定
+  truthKeywords?: string[]; // ウミガメのスープ用必須正解キーワード
   correctCount: number;   // 正解した累計回数
   incorrectCount: number; // 不正解だった累計回数
 }
