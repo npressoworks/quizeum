@@ -306,7 +306,7 @@ export default function QuizDetailPage({ params }: PageProps) {
             </>
           )}
 
-          <button className="btn btn-primary styles.playBtn" onClick={handlePlayStart} style={{ width: '100%', marginTop: '10px' }}>
+          <button className={`btn btn-primary ${styles.playBtn}`} onClick={handlePlayStart} style={{ width: '100%', marginTop: '10px' }}>
             {isLateralThinkingQuiz ? 'チャットを開始する' : 'プレイを開始する'}
           </button>
         </div>

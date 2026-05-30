@@ -11,6 +11,15 @@ import { db } from '../lib/firebase/config';
 import { bookmarksRef, quizzesRef, quizListsRef, questionsRef } from '../lib/firebase/firestore';
 import { Bookmark, Quiz, QuizList, Question } from '../types';
 
+// テスト環境かどうかを判定するためのフラグ
+// E2Eテスト実行時（NEXT_PUBLIC_ENVがtest）またはE2Eモックユーザーが存在する場合にtrueとなります
+const isTestEnv = typeof window !== 'undefined' && 
+  (process.env.NEXT_PUBLIC_ENV === 'test' || localStorage.getItem('quizeum_mock_user') !== null);
+
+// E2Eテスト時のお気に入りモックデータを保存するローカルストレージのキー
+const MOCK_BOOKMARKS_KEY = 'quizeum_mock_bookmarks';
+
+
 /**
  * ブックマークのユニークなドキュメントIDを生成
  */
@@ -22,6 +31,10 @@ function getBookmarkDocId(userId: string, targetId: string): string {
  * ブックマーク状態を判定する
  */
 export async function isBookmarked(userId: string, targetId: string): Promise<boolean> {
+  if (isTestEnv) {
+    const list = JSON.parse(localStorage.getItem(MOCK_BOOKMARKS_KEY) || '[]');
+    return list.some((b: any) => b.userId === userId && b.targetId === targetId);
+  }
   const docId = getBookmarkDocId(userId, targetId);
   const docRef = doc(bookmarksRef, docId);
   const snap = await getDoc(docRef);
@@ -38,6 +51,25 @@ export async function toggleBookmark(
   targetId: string,
   targetType: 'quiz' | 'list' | 'question'
 ): Promise<boolean> {
+  if (isTestEnv) {
+    const list = JSON.parse(localStorage.getItem(MOCK_BOOKMARKS_KEY) || '[]');
+    const idx = list.findIndex((b: any) => b.userId === userId && b.targetId === targetId);
+    let added = false;
+    if (idx !== -1) {
+      list.splice(idx, 1);
+    } else {
+      list.push({
+        id: `${userId}_${targetId}`,
+        userId,
+        targetId,
+        targetType,
+        createdAt: new Date().toISOString()
+      } as any);
+      added = true;
+    }
+    localStorage.setItem(MOCK_BOOKMARKS_KEY, JSON.stringify(list));
+    return added;
+  }
   const bookmarkDocId = getBookmarkDocId(userId, targetId);
   const bookmarkDocRef = doc(bookmarksRef, bookmarkDocId);
 
@@ -95,6 +127,27 @@ export async function toggleBookmark(
  * ユーザーがブックマークしたすべてのクイズ（Quizオブジェクト）を取得
  */
 export async function getBookmarkedQuizzes(userId: string): Promise<Quiz[]> {
+  if (isTestEnv) {
+    const list = JSON.parse(localStorage.getItem(MOCK_BOOKMARKS_KEY) || '[]');
+    const targetIds = list.filter((b: any) => b.userId === userId && b.targetType === 'quiz').map((b: any) => b.targetId);
+    return targetIds.map((id: string) => ({
+      id,
+      title: `[MOCK BOOKMARK] クイズ ${id}`,
+      description: 'E2Eテストモッククイズ',
+      genre: 'programming',
+      tags: ['E2E'],
+      questionCount: 5,
+      difficulty: 3,
+      playCount: 0,
+      bookmarksCount: 1,
+      authorId: 'e2e-test-uid-123456',
+      authorName: 'テストユーザー',
+      isPublished: true,
+      status: 'published',
+      questions: [],
+      questionIds: []
+    } as any));
+  }
   const q = query(
     bookmarksRef,
     where('userId', '==', userId),

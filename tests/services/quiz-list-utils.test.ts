@@ -27,6 +27,7 @@ function makeQuiz(id: string): Quiz {
     tags: [],
     originalTags: [],
     questions: [],
+    questionIds: [], // 設問IDの配列
     questionCount: 0,
     status: 'published',
     flagsCount: 0,
@@ -57,6 +58,7 @@ function makeList(quizIds: string[]): QuizList {
     title: 'テストリスト',
     description: '',
     quizIds,
+    questionIds: [], // 含まれる設問IDの配列
     isPublished: true,
     bookmarksCount: 0,
     createdAt: new Date(),

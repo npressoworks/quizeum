@@ -65,6 +65,7 @@ function makeQuiz(overrides: Partial<Quiz> = {}): Quiz {
     tags: ['javascript'],
     originalTags: ['JavaScript'],
     questions: [makeQuestion()],
+    questionIds: ['q1'], // 設問IDの配列
     questionCount: 1,
     status: 'draft',
     flagsCount: 0,

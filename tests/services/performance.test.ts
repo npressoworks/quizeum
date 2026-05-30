@@ -24,6 +24,7 @@ const mockQuiz: Quiz = {
   tags: ['歴史', 'ミステリー'],
   originalTags: ['歴史', 'ミステリー'],
   questions: [],
+  questionIds: [], // 設問IDの配列
   questionCount: 0,
   status: 'published',
   flagsCount: 0,
