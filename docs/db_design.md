@@ -124,7 +124,7 @@ erDiagram
 #### ネストされる `Question` オブジェクト型
 * `id` (`string`): 問題の一意ID（UUIDまたは連番）。
 * `type` (`'true-false' \| 'multiple-choice' \| 'text-input' \| 'quick-press' \| 'sorting' \| 'association' \| 'lateral-thinking'`): 問題タイプ。
-  - `text-input`（記述式）: テキスト入力による正解判定（旧称：短答式）。
+  - `text-input`（記述式）: テキスト入力による正解判定（旧称：短答式）。作問時に `textInputMode` で入力タイプ（通常／数値／文字数指定）を設定可能。
   - `quick-press`（早押し）: 問題文の一文字ずつ表示と早押しボタンによる解答。`correctTextAnswerList` 必須。プレイ時の早押しタイムは `localStorage`（`quizeum_qp_times_{attemptId}`）に一時保存（DB非永続）。
   - `sorting`（並び替えクイズ）: 提示された複数の要素（2〜6個）を、プレイ時・作問時ともに**ドラッグ＆ドロップ**で正しい順番（`correctOrder` に対応する表示インデックス）に並び替える形式です。上下ボタンによる順序変更UIは採用しません。
   - `association`（連想クイズ）: 段階的なヒント（連想ヒントリスト）を提示して、最終的な正解を導き出させる形式です。
@@ -134,6 +134,11 @@ erDiagram
 * `hint` (`string`, 任意): ヒントテキスト。
 * `limitTime` (`number`, 任意): 制限秒数。
 * `correctTextAnswerList` (`array (string)`, 任意): 正解パターンリスト。記述式・早押し・連想クイズの正解判定用。
+* `textInputMode` (`'text' \| 'numeric' \| 'char-count'`, 任意): 記述式（`text-input`）専用の入力タイプ。未設定時は `'text'`（通常）として扱う。
+  - `'text'`: 通常テキスト入力。正規化（トリム・小文字化・連続空白除去）後の完全一致で判定。
+  - `'numeric'`: 数値入力（整数・小数）。全角数字・小数点・カンマ区切りに対応し、浮動小数点誤差を許容して数値比較。
+  - `'char-count'`: 文字数指定。`textInputCharCount` で要求文字数（1〜100）を設定し、プレイ時は `maxLength`/`minLength` で入力を制約。正解候補の文字数も要求文字数と一致することを公開バリデーションで検証。
+* `textInputCharCount` (`number`, 任意): `textInputMode === 'char-count'` 時の要求文字数（1〜100の整数）。
 * `choices` (`array (Choice)`, 任意): 選択肢配列。〇×・多肢選択クイズ用。
 * `sortingItems` (`array (SortingItem)`, 任意): 並び替えクイズ用のソート対象要素リスト（2〜6個）。作問エディタではドラッグ＆ドロップ後の表示順から各要素の `correctOrder`（0始まり連番）を自動設定し、プレイ時はシャッフル表示後にプレイヤーがドラッグ＆ドロップで並べ替え、確定時に要素IDの並び順を解答として送信します。
 * `associationHints` (`array (string)`, 任意): 連想クイズ用の段階的ヒントリスト。最大5つのヒントを登録し、段階的にプレイヤーへ開示する。
@@ -180,6 +185,8 @@ erDiagram
 | `hint` | `string` | 任意 | 最大200文字 | 設問のヒントテキスト。 |
 | `limitTime` | `number` | 任意 | 5〜300秒 | 解答制限秒数。 |
 | `correctTextAnswerList` | `array (string)` | 任意 | 記述・早押し形式の正解候補 | 記述式・早押し・連想クイズ用の正解判定文字列リスト。 |
+| `textInputMode` | `string` | 任意 | `'text'` | 記述式専用。`'text'`（通常）／`'numeric'`（数値）／`'char-count'`（文字数指定）。 |
+| `textInputCharCount` | `number` | 任意 | — | 文字数指定時の要求文字数（1〜100）。`textInputMode === 'char-count'` 時に使用。 |
 | `choices` | `array (Choice)` | 任意 | 選択肢配列 | 〇×・多肢選択クイズ用の選択肢オブジェクト配列。 |
 | `sortingItems` | `array (SortingItem)` | 任意 | 2〜6要素 | 並び替えクイズ用。各要素に `id`・`text`・`correctOrder` を保持。作問・プレイUIはドラッグ＆ドロップで順序を操作する。 |
 | `associationHints` | `array (string)` | 任意 | 連想ヒント配列 | 連想クイズ用の段階的ヒントリスト。 |

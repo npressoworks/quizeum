@@ -299,6 +299,8 @@ export const questionSchema = z.object({
   limitTime: z.number().int().min(5, '制限時間は最低5秒以上にしてください。').max(300, '制限時間は最大300秒までです。').optional(),
   choices: z.array(choiceSchema).min(2, '選択肢は最低2つ必要です。').max(10, '選択肢は最大10個までです。').optional(),
   correctTextAnswerList: z.array(z.string().min(1)).optional(),
+  textInputMode: z.enum(['text', 'numeric', 'char-count']).optional(),
+  textInputCharCount: z.number().int().min(1).max(100).optional(),
   sortingItems: z.array(sortingItemSchema).max(6, '並び替え要素は最大6つまでです。').optional(),
   associationHints: z.array(z.string().min(1)).max(5, '連想ヒントは最大5つまでです。').optional(),
   aiContextDetails: z.string().max(2000, 'AI用コンテキストは2000文字以内で入力してください。').optional(),
@@ -345,6 +347,29 @@ export const questionSchema = z.object({
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: '短答式問題には少なくとも1つの正解パターンが必要です。',
+        path: ['correctTextAnswerList']
+      });
+    }
+    const mode = data.textInputMode ?? 'text';
+    if (mode === 'char-count') {
+      if (data.textInputCharCount == null || data.textInputCharCount < 1 || data.textInputCharCount > 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '文字数指定の要求文字数は1〜100の整数で設定してください。',
+          path: ['textInputCharCount']
+        });
+      } else if (data.correctTextAnswerList?.some((ans) => ans.length !== data.textInputCharCount)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `正解テキスト候補の文字数が要求文字数（${data.textInputCharCount}文字）と一致していません。`,
+          path: ['correctTextAnswerList']
+        });
+      }
+    }
+    if (mode === 'numeric' && data.correctTextAnswerList?.some((ans) => Number.isNaN(Number(ans.replace(/,/g, ''))))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '数値入力の正解候補はすべて数値で設定してください。',
         path: ['correctTextAnswerList']
       });
     }

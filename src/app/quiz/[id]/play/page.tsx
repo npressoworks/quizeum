@@ -1,5 +1,6 @@
 'use client';
 
+import { getTextInputFieldProps } from '@/services/text-answer-utils';
 import React, { useEffect, useState, use, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -674,7 +675,9 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
         )}
 
         {/* 2. 記述式の入力 */}
-        {currentQuestion?.type === 'text-input' && (
+        {currentQuestion?.type === 'text-input' && (() => {
+          const inputProps = getTextInputFieldProps(currentQuestion);
+          return (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -685,16 +688,20 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
             className={styles.inputForm}
           >
             <input
-              type="text"
+              type={inputProps.type}
               name="textAnswer"
               className={styles.textInput}
-              placeholder="回答を入力してください..."
+              placeholder={inputProps.placeholder}
+              inputMode={inputProps.inputMode}
+              maxLength={inputProps.maxLength}
+              minLength={inputProps.minLength}
               required
               autoComplete="off"
             />
             <button type="submit" className="btn btn-primary">送信</button>
           </form>
-        )}
+          );
+        })()}
 
         {/* 6. 早押し形式の入力 */}
         {currentQuestion?.type === 'quick-press' && (

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Quiz, Question } from '@/types';
 import { LocalAttemptSession, PlayProgressData } from '@/services/attempt-session';
+import { isTextInputAnswerCorrect } from '@/services/text-answer-utils';
 
 interface UsePlayStateProps {
   quizId: string;
@@ -128,10 +129,7 @@ export function usePlayState({ quizId, userId, mode, questions }: UsePlayStatePr
       const selectedChoice = currentQuestion.choices?.find((c) => c.id === answerTextOrChoiceId);
       isCorrect = !!selectedChoice?.isCorrect;
     } else if (currentQuestion.type === 'text-input' || currentQuestion.type === 'association') {
-      const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
-      isCorrect = currentQuestion.correctTextAnswerList?.some(
-        (ans) => ans.trim().toLowerCase().replace(/\s+/g, '') === cleanInput
-      ) ?? false;
+      isCorrect = isTextInputAnswerCorrect(answerTextOrChoiceId, currentQuestion);
     } else if (currentQuestion.type === 'quick-press') {
       const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
       // 早押し問題の正解候補は Base64 難読化されているため、デコードして比較

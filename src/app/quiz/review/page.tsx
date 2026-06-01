@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, BookOpen, Check, X, Award, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { getFailedQuestions, updateFailedQuestions } from '@/services/attempt';
+import { getTextInputFieldProps, isTextInputAnswerCorrect } from '@/services/text-answer-utils';
 import { Question } from '@/types';
 import styles from './review.module.css';
 
@@ -93,10 +94,7 @@ export default function ReviewPage() {
       const selectedChoice = currentQuestion.choices?.find((c) => c.id === answerTextOrChoiceId);
       isCorrect = !!selectedChoice?.isCorrect;
     } else if (currentQuestion.type === 'text-input') {
-      const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
-      isCorrect = currentQuestion.correctTextAnswerList?.some(
-        (ans) => ans.trim().toLowerCase().replace(/\s+/g, '') === cleanInput
-      ) ?? false;
+      isCorrect = isTextInputAnswerCorrect(answerTextOrChoiceId, currentQuestion);
     } else if (currentQuestion.type === 'quick-press') {
       const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
       isCorrect = currentQuestion.correctTextAnswerList?.some(
@@ -256,7 +254,10 @@ export default function ReviewPage() {
           )}
 
           {/* 記述式・早押し */}
-          {(failedQuestions[currentIdx]?.type === 'text-input' || failedQuestions[currentIdx]?.type === 'quick-press') && (
+          {(failedQuestions[currentIdx]?.type === 'text-input' || failedQuestions[currentIdx]?.type === 'quick-press') && (() => {
+            const q = failedQuestions[currentIdx];
+            const inputProps = q.type === 'text-input' ? getTextInputFieldProps(q) : { type: 'text' as const, placeholder: '解答を入力してください...' };
+            return (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -267,7 +268,7 @@ export default function ReviewPage() {
               style={{ display: 'flex', gap: '12px' }}
             >
               <input
-                type="text"
+                type={inputProps.type}
                 name="textAnswer"
                 style={{
                   flex: 1,
@@ -277,13 +278,17 @@ export default function ReviewPage() {
                   padding: '12px',
                   color: 'var(--text-main)'
                 }}
-                placeholder="解答を入力してください..."
+                placeholder={inputProps.placeholder}
+                inputMode={inputProps.inputMode}
+                maxLength={inputProps.maxLength}
+                minLength={inputProps.minLength}
                 required
                 autoComplete="off"
               />
               <button type="submit" className="btn btn-primary">送信</button>
             </form>
-          )}
+            );
+          })()}
         </div>
       )}
 

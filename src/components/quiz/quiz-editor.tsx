@@ -4,8 +4,9 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { saveQuiz, getQuiz, updateQuiz } from '@/services/quiz';
-import { validateQuizForPublish, normalizeTag, QuizPublishValidationError } from '@/services/quiz-validation';
+import { validateQuizForPublish, normalizeTag, QuizPublishValidationError, QuizValidationQuestionField, filterValidationErrors, formatValidationErrorSummary } from '@/services/quiz-validation';
 import { hasAnyQuestionUserInput } from '@/services/quiz-question-input';
+import { getTextInputFieldProps } from '@/services/text-answer-utils';
 import {
   createDefaultChoices,
   MAX_MULTIPLE_CHOICE_COUNT,
@@ -18,6 +19,51 @@ import { SortableSortingList, reindexCorrectOrder } from '@/components/sorting/s
 
 interface QuizEditorProps {
   quizId?: string; // 編集モードの場合はIDが渡される
+}
+
+const FieldValidationMessages: React.FC<{
+  errors: QuizPublishValidationError[];
+  field: QuizPublishValidationError['field'];
+  questionIndex?: number;
+  questionField?: QuizValidationQuestionField;
+  answerIndex?: number;
+  unscopedOnly?: boolean;
+}> = ({ errors, field, questionIndex, questionField, answerIndex, unscopedOnly }) => {
+  const matched = filterValidationErrors(errors, {
+    field,
+    questionIndex,
+    questionField,
+    answerIndex,
+    unscopedOnly,
+  });
+  if (matched.length === 0) return null;
+  return (
+    <div className={styles.fieldError} role="alert">
+      {matched.map((err, i) => (
+        <p key={i}>{err.message}</p>
+      ))}
+    </div>
+  );
+};
+
+function scrollToFirstValidationError(errors: QuizPublishValidationError[]) {
+  const first = errors[0];
+  if (!first) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  const targetId =
+    first.field === 'title' ? 'field-title'
+    : first.field === 'difficulty' ? 'field-difficulty'
+    : first.field === 'genre' ? 'field-genre'
+    : first.questionIndex != null ? `question-card-${first.questionIndex}`
+    : first.field === 'questions' ? 'questions-section'
+    : null;
+  if (targetId) {
+    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // 類似 canonical タグの定義 (要件 1.3 タグ名寄せ用)
@@ -316,6 +362,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     if (type === 'multiple-choice' && !nextQuestions[idx].choices) {
       nextQuestions[idx].choices = createDefaultChoices();
       nextQuestions[idx].correctTextAnswerList = undefined;
+      nextQuestions[idx].textInputMode = undefined;
+      nextQuestions[idx].textInputCharCount = undefined;
       nextQuestions[idx].sortingItems = undefined;
       nextQuestions[idx].associationHints = undefined;
       nextQuestions[idx].aiContextDetails = undefined;
@@ -327,12 +375,20 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       nextQuestions[idx].associationHints = undefined;
       nextQuestions[idx].aiContextDetails = undefined;
       nextQuestions[idx].truthKeywords = undefined;
+      if (type === 'quick-press') {
+        nextQuestions[idx].textInputMode = undefined;
+        nextQuestions[idx].textInputCharCount = undefined;
+      }
     } else if ((type === 'text-input' || type === 'quick-press') && nextQuestions[idx].correctTextAnswerList) {
       nextQuestions[idx].choices = undefined;
       nextQuestions[idx].sortingItems = undefined;
       nextQuestions[idx].associationHints = undefined;
       nextQuestions[idx].aiContextDetails = undefined;
       nextQuestions[idx].truthKeywords = undefined;
+      if (type === 'quick-press') {
+        nextQuestions[idx].textInputMode = undefined;
+        nextQuestions[idx].textInputCharCount = undefined;
+      }
     } else if (type === 'sorting' && !nextQuestions[idx].sortingItems) {
       nextQuestions[idx].sortingItems = [
         { id: '1', text: '要素 1', correctOrder: 0 },
@@ -340,6 +396,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       ];
       nextQuestions[idx].choices = undefined;
       nextQuestions[idx].correctTextAnswerList = undefined;
+      nextQuestions[idx].textInputMode = undefined;
+      nextQuestions[idx].textInputCharCount = undefined;
       nextQuestions[idx].associationHints = undefined;
       nextQuestions[idx].aiContextDetails = undefined;
       nextQuestions[idx].truthKeywords = undefined;
@@ -359,6 +417,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       nextQuestions[idx].truthKeywords = [];
       nextQuestions[idx].choices = undefined;
       nextQuestions[idx].correctTextAnswerList = undefined;
+      nextQuestions[idx].textInputMode = undefined;
+      nextQuestions[idx].textInputCharCount = undefined;
       nextQuestions[idx].sortingItems = undefined;
       nextQuestions[idx].associationHints = undefined;
     }
@@ -473,6 +533,36 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       nextQuestions[qIdx].correctTextAnswerList = nextQuestions[qIdx].correctTextAnswerList!.filter((_, i) => i !== aIdx);
       setQuestions(nextQuestions);
     }
+  };
+
+  const handleTextInputModeChange = (qIdx: number, mode: 'text' | 'numeric' | 'char-count') => {
+    const nextQuestions = [...questions];
+    if (mode === 'text') {
+      nextQuestions[qIdx].textInputMode = undefined;
+      nextQuestions[qIdx].textInputCharCount = undefined;
+    } else {
+      nextQuestions[qIdx].textInputMode = mode;
+      if (mode === 'char-count' && nextQuestions[qIdx].textInputCharCount == null) {
+        nextQuestions[qIdx].textInputCharCount = 4;
+      }
+      if (mode !== 'char-count') {
+        nextQuestions[qIdx].textInputCharCount = undefined;
+      }
+      if (mode === 'numeric') {
+        const list = nextQuestions[qIdx].correctTextAnswerList ?? [];
+        if (list.length === 1 && list[0] === '正解テキスト') {
+          nextQuestions[qIdx].correctTextAnswerList = ['0'];
+        }
+      }
+    }
+    setQuestions(nextQuestions);
+  };
+
+  const handleTextInputCharCountChange = (qIdx: number, value: string) => {
+    const nextQuestions = [...questions];
+    const parsed = parseInt(value, 10);
+    nextQuestions[qIdx].textInputCharCount = Number.isNaN(parsed) ? undefined : parsed;
+    setQuestions(nextQuestions);
   };
 
   // 並び替え要素のテキスト変更
@@ -705,16 +795,23 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
         setValidationErrors(errors);
         setErrorText('公開バリデーションエラーが発生しました。内容を修正してください。');
         setLoading(false);
-        // エラーボックスへスクロール
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        scrollToFirstValidationError(errors);
         return;
       }
     } else {
-      // 下書きはタイトル必須
+      // 下書きはタイトル・ジャンル必須
+      const draftErrors: QuizPublishValidationError[] = [];
       if (!title.trim()) {
-        setErrorText('下書き保存するにはタイトルを入力してください。');
+        draftErrors.push({ field: 'title', message: '下書き保存するにはタイトルを入力してください' });
+      }
+      if (!genre.trim()) {
+        draftErrors.push({ field: 'genre', message: 'ジャンルを選択してください' });
+      }
+      if (draftErrors.length > 0) {
+        setValidationErrors(draftErrors);
+        setErrorText('下書き保存できません。未入力の項目を確認してください。');
         setLoading(false);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        scrollToFirstValidationError(draftErrors);
         return;
       }
     }
@@ -807,7 +904,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
         </button>
         <h1 className={styles.title}>{quizId ? 'クイズを編集する' : 'クイズを新規作成'}</h1>
       </div>
-      <p className={styles.subtitle}>作家ならではのクリエイティブで挑戦者をうならせるクイズを作りましょう。</p>
+      <p className={styles.subtitle}>クリエイティブで挑戦者をうならせるクイズや楽しんで解けるクイズを作りましょう。</p>
 
       {/* エラー表示エリア (要件 1.5) */}
       {(errorText || validationErrors.length > 0) && (
@@ -820,7 +917,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
           {validationErrors.length > 0 && (
             <ul className={styles.errorList}>
               {validationErrors.map((err, i) => (
-                <li key={i}>{err.message}</li>
+                <li key={i}>{formatValidationErrorSummary(err, { questions })}</li>
               ))}
             </ul>
           )}
@@ -908,16 +1005,17 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* タイトル・説明文 */}
-              <div className={styles.formGroup}>
+              <div className={styles.formGroup} id="field-title">
                 <label className={styles.label}>クイズタイトル <span style={{ color: 'var(--color-danger)' }}>*</span></label>
                 <input
                   type="text"
-                  className={styles.input}
+                  className={`${styles.input} ${filterValidationErrors(validationErrors, { field: 'title' }).length > 0 ? styles.inputError : ''}`}
                   placeholder="例: React Hooksの基礎知識クイズ"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={100}
                 />
+                <FieldValidationMessages errors={validationErrors} field="title" />
               </div>
 
               <div className={styles.formGroup}>
@@ -950,7 +1048,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                 {/* 右: 難易度・ジャンル・タグ */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* 難易度スライダー */}
-                  <div className={styles.formGroup}>
+                  <div className={styles.formGroup} id="field-difficulty">
                     <label className={styles.label}>難易度 (1 - 10)</label>
                     <div className={styles.sliderContainer}>
                       <input
@@ -963,13 +1061,21 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                       />
                       <span className={styles.sliderValue}>{difficulty}</span>
                     </div>
+                    <FieldValidationMessages errors={validationErrors} field="difficulty" />
                   </div>
 
                   {/* ジャンル選択 */}
-                  <div className={styles.formGroup}>
+                  <div className={styles.formGroup} id="field-genre">
                     <div className={styles.genreContainer}>
-                      <label className={styles.label}>ジャンル</label>
-                      <select className={styles.select} value={genre} onChange={(e) => setGenre(e.target.value)}>
+                      <label className={styles.label}>
+                        ジャンル <span style={{ color: 'var(--color-danger)' }}>*</span>
+                      </label>
+                      <select
+                        className={`${styles.select} ${filterValidationErrors(validationErrors, { field: 'genre' }).length > 0 ? styles.inputError : ''}`}
+                        value={genre}
+                        onChange={(e) => setGenre(e.target.value)}
+                        required
+                      >
                         <option value="" disabled>ジャンルを選択してください</option>
                         <option value="programming">プログラミング / IT</option>
                         <option value="history">歴史 / 世界史</option>
@@ -982,6 +1088,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                         新しいジャンルを申請する
                       </a>
                     </div>
+                    <FieldValidationMessages errors={validationErrors} field="genre" />
                   </div>
 
                   {/* タグ設定 */}
@@ -1028,7 +1135,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
           </div>
 
           {/* 設問管理エリア */}
-          <div className={styles.editorCard}>
+          <div className={styles.editorCard} id="questions-section">
             <div className={styles.questionHeader}>
               <h2 className={styles.sectionTitle} style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
                 設問管理
@@ -1037,6 +1144,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                 <Plus size={16} /> 問題を追加
               </button>
             </div>
+            <FieldValidationMessages errors={validationErrors} field="questions" unscopedOnly />
 
             <div className={styles.questionList}>
               {questions.map((q, qIdx) => (
@@ -1094,6 +1202,12 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                       ⚡ この問題の形式はクイズ全体の出題形式（<strong>{getFormatLabel(format)}</strong>）に固定されています。
                     </div>
                   )}
+                  <FieldValidationMessages
+                    errors={validationErrors}
+                    field="questions"
+                    questionIndex={qIdx}
+                    questionField="type"
+                  />
 
                   <div className={styles.formGroup}>
                     <label className={styles.label}>問題文</label>
@@ -1144,15 +1258,128 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                       >
                         <Plus size={14} /> 選択肢を追加する
                       </button>
+                      <FieldValidationMessages
+                        errors={validationErrors}
+                        field="questions"
+                        questionIndex={qIdx}
+                        questionField="answers"
+                      />
                     </div>
                   )}
 
-                  {/* 記述式（旧短答入力式）または早押し式の設問入力 */}
-                  {(q.type === 'text-input' || q.type === 'quick-press') && q.correctTextAnswerList && (
+                  {/* 記述式（旧短答入力式）の設問入力 */}
+                  {q.type === 'text-input' && q.correctTextAnswerList && (
+                    <div className={styles.textAnswersContainer}>
+                      <label className={styles.label}>入力タイプ</label>
+                      <div className={styles.toggleGroup} style={{ marginBottom: '12px' }}>
+                        {([
+                          { id: 'text' as const, label: '通常' },
+                          { id: 'numeric' as const, label: '数値' },
+                          { id: 'char-count' as const, label: '文字数指定' },
+                        ]).map(({ id, label }) => (
+                          <button
+                            key={id}
+                            type="button"
+                            className={`${styles.toggleBtn} ${(q.textInputMode ?? 'text') === id ? styles.toggleBtnActive : ''}`}
+                            onClick={() => handleTextInputModeChange(qIdx, id)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {(q.textInputMode ?? 'text') === 'char-count' && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <label className={styles.label}>要求文字数（1〜100文字）</label>
+                          <input
+                            type="number"
+                            className={`${styles.input} ${filterValidationErrors(validationErrors, { field: 'questions', questionIndex: qIdx, questionField: 'textInputCharCount' }).length > 0 ? styles.inputError : ''}`}
+                            min={1}
+                            max={100}
+                            value={q.textInputCharCount ?? ''}
+                            onChange={(e) => handleTextInputCharCountChange(qIdx, e.target.value)}
+                            placeholder="例: 4"
+                          />
+                          <FieldValidationMessages
+                            errors={validationErrors}
+                            field="questions"
+                            questionIndex={qIdx}
+                            questionField="textInputCharCount"
+                          />
+                        </div>
+                      )}
+                      <label className={styles.label}>
+                        {(q.textInputMode ?? 'text') === 'numeric'
+                          ? '正解数値候補（複数設定可能）'
+                          : '正解テキスト候補（大文字・小文字表記揺れなど複数設定可能）'}
+                      </label>
+                      {q.correctTextAnswerList.map((ans, aIdx) => {
+                        const textInputMode = q.textInputMode ?? 'text';
+                        const answerFieldProps = textInputMode === 'numeric'
+                          ? getTextInputFieldProps(q, { placeholder: '例: 3.14' })
+                          : textInputMode === 'char-count'
+                            ? getTextInputFieldProps(q)
+                            : { type: 'text' as const, placeholder: '例: useState' };
+                        const answerHasError = filterValidationErrors(validationErrors, {
+                          field: 'questions',
+                          questionIndex: qIdx,
+                          questionField: 'correctTextAnswer',
+                          answerIndex: aIdx,
+                        }).length > 0;
+                        return (
+                        <div key={aIdx}>
+                        <div className={styles.textAnswerRow}>
+                          <input
+                            type={answerFieldProps.type}
+                            className={`${styles.input} ${answerHasError ? styles.inputError : ''}`}
+                            placeholder={answerFieldProps.placeholder}
+                            inputMode={answerFieldProps.inputMode}
+                            maxLength={answerFieldProps.maxLength}
+                            minLength={answerFieldProps.minLength}
+                            value={ans}
+                            onChange={(e) => handleTextAnswerChange(qIdx, aIdx, e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className={styles.removeQuestionBtn}
+                            onClick={() => handleRemoveTextAnswer(qIdx, aIdx)}
+                            title="この正解を削除"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <FieldValidationMessages
+                          errors={validationErrors}
+                          field="questions"
+                          questionIndex={qIdx}
+                          questionField="correctTextAnswer"
+                          answerIndex={aIdx}
+                        />
+                        </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className={styles.addTextAnswerBtn}
+                        onClick={() => handleAddTextAnswer(qIdx)}
+                      >
+                        <Plus size={14} /> 正解候補を追加する
+                      </button>
+                      <FieldValidationMessages
+                        errors={validationErrors}
+                        field="questions"
+                        questionIndex={qIdx}
+                        questionField="answers"
+                      />
+                    </div>
+                  )}
+
+                  {/* 早押し式の設問入力 */}
+                  {q.type === 'quick-press' && q.correctTextAnswerList && (
                     <div className={styles.textAnswersContainer}>
                       <label className={styles.label}>正解テキスト候補（大文字・小文字表記揺れなど複数設定可能）</label>
                       {q.correctTextAnswerList.map((ans, aIdx) => (
-                        <div key={aIdx} className={styles.textAnswerRow}>
+                        <div key={aIdx}>
+                        <div className={styles.textAnswerRow}>
                           <input
                             type="text"
                             className={styles.input}
@@ -1169,6 +1396,14 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                             <Trash2 size={16} />
                           </button>
                         </div>
+                        <FieldValidationMessages
+                          errors={validationErrors}
+                          field="questions"
+                          questionIndex={qIdx}
+                          questionField="correctTextAnswer"
+                          answerIndex={aIdx}
+                        />
+                        </div>
                       ))}
                       <button
                         type="button"
@@ -1177,6 +1412,12 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                       >
                         <Plus size={14} /> 正解候補を追加する
                       </button>
+                      <FieldValidationMessages
+                        errors={validationErrors}
+                        field="questions"
+                        questionIndex={qIdx}
+                        questionField="answers"
+                      />
                     </div>
                   )}
 
@@ -1223,6 +1464,12 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                       >
                         <Plus size={14} /> 要素を追加する
                       </button>
+                      <FieldValidationMessages
+                        errors={validationErrors}
+                        field="questions"
+                        questionIndex={qIdx}
+                        questionField="sortingItems"
+                      />
                     </div>
                   )}
 
@@ -1260,6 +1507,12 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                       >
                         <Plus size={14} /> ヒントを追加する
                       </button>
+                      <FieldValidationMessages
+                        errors={validationErrors}
+                        field="questions"
+                        questionIndex={qIdx}
+                        questionField="associationHints"
+                      />
 
                       {/* 連想の正解設定 (記述式の correctTextAnswerList と同一構造) */}
                       {q.correctTextAnswerList && (
@@ -1291,6 +1544,12 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                           >
                             <Plus size={14} /> 正解候補を追加する
                           </button>
+                          <FieldValidationMessages
+                            errors={validationErrors}
+                            field="questions"
+                            questionIndex={qIdx}
+                            questionField="answers"
+                          />
                         </div>
                       )}
                     </div>
@@ -1305,7 +1564,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                           <span style={{ color: 'var(--color-danger)' }}> *</span>
                         </label>
                         <textarea
-                          className={styles.textarea}
+                          className={`${styles.textarea} ${filterValidationErrors(validationErrors, { field: 'questions', questionIndex: qIdx, questionField: 'aiContextDetails' }).length > 0 ? styles.inputError : ''}`}
                           placeholder="AIがプレイヤーからの自由な質問に答える基準となる「真相（裏設定）」を、20文字以上2000文字以内で詳しく記述してください。"
                           value={q.aiContextDetails || ''}
                           onChange={(e) => {
@@ -1314,6 +1573,12 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                             setQuestions(nextQuestions);
                           }}
                           style={{ minHeight: '120px' }}
+                        />
+                        <FieldValidationMessages
+                          errors={validationErrors}
+                          field="questions"
+                          questionIndex={qIdx}
+                          questionField="aiContextDetails"
                         />
                       </div>
 
@@ -1363,12 +1628,18 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                         <span className={styles.tagLimitInfo} style={{ marginTop: '4px', display: 'block' }}>
                           {(q.truthKeywords ?? []).length} 個の必須キーワード
                         </span>
+                        <FieldValidationMessages
+                          errors={validationErrors}
+                          field="questions"
+                          questionIndex={qIdx}
+                          questionField="truthKeywords"
+                        />
                       </div>
                     </>
                   )}
 
                   <div className={styles.formGroup} style={{ marginTop: '20px' }}>
-                    <label className={styles.label}>正解後の解説文</label>
+                    <label className={styles.label}>正解後の解説文(任意)</label>
                     <textarea
                       className={styles.textarea}
                       placeholder="正解した/間違えた挑戦者へ表示する解説文を入力してください。"
@@ -1379,7 +1650,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                   </div>
 
                   <div className={styles.formGroup} style={{ marginTop: '16px' }}>
-                    <label className={styles.label}>出典・参考URL</label>
+                    <label className={styles.label}>出典・参考URL(任意)</label>
                     <input
                       type="url"
                       className={styles.input}

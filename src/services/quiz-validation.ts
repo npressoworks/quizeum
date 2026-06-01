@@ -8,6 +8,12 @@
 
 import { Quiz, Question } from '../types';
 import {
+  MAX_TEXT_INPUT_CHAR_COUNT,
+  MIN_TEXT_INPUT_CHAR_COUNT,
+  isValidNumericAnswerText,
+  resolveTextInputMode,
+} from './text-answer-utils';
+import {
   MAX_MULTIPLE_CHOICE_COUNT,
   MIN_MULTIPLE_CHOICE_COUNT,
 } from './quiz-choice-utils';
@@ -72,66 +78,246 @@ export function normalizeTag(input: string): string {
 /**
  * クイズ公開バリデーションエラーの型
  */
+export type QuizValidationQuestionField =
+  | 'type'
+  | 'answers'
+  | 'textInputCharCount'
+  | 'correctTextAnswer'
+  | 'sortingItems'
+  | 'associationHints'
+  | 'aiContextDetails'
+  | 'truthKeywords';
+
 export interface QuizPublishValidationError {
   field: 'title' | 'description' | 'questions' | 'difficulty' | 'genre' | 'ngWord';
   message: string;
   /** 問題単位のエラーの場合、問題インデックス（0始まり） */
   questionIndex?: number;
+  /** 設問内の対象フィールド */
+  questionField?: QuizValidationQuestionField;
+  /** 正解候補リスト内のインデックス（questionField === 'correctTextAnswer' の場合） */
+  answerIndex?: number;
+}
+
+export function filterValidationErrors(
+  errors: QuizPublishValidationError[],
+  filter: {
+    field: QuizPublishValidationError['field'];
+    questionIndex?: number;
+    questionField?: QuizValidationQuestionField;
+    answerIndex?: number;
+    /** true の場合、questionIndex 未設定のエラーのみ */
+    unscopedOnly?: boolean;
+  }
+): QuizPublishValidationError[] {
+  return errors.filter((err) => {
+    if (err.field !== filter.field) return false;
+    if (filter.unscopedOnly && err.questionIndex !== undefined) return false;
+    if (filter.questionIndex !== undefined && err.questionIndex !== filter.questionIndex) return false;
+    if (filter.questionField !== undefined && err.questionField !== filter.questionField) return false;
+    if (filter.answerIndex !== undefined && err.answerIndex !== filter.answerIndex) return false;
+    return true;
+  });
+}
+
+/** サマリー表示用にエラーメッセージを整形する */
+export function formatValidationErrorSummary(
+  err: QuizPublishValidationError,
+  quiz: Pick<Quiz, 'questions'>
+): string {
+  if (err.questionIndex != null) {
+    const q = quiz.questions[err.questionIndex];
+    const preview = q?.questionText.slice(0, 20) || '（無題）';
+    return `問題 ${err.questionIndex + 1}「${preview}」: ${err.message}`;
+  }
+  return err.message;
 }
 
 /**
  * 問題ごとに正解が設定されているか検証するヘルパー
  */
-function isQuestionAnswerValid(question: Question): boolean {
+function collectQuestionValidationErrors(question: Question, idx: number): QuizPublishValidationError[] {
+  const errors: QuizPublishValidationError[] = [];
+
   switch (question.type) {
     case 'multiple-choice': {
       const choices = question.choices ?? [];
       if (choices.length < MIN_MULTIPLE_CHOICE_COUNT || choices.length > MAX_MULTIPLE_CHOICE_COUNT) {
-        return false;
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: `選択肢は${MIN_MULTIPLE_CHOICE_COUNT}〜${MAX_MULTIPLE_CHOICE_COUNT}個設定してください`,
+        });
+      } else if (!choices.some((c) => c.isCorrect)) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解の選択肢を1つ以上指定してください',
+        });
       }
-      return choices.some((c) => c.isCorrect);
+      break;
     }
 
     case 'true-false': {
       const choices = question.choices ?? [];
-      if (choices.length !== 2) return false;
-      return choices.some((c) => c.isCorrect);
+      if (choices.length !== 2) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '〇×形式は選択肢2つが必要です',
+        });
+      } else if (!choices.some((c) => c.isCorrect)) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解の選択肢を指定してください',
+        });
+      }
+      break;
     }
 
-    case 'text-input':
+    case 'text-input': {
+      const list = question.correctTextAnswerList ?? [];
+      if (list.length === 0) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解候補を最低1つ設定してください',
+        });
+      }
+
+      const mode = resolveTextInputMode(question);
+      if (mode === 'char-count') {
+        const count = question.textInputCharCount;
+        if (
+          count == null ||
+          !Number.isInteger(count) ||
+          count < MIN_TEXT_INPUT_CHAR_COUNT ||
+          count > MAX_TEXT_INPUT_CHAR_COUNT
+        ) {
+          errors.push({
+            field: 'questions',
+            questionIndex: idx,
+            questionField: 'textInputCharCount',
+            message: '要求文字数は1〜100の整数で設定してください',
+          });
+        } else {
+          list.forEach((ans, aIdx) => {
+            if (ans.length !== count) {
+              errors.push({
+                field: 'questions',
+                questionIndex: idx,
+                questionField: 'correctTextAnswer',
+                answerIndex: aIdx,
+                message: `要求文字数（${count}文字）と一致していません（現在${ans.length}文字）`,
+              });
+            }
+          });
+        }
+      }
+
+      if (mode === 'numeric') {
+        list.forEach((ans, aIdx) => {
+          if (!isValidNumericAnswerText(ans)) {
+            errors.push({
+              field: 'questions',
+              questionIndex: idx,
+              questionField: 'correctTextAnswer',
+              answerIndex: aIdx,
+              message: '整数・小数の数値を入力してください',
+            });
+          }
+        });
+      }
+      break;
+    }
+
     case 'quick-press':
-      // correctTextAnswerList に最低1つのエントリが必要
-      return (question.correctTextAnswerList ?? []).length > 0;
+      if ((question.correctTextAnswerList ?? []).length === 0) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解候補を最低1つ設定してください',
+        });
+      }
+      break;
 
     case 'sorting': {
-      // sortingItems が2〜6個必要
       const items = question.sortingItems ?? [];
-      if (items.length < 2 || items.length > 6) return false;
-      // correctOrderの重複チェックとインデックス範囲検証
-      const orders = items.map((item) => item.correctOrder);
-      const uniqueOrders = new Set(orders);
-      if (uniqueOrders.size !== orders.length) return false;
-      const maxOrder = items.length - 1;
-      return orders.every((o) => o >= 0 && o <= maxOrder);
+      if (items.length < 2 || items.length > 6) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'sortingItems',
+          message: '並び替え要素は2〜6個設定してください',
+        });
+      } else {
+        const orders = items.map((item) => item.correctOrder);
+        const uniqueOrders = new Set(orders);
+        const maxOrder = items.length - 1;
+        if (uniqueOrders.size !== orders.length || !orders.every((o) => o >= 0 && o <= maxOrder)) {
+          errors.push({
+            field: 'questions',
+            questionIndex: idx,
+            questionField: 'sortingItems',
+            message: '並び替え要素の順序設定が不正です',
+          });
+        }
+      }
+      break;
     }
 
     case 'association': {
-      // associationHints が1〜5個必要、かつ correctTextAnswerList に最低1つの正解パターンが必要
       const hints = question.associationHints ?? [];
-      if (hints.length < 1 || hints.length > 5) return false;
-      return (question.correctTextAnswerList ?? []).length > 0;
+      if (hints.length < 1 || hints.length > 5) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'associationHints',
+          message: '連想ヒントは1〜5個設定してください',
+        });
+      }
+      if ((question.correctTextAnswerList ?? []).length === 0) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解候補を最低1つ設定してください',
+        });
+      }
+      break;
     }
 
     case 'lateral-thinking':
-      // aiContextDetails（裏設定）が必要、かつ必須キーワードが1つ以上指定されていること
-      return (
-        Boolean(question.aiContextDetails?.trim()) &&
-        (question.truthKeywords ?? []).filter((kw) => kw.trim()).length > 0
-      );
+      if (!question.aiContextDetails?.trim()) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'aiContextDetails',
+          message: 'AI用の裏設定（真相）を入力してください',
+        });
+      }
+      if ((question.truthKeywords ?? []).filter((kw) => kw.trim()).length === 0) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'truthKeywords',
+          message: '必須正解キーワードを最低1つ登録してください',
+        });
+      }
+      break;
 
     default:
-      return true;
+      break;
   }
+
+  return errors;
 }
 
 /**
@@ -140,6 +326,7 @@ function isQuestionAnswerValid(question: Question): boolean {
  * 検証内容:
  * - タイトル: 必須、最大100文字
  * - 難易度: 1〜10の整数
+ * - ジャンル: 必須
  * - 問題数: 最低1問
  * - 各問題の正解設定: 問題タイプごとに適切な正解が設定されていること
  * - NGワード: タイトル・説明・問題文にNGワードが含まれないこと
@@ -166,56 +353,49 @@ export function validateQuizForPublish(quiz: Quiz): QuizPublishValidationError[]
     errors.push({ field: 'difficulty', message: '難易度は1〜10の整数で設定してください' });
   }
 
+  // ── ジャンル ──────────────────────────────────────────
+  if (!quiz.genre?.trim()) {
+    errors.push({ field: 'genre', message: 'ジャンルを選択してください' });
+  }
+
   // ── 問題数 ────────────────────────────────────────────
   if (!quiz.questions || quiz.questions.length === 0) {
     errors.push({ field: 'questions', message: '公開するには最低1問の問題が必要です' });
   } else {
     // ── 各問題の正解設定チェック ──────────────────────
     quiz.questions.forEach((q, idx) => {
-      if (!isQuestionAnswerValid(q)) {
-        const detailMsg = q.type === 'lateral-thinking'
-          ? '裏設定（aiContextDetails）または必須キーワードが不足しています'
-          : '正解が設定されていません';
-        errors.push({
-          field: 'questions',
-          message: `問題 ${idx + 1}「${q.questionText.slice(0, 20)}」に${detailMsg}`,
-          questionIndex: idx,
-        });
-      }
+      errors.push(...collectQuestionValidationErrors(q, idx));
     });
 
     // ── クイズ形式と設問タイプの一貫性チェック ──────────
     if (quiz.format) {
       quiz.questions.forEach((q, idx) => {
         if (quiz.format === 'mixed') {
-          // 複合形式: 選択式、記述式、並び替えのみ許可
           const allowedTypes = ['multiple-choice', 'true-false', 'text-input', 'sorting'];
           if (!allowedTypes.includes(q.type)) {
             errors.push({
               field: 'questions',
-              message: `問題 ${idx + 1} のタイプ「${q.type}」は、複合クイズ形式では許可されていません。`,
+              message: `問題タイプ「${q.type}」は、複合クイズ形式では許可されていません`,
               questionIndex: idx,
+              questionField: 'type',
             });
           }
-        } else {
-          // 単一形式: クイズ全体の形式と設問の形式が一致していること
-          if (quiz.format === 'multiple-choice') {
-            if (q.type !== 'multiple-choice' && q.type !== 'true-false') {
-              errors.push({
-                field: 'questions',
-                message: `問題 ${idx + 1} のタイプがクイズ全体の形式（選択式）と一致していません。`,
-                questionIndex: idx,
-              });
-            }
-          } else {
-            if (q.type !== quiz.format) {
-              errors.push({
-                field: 'questions',
-                message: `問題 ${idx + 1} のタイプがクイズ全体の形式と一致していません。`,
-                questionIndex: idx,
-              });
-            }
+        } else if (quiz.format === 'multiple-choice') {
+          if (q.type !== 'multiple-choice' && q.type !== 'true-false') {
+            errors.push({
+              field: 'questions',
+              message: 'クイズ全体の形式（選択式）と一致していません',
+              questionIndex: idx,
+              questionField: 'type',
+            });
           }
+        } else if (q.type !== quiz.format) {
+          errors.push({
+            field: 'questions',
+            message: 'クイズ全体の形式と一致していません',
+            questionIndex: idx,
+            questionField: 'type',
+          });
         }
       });
     }

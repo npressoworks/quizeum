@@ -216,6 +216,21 @@ describe('validateQuizForPublish', () => {
     });
   });
 
+  // ── ジャンルバリデーション ─────────────────────────────
+  describe('ジャンルバリデーション', () => {
+    test('ジャンルが未選択の場合エラーを返す', () => {
+      const quiz = makeQuiz({ genre: '' });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'genre' && e.message === 'ジャンルを選択してください')).toBe(true);
+    });
+
+    test('ジャンルが設定されている場合エラーを返さない', () => {
+      const quiz = makeQuiz({ genre: 'programming' });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'genre')).toBe(false);
+    });
+  });
+
   // ── 正解指定バリデーション ─────────────────────────────
   describe('正解指定バリデーション', () => {
     test('選択肢問題で正解が1つも設定されていない場合エラーを返す', () => {
@@ -270,6 +285,85 @@ describe('validateQuizForPublish', () => {
       const quiz = makeQuiz({ questions: [questionWithNoAnswer] });
       const errors = validateQuizForPublish(quiz);
       expect(errors.some((e) => e.field === 'questions')).toBe(true);
+    });
+
+    test('text-input問題で文字数指定モードかつ文字数未設定の場合エラーを返す', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['abcd'],
+        textInputMode: 'char-count',
+      });
+      const quiz = makeQuiz({ questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(true);
+    });
+
+    test('text-input問題で文字数指定モードかつ正解候補の文字数が一致しない場合エラーを返す', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['abc', 'abcd'],
+        textInputMode: 'char-count',
+        textInputCharCount: 4,
+      });
+      const quiz = makeQuiz({ questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) =>
+        e.field === 'questions' &&
+        e.questionField === 'correctTextAnswer' &&
+        e.answerIndex === 0 &&
+        e.message.includes('要求文字数（4文字）と一致していません')
+      )).toBe(true);
+    });
+
+    test('text-input問題で文字数指定モードかつ正解候補の文字数が一致する場合エラーを返さない', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['abcd', 'ＡＢＣＤ'],
+        textInputMode: 'char-count',
+        textInputCharCount: 4,
+      });
+      const quiz = makeQuiz({ questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(false);
+    });
+
+    test('text-input問題で数値モードかつ正解が数値でない場合エラーを返す', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['not-a-number'],
+        textInputMode: 'numeric',
+      });
+      const quiz = makeQuiz({ questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(true);
+    });
+
+    test('text-input問題で数値モードかつ正解が数値の場合エラーを返さない', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['42'],
+        textInputMode: 'numeric',
+      });
+      const quiz = makeQuiz({ questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(false);
+    });
+
+    test('text-input問題で数値モードかつ正解が小数の場合エラーを返さない', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['3.14', '-2.5'],
+        textInputMode: 'numeric',
+      });
+      const quiz = makeQuiz({ questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(false);
     });
 
     test('quick-press問題でcorrectTextAnswerListが空の場合エラーを返す', () => {

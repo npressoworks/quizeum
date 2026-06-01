@@ -56,6 +56,9 @@ export interface SortingItem {
   correctOrder: number;
 }
 
+/** 記述式問題の入力タイプ */
+export type TextInputMode = 'text' | 'numeric' | 'char-count';
+
 // 3. 問題 (Question)
 export interface Question {
   id: string;             // 問題ID (UUIDまたは連番)
@@ -70,6 +73,8 @@ export interface Question {
   hint: string | null;    // ヒントテキスト
   limitTime: number | null; // 制限秒数
   correctTextAnswerList?: string[]; // 短答形式の正解候補
+  textInputMode?: TextInputMode; // 記述式の入力タイプ（通常/数値/文字数指定）
+  textInputCharCount?: number; // 文字数指定時の要求文字数
   choices?: Choice[];      // 選択肢リスト
   sortingItems?: SortingItem[]; // 並び替え要素
   associationHints?: string[]; // 連想ヒント

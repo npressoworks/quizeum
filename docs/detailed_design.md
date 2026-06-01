@@ -108,9 +108,12 @@ sequenceDiagram
   - いずれかの正解パターンと合致すれば即座に正解（`isCorrect = true`）と判定し、全ヒントを開示して解説を表示します。すべてのパターンと合致しない場合は不正解（`isCorrect = false`）と判定します。
 
 ##### ③ 記述式クイズ (text-input) の判定ロジック
-* **正誤判定ロジック (Client-side)**:
-  - プレイヤーが送信した回答文字列に対し、前後空白のトリム、小文字化、連続空白の除去（`replace(/\s+/g, '')`）を施した正規化値を算出します。
-  - 設問の `correctTextAnswerList` 各要素に同様の正規化を適用し、いずれかと完全一致すれば正解とします（旧 UI 表記「短答式」から「記述式」へ改称）。
+* **入力タイプ (`textInputMode`)**:
+  - `'text'`（通常・デフォルト）: プレイヤーの回答に前後空白のトリム、小文字化、連続空白の除去（`replace(/\s+/g, '')`）を施し、`correctTextAnswerList` 各要素に同様の正規化を適用して完全一致判定。
+  - `'numeric'`（数値）: 整数・小数に対応。全角数字・全角小数点・カンマ区切りを正規化後、数値として比較（浮動小数点誤差は許容）。プレイ・作問UIとも `inputMode="decimal"` を使用。
+  - `'char-count'`（文字数指定）: `textInputCharCount`（1〜100）で要求文字数を設定。プレイ時は `maxLength`/`minLength` で入力を制約し、文字数一致後に通常と同様の正規化一致で判定。
+* **正誤判定の実装**: `src/services/text-answer-utils.ts` の `isTextInputAnswerCorrect` に集約。`usePlayState` および復習プレイ画面から呼び出す。
+* **作問時バリデーション**: `validateQuizForPublish` にて、文字数指定時は要求文字数の妥当性および各正解候補の文字数一致、数値時は各正解候補が数値であることを検証。エラーは該当セル直下にも表示。
 
 ##### ④ 早押しクイズ (quick-press) のプレイ・判定・タイム計測ロジック
 * **クイズ詳細画面 (`/quiz/[id]`)**:
@@ -167,7 +170,7 @@ sequenceDiagram
         Creator->>QC: 「公開する」をクリック
         Note over QC: Zodによる厳格なスキーマ検証 (quizPublishSchema)
         QC->>QC: 設問数(>=1)、各設問正解設定、format と設問 type の一貫性、文字数制限（水平思考のAI用コンテキストは20〜2000文字）などを検証
-        Note over QC: validateQuizForPublish<br>・mixed: multiple-choice / true-false / text-input / sorting のみ<br>・単一形式: 全設問 type が format と一致<br>・quick-press / text-input: correctTextAnswerList 必須<br>・multiple-choice: choices 2〜10件 かつ正解1件以上<br>・true-false: choices 2件固定
+        Note over QC: validateQuizForPublish<br>・genre 必須<br>・mixed: multiple-choice / true-false / text-input / sorting のみ<br>・単一形式: 全設問 type が format と一致<br>・text-input: correctTextAnswerList 必須<br>・text-input + char-count: textInputCharCount 1〜100、正解候補文字数一致<br>・text-input + numeric: 正解候補はすべて数値<br>・multiple-choice: choices 2〜10件 かつ正解1件以上<br>・true-false: choices 2件固定<br>・エラーは該当フィールド直下にも表示
         
         alt バリデーション失敗
             QC-->>Creator: エラー箇所を赤色強調表示、修正指示トースト表示
