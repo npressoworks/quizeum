@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { saveQuiz, getQuiz, updateQuiz } from '@/services/quiz';
-import { validateQuizForPublish, normalizeTag, QuizPublishValidationError, QuizValidationQuestionField, filterValidationErrors, formatValidationErrorSummary } from '@/services/quiz-validation';
+import { validateQuizForPublish, collectQuestionTextValidationErrors, normalizeTag, QuizPublishValidationError, QuizValidationQuestionField, filterValidationErrors, formatValidationErrorSummary } from '@/services/quiz-validation';
 import { hasAnyQuestionUserInput } from '@/services/quiz-question-input';
 import { getTextInputFieldProps } from '@/services/text-answer-utils';
 import {
@@ -450,16 +450,23 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     }
   };
 
-  // 選択肢の正解切り替え (ラジオボタン的に動作)
+  // 選択肢の正解切り替え（複数正解をチェックで設定可能）
   const handleChoiceCorrectToggle = (qIdx: number, cIdx: number) => {
     const nextQuestions = [...questions];
-    if (nextQuestions[qIdx].choices) {
-      nextQuestions[qIdx].choices = nextQuestions[qIdx].choices!.map((choice, idx) => ({
-        ...choice,
-        isCorrect: idx === cIdx,
-      }));
-      setQuestions(nextQuestions);
+    const choices = nextQuestions[qIdx].choices;
+    if (!choices) return;
+
+    const toggled = choices[cIdx];
+    const nextCorrect = !toggled.isCorrect;
+    const correctCount = choices.filter((c) => c.isCorrect).length;
+
+    if (!nextCorrect && correctCount <= 1) {
+      return;
     }
+
+    choices[cIdx] = { ...toggled, isCorrect: nextCorrect };
+    nextQuestions[qIdx].choices = [...choices];
+    setQuestions(nextQuestions);
   };
 
   const handleAddChoice = (qIdx: number) => {
@@ -858,6 +865,9 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       if (!genre.trim()) {
         draftErrors.push({ field: 'genre', message: 'ジャンルを選択してください' });
       }
+      questions.forEach((q, idx) => {
+        draftErrors.push(...collectQuestionTextValidationErrors(q, idx));
+      });
       if (draftErrors.length > 0) {
         setValidationErrors(draftErrors);
         setErrorText('下書き保存できません。未入力の項目を確認してください。');
@@ -1261,13 +1271,22 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                   />
 
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>問題文</label>
+                    <label className={styles.label}>問題文（必須）</label>
                     <textarea
-                      className={styles.textarea}
+                      className={`${styles.textarea} ${filterValidationErrors(validationErrors, { field: 'questions', questionIndex: qIdx, questionField: 'questionText' }).length > 0 ? styles.inputError : ''}`}
                       placeholder="例: Reactにおいて、コンポーネントのステートを管理するためのフックは？"
                       value={q.questionText}
                       onChange={(e) => handleQuestionTextChange(qIdx, e.target.value)}
                       style={{ minHeight: '80px', resize: 'vertical' }}
+                      required
+                      minLength={5}
+                      maxLength={500}
+                    />
+                    <FieldValidationMessages
+                      errors={validationErrors}
+                      field="questions"
+                      questionIndex={qIdx}
+                      questionField="questionText"
                     />
                   </div>
 
@@ -1275,7 +1294,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                   {q.type === 'multiple-choice' && q.choices && (
                     <div className={styles.choicesList}>
                       <label className={styles.label}>
-                        選択肢と正解設定（左のチェックが正解になります。{MIN_MULTIPLE_CHOICE_COUNT}〜{MAX_MULTIPLE_CHOICE_COUNT}択）
+                        選択肢と正解設定（正解となる選択肢にすべてチェック。{MIN_MULTIPLE_CHOICE_COUNT}〜{MAX_MULTIPLE_CHOICE_COUNT}択・複数正解可）
                       </label>
                       {q.choices.map((choice, cIdx) => (
                         <div key={choice.id || cIdx} className={styles.choiceRow}>

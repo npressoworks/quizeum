@@ -97,6 +97,18 @@ sequenceDiagram
   - `usePlayState` 等で `sortedIds` を `,` で分割し、各インデックス `currentIndex` について対応する `SortingItem` の `correctOrder` と一致するか検証します（`userSortedItems` 配列走査と等価）。
   - すべての要素において `currentIndex === item.correctOrder` が成立する場合のみ正解（`isCorrect = true`）と判定します。1つでもインデックスが合致しない要素があれば、不正解（`isCorrect = false`）と判定します。
 
+##### ①-2 選択式クイズ (`multiple-choice` / `true-false`) の UI・判定ロジック
+* **作問エディタ**（`quiz-editor.tsx`）:
+  - 多肢選択（`multiple-choice`）の各選択肢行にチェックボックスを配置し、**正解となる選択肢にすべてチェック**できる（複数正解可）。最低1件の正解は必須（最後の1件のチェックは外せない）。
+* **プレイ画面**（`ChoiceAnswerPanel` / `/quiz/[id]/play` 等）:
+  - 設問の `choices` のうち `isCorrect === true` の件数が **1 件** のときは **ラジオボタン**、**2 件以上** のときは **チェックボックス** で選択肢を表示する。
+  - プレイヤーが選択肢を選んだ後、**「解答を確定する」** ボタンで `handleAnswerSubmit` を呼び出す（選択肢のクリックのみでは送信しない）。
+  - 確定時の解答ペイロードは、選んだ Choice の `id` をカンマ区切り連結した文字列（単一正解時は id 1 件のみ。旧 Attempt レコードとの互換性を維持）。
+* **正誤判定**（`choice-answer-utils.ts` の `isChoiceAnswerCorrect`）:
+  - 正解 ID の集合と、プレイヤーが選んだ ID の集合が完全一致した場合のみ正解。件数不一致・誤答選択肢の含有はすべて不正解。
+* **結果表示**（`attempt-answer-display.ts`）:
+  - `formatUserAnswer` はカンマ区切り ID を分割し、各選択肢テキストを ` / ` で連結表示。`formatCorrectAnswer` は `isCorrect` の全選択肢を同様に表示。
+
 ##### ② 連想クイズ (association) の判定ロジック
 * **UIアクションと段階的ヒント開示ステート**:
   - 初期レンダリング時には、連想ヒントリスト（`associationHints`）の最初の要素であるヒント1（`associationHints[0]`）のみを表示します。
@@ -133,7 +145,7 @@ sequenceDiagram
   - プレイ完了（オンライン/オフライン）時に `localStorage.setItem('quizeum_qp_times_{attemptId}', JSON.stringify(quickPressTimes))` を実行。
   - 結果画面 (`/quiz/[id]/result`) で読み込み後 `removeItem` し、平均・最速・正答数の統計カードおよび設問別バッジを表示します。
 * **ユーザー回答の記録と結果画面表示**:
-  - `usePlayState` の `handleAnswerSubmit` は、正誤判定後に `setQuestionAnswers(prev => ({ ...prev, [questionId]: rawAnswer }))` で設問ごとのユーザー回答を State に蓄積する。`rawAnswer` は、選択式なら選択肢ID、並び替えならカンマ区切りID列、記述式/早押しなら入力テキスト、フラッシュカードなら `'correct'`/`'incorrect'`。
+  - `usePlayState` の `handleAnswerSubmit` は、正誤判定後に `setQuestionAnswers(prev => ({ ...prev, [questionId]: rawAnswer }))` で設問ごとのユーザー回答を State に蓄積する。`rawAnswer` は、選択式なら選択肢ID（複数正解時はカンマ区切りID列）、並び替えならカンマ区切りID列、記述式/早押しなら入力テキスト、フラッシュカードなら `'correct'`/`'incorrect'`。
   - プレイ完了時に `questionAnswers` を `QuestionAnswerRecord[]`（`{ questionId, userAnswer }[]`）へ変換し、`Attempt.questionAnswers` として `saveAttempt` に渡す。オフライン保存時は `PendingSyncAttempt.questionAnswers` として localStorage に退避する。
   - 結果画面では `attempt.questionAnswers`（`QuestionAnswerRecord[]`）を参照し、各設問カードに「あなたの回答」欄を表示する。回答の整形（選択肢テキストへの変換・並び替え順のアロー連結等）は `attempt-answer-display.ts` の `formatUserAnswer` / `formatCorrectAnswer` に集約する。`questionAnswers` が空の旧レコードの場合は「（記録なし）」にフォールバックする。
 * **弱点克服プレイ**: 復習画面でも `quick-press` 設問は難読化を適用。表示は全文を即時復号表示（一文字アニメーションは省略）。正誤判定はプレイ画面と同一の正規化・復号ロジックを使用します。
@@ -158,7 +170,8 @@ sequenceDiagram
     
     alt 下書き保存の場合 (isPublished = false)
         Creator->>QC: 「下書き保存」をクリック
-        QC->>QC: 最小限のバリデーション (タイトル入力)
+        QC->>QC: 下書きバリデーション (タイトル・ジャンル・各設問 questionText)
+        Note over QC: collectQuestionTextValidationErrors<br>・未入力/空白のみ不可<br>・トリム後5文字以上・500文字以内
         QC->>QS: createQuiz / updateQuiz (status = 'draft')
         activate QS
         QS->>DB: quizzes ドキュメント保存
@@ -170,7 +183,7 @@ sequenceDiagram
         Creator->>QC: 「公開する」をクリック
         Note over QC: Zodによる厳格なスキーマ検証 (quizPublishSchema)
         QC->>QC: 設問数(>=1)、各設問正解設定、format と設問 type の一貫性、文字数制限（水平思考のAI用コンテキストは20〜2000文字）などを検証
-        Note over QC: validateQuizForPublish<br>・genre 必須<br>・mixed: multiple-choice / true-false / text-input / sorting のみ<br>・単一形式: 全設問 type が format と一致<br>・text-input: correctTextAnswerList 必須<br>・text-input + char-count: textInputCharCount 1〜100、正解候補文字数一致<br>・text-input + numeric: 正解候補はすべて数値<br>・multiple-choice: choices 2〜10件 かつ正解1件以上<br>・true-false: choices 2件固定<br>・エラーは該当フィールド直下にも表示
+        Note over QC: validateQuizForPublish<br>・genre 必須<br>・各設問 questionText 必須（5〜500文字）<br>・mixed: multiple-choice / true-false / text-input / sorting のみ<br>・単一形式: 全設問 type が format と一致<br>・text-input: correctTextAnswerList 必須<br>・text-input + char-count: textInputCharCount 1〜100、正解候補文字数一致<br>・text-input + numeric: 正解候補はすべて数値<br>・multiple-choice: choices 2〜10件 かつ正解1件以上（複数正解可）<br>・true-false: choices 2件固定<br>・エラーは該当フィールド直下にも表示（questionText 含む）
         
         alt バリデーション失敗
             QC-->>Creator: エラー箇所を赤色強調表示、修正指示トースト表示
@@ -213,7 +226,22 @@ sequenceDiagram
     end
 ```
 
-#### 1.2.1 テストプレイフロー（F-206）
+#### 1.2.1 設問の問題文バリデーション（下書き・公開共通）
+
+* **実装**: `src/services/quiz-validation.ts` の `collectQuestionTextValidationErrors`（定数 `MIN_QUESTION_TEXT_LENGTH = 5`, `MAX_QUESTION_TEXT_LENGTH = 500`）。
+* **呼び出し元**:
+  - **公開**: `validateQuizForPublish` → `collectQuestionValidationErrors` の先頭で各設問に適用。
+  - **下書き**: `quiz-editor.tsx` の `handleSave('draft')` で、タイトル・ジャンル検証後に全 `questions` へ適用。
+* **検証ルール**:
+  | 条件 | エラーメッセージ（例） | `questionField` |
+  | :--- | :--- | :--- |
+  | 未入力または空白のみ | 問題文を入力してください | `questionText` |
+  | トリム後 5 文字未満 | 問題文は5文字以上で入力してください | `questionText` |
+  | 500 文字超過 | 問題文は500文字以内で入力してください | `questionText` |
+* **UI**（`quiz-editor.tsx`）: ラベル「問題文（必須）」、`textarea` に `required` / `minLength={5}` / `maxLength={500}`、エラー時 `inputError` クラスと `FieldValidationMessages`（`questionField="questionText"`）。
+* **テストプレイとの関係**: F-206 は「トリム後1文字以上の問題文がある設問が1問以上」で開始可能（5文字ルールは**適用しない**）。下書き保存・公開とは要件を分離する。
+
+#### 1.2.2 テストプレイフロー（F-206）
 公開前のクイズを、作問エディタ上の編集中データのまま実際のプレイ画面で確認するフローです。Firestore への書き込みは行わず、統計・履歴への影響を完全に遮断します。
 
 ```mermaid

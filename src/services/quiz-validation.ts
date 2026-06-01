@@ -78,7 +78,11 @@ export function normalizeTag(input: string): string {
 /**
  * クイズ公開バリデーションエラーの型
  */
+export const MIN_QUESTION_TEXT_LENGTH = 5;
+export const MAX_QUESTION_TEXT_LENGTH = 500;
+
 export type QuizValidationQuestionField =
+  | 'questionText'
   | 'type'
   | 'answers'
   | 'textInputCharCount'
@@ -134,10 +138,53 @@ export function formatValidationErrorSummary(
 }
 
 /**
+ * 設問の問題文を検証する（下書き・公開の共通）
+ */
+export function collectQuestionTextValidationErrors(
+  question: Question,
+  idx: number
+): QuizPublishValidationError[] {
+  const trimmed = question.questionText?.trim() ?? '';
+  const errors: QuizPublishValidationError[] = [];
+
+  if (!trimmed) {
+    errors.push({
+      field: 'questions',
+      questionIndex: idx,
+      questionField: 'questionText',
+      message: '問題文を入力してください',
+    });
+    return errors;
+  }
+
+  if (trimmed.length < MIN_QUESTION_TEXT_LENGTH) {
+    errors.push({
+      field: 'questions',
+      questionIndex: idx,
+      questionField: 'questionText',
+      message: `問題文は${MIN_QUESTION_TEXT_LENGTH}文字以上で入力してください`,
+    });
+  }
+
+  if (question.questionText.length > MAX_QUESTION_TEXT_LENGTH) {
+    errors.push({
+      field: 'questions',
+      questionIndex: idx,
+      questionField: 'questionText',
+      message: `問題文は${MAX_QUESTION_TEXT_LENGTH}文字以内で入力してください`,
+    });
+  }
+
+  return errors;
+}
+
+/**
  * 問題ごとに正解が設定されているか検証するヘルパー
  */
 function collectQuestionValidationErrors(question: Question, idx: number): QuizPublishValidationError[] {
-  const errors: QuizPublishValidationError[] = [];
+  const errors: QuizPublishValidationError[] = [
+    ...collectQuestionTextValidationErrors(question, idx),
+  ];
 
   switch (question.type) {
     case 'multiple-choice': {
@@ -328,6 +375,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
  * - 難易度: 1〜10の整数
  * - ジャンル: 必須
  * - 問題数: 最低1問
+ * - 各問題の問題文: 必須、5文字以上500文字以内
  * - 各問題の正解設定: 問題タイプごとに適切な正解が設定されていること
  * - NGワード: タイトル・説明・問題文にNGワードが含まれないこと
  *

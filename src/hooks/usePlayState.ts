@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Quiz, Question } from '@/types';
 import { LocalAttemptSession, PlayProgressData } from '@/services/attempt-session';
+import { isChoiceAnswerCorrect } from '@/services/choice-answer-utils';
 import { isTextInputAnswerCorrect } from '@/services/text-answer-utils';
 import { canJudgeQuestion, checkTruthKeywordsLocally } from '@/lib/test-play';
 
@@ -142,8 +143,7 @@ export function usePlayState({
       // 暗記カード（フラッシュカード）モードは自己申告による正誤判定
       isCorrect = answerTextOrChoiceId === 'correct';
     } else if (currentQuestion.type === 'multiple-choice' || currentQuestion.type === 'true-false') {
-      const selectedChoice = currentQuestion.choices?.find((c) => c.id === answerTextOrChoiceId);
-      isCorrect = !!selectedChoice?.isCorrect;
+      isCorrect = isChoiceAnswerCorrect(answerTextOrChoiceId, currentQuestion);
     } else if (currentQuestion.type === 'text-input' || currentQuestion.type === 'association') {
       isCorrect = isTextInputAnswerCorrect(answerTextOrChoiceId, currentQuestion);
     } else if (currentQuestion.type === 'quick-press') {

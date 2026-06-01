@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { ArrowLeft, BookOpen, Check, X, Award, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { getFailedQuestions, updateFailedQuestions } from '@/services/attempt';
+import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
+import { isChoiceAnswerCorrect } from '@/services/choice-answer-utils';
 import { getTextInputFieldProps, isTextInputAnswerCorrect } from '@/services/text-answer-utils';
 import { Question } from '@/types';
 import styles from './review.module.css';
@@ -91,8 +93,7 @@ export default function ReviewPage() {
     let isCorrect = false;
 
     if (currentQuestion.type === 'multiple-choice' || currentQuestion.type === 'true-false') {
-      const selectedChoice = currentQuestion.choices?.find((c) => c.id === answerTextOrChoiceId);
-      isCorrect = !!selectedChoice?.isCorrect;
+      isCorrect = isChoiceAnswerCorrect(answerTextOrChoiceId, currentQuestion);
     } else if (currentQuestion.type === 'text-input') {
       isCorrect = isTextInputAnswerCorrect(answerTextOrChoiceId, currentQuestion);
     } else if (currentQuestion.type === 'quick-press') {
@@ -230,27 +231,11 @@ export default function ReviewPage() {
           </h2>
 
           {/* 選択肢 */}
-          {(failedQuestions[currentIdx]?.type === 'multiple-choice' || failedQuestions[currentIdx]?.type === 'true-false') && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {failedQuestions[currentIdx]?.choices?.map((choice) => (
-                <button
-                  key={choice.id}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid var(--border-light)',
-                    padding: '16px',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--text-main)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '1rem'
-                  }}
-                  onClick={() => handleAnswerSubmit(choice.id)}
-                >
-                  {choice.choiceText}
-                </button>
-              ))}
-            </div>
+          {(failedQuestions[currentIdx]?.type === 'multiple-choice' || failedQuestions[currentIdx]?.type === 'true-false') && failedQuestions[currentIdx] && (
+            <ChoiceAnswerPanel
+              question={failedQuestions[currentIdx]}
+              onConfirm={handleAnswerSubmit}
+            />
           )}
 
           {/* 記述式・早押し */}

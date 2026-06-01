@@ -26,6 +26,7 @@ import {
   TestPlayResult,
 } from '@/lib/test-play';
 import styles from '@/app/quiz/[id]/play/play.module.css';
+import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
 import { SortableSortingList } from '@/components/sorting/sortable-sorting-list';
 
 function TestPlayPageContent() {
@@ -367,18 +368,12 @@ function TestPlayPageContent() {
         </h2>
 
         {(currentQuestion.type === 'multiple-choice' || currentQuestion.type === 'true-false') && (
-          <div className={styles.optionsGrid}>
-            {currentQuestion.choices?.map((choice) => (
-              <button
-                key={choice.id}
-                type="button"
-                className={`${styles.optionBtn} optionBtn`}
-                onClick={() => handleAnswerSubmit(choice.id)}
-              >
-                <span>{choice.choiceText}</span>
-              </button>
-            ))}
-          </div>
+          <ChoiceAnswerPanel
+            question={currentQuestion}
+            onConfirm={handleAnswerSubmit}
+            initialAnswer={questionAnswers[currentQuestion.id]}
+            disabled={answeredIds.includes(currentQuestion.id)}
+          />
         )}
 
         {currentQuestion.type === 'text-input' && (() => {

@@ -16,7 +16,9 @@ import { toQuestionAnswerRecords } from '@/services/attempt-answer-display';
 import { Quiz, Attempt, Question } from '@/types';
 import { auth } from '@/lib/firebase/config';
 import styles from './play.module.css';
+import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
 import { SortableSortingList } from '@/components/sorting/sortable-sorting-list';
+import { formatCorrectAnswer } from '@/services/attempt-answer-display';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -659,19 +661,14 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
           {currentQuestion?.type === 'quick-press' ? (isReadingStarted ? quickPressText : '') : currentQuestion?.questionText}
         </h2>
 
-        {/* 1. 選択肢表示 (複数選択/○×判定) */}
+        {/* 1. 選択肢表示 (単一正解=ラジオ / 複数正解=チェックボックス → 確定ボタン) */}
         {(currentQuestion?.type === 'multiple-choice' || currentQuestion?.type === 'true-false') && (
-          <div className={styles.optionsGrid}>
-            {currentQuestion.choices?.map((choice) => (
-              <button
-                key={choice.id}
-                className={`${styles.optionBtn} optionBtn`}
-                onClick={() => handleAnswerSubmit(choice.id)}
-              >
-                <span>{choice.choiceText}</span>
-              </button>
-            ))}
-          </div>
+          <ChoiceAnswerPanel
+            question={currentQuestion}
+            onConfirm={handleAnswerSubmit}
+            initialAnswer={questionAnswers[currentQuestion.id]}
+            disabled={playMode !== 'exam' && answeredIds.includes(currentQuestion.id)}
+          />
         )}
 
         {/* 2. 記述式の入力 */}
@@ -974,7 +971,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
             ) : (
               <div className={styles.cardBack}>
                 <div className={styles.correctAnswer}>
-                  正解: {currentQuestion.choices?.find((c) => c.isCorrect)?.choiceText || currentQuestion.correctTextAnswerList?.[0] || '正解'}
+                  正解: {formatCorrectAnswer(currentQuestion) || currentQuestion.correctTextAnswerList?.[0] || '正解'}
                 </div>
                 <p className={styles.explanation} dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.explanation) }} />
 

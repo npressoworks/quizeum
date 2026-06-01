@@ -158,6 +158,11 @@
   transform: translateX(4px);
 }
 
+.optionBtnSelected {
+  border-color: var(--color-primary);
+  background: rgba(157, 78, 221, 0.15);
+}
+
 /* 短答入力フォーム */
 .inputForm {
   display: flex;

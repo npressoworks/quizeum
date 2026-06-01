@@ -1,3 +1,4 @@
+import { parseChoiceAnswerIds } from '@/services/choice-answer-utils';
 import { Attempt, Question, QuestionAnswerRecord } from '@/types';
 
 export function getUserAnswerRaw(
@@ -32,8 +33,12 @@ export function formatUserAnswer(
   switch (question.type) {
     case 'multiple-choice':
     case 'true-false': {
-      const choice = question.choices?.find((c) => c.id === rawAnswer);
-      return choice?.choiceText ?? rawAnswer;
+      const ids = parseChoiceAnswerIds(rawAnswer);
+      if (ids.length === 0) return rawAnswer;
+      const texts = ids
+        .map((id) => question.choices?.find((c) => c.id === id)?.choiceText ?? id)
+        .filter(Boolean);
+      return texts.length > 0 ? texts.join(' / ') : rawAnswer;
     }
     case 'text-input':
     case 'association':

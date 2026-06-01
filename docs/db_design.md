@@ -128,7 +128,7 @@ erDiagram
   - `quick-press`（早押し）: 問題文の一文字ずつ表示と早押しボタンによる解答。`correctTextAnswerList` 必須。プレイ時の早押しタイムは `localStorage`（`quizeum_qp_times_{attemptId}`）に一時保存（DB非永続）。
   - `sorting`（並び替えクイズ）: 提示された複数の要素（2〜6個）を、プレイ時・作問時ともに**ドラッグ＆ドロップ**で正しい順番（`correctOrder` に対応する表示インデックス）に並び替える形式です。上下ボタンによる順序変更UIは採用しません。
   - `association`（連想クイズ）: 段階的なヒント（連想ヒントリスト）を提示して、最終的な正解を導き出させる形式です。
-* `questionText` (`string`): 問題文。
+* `questionText` (`string`): 問題文。**必須**。作問時の下書き保存・公開バリデーションではトリム後5文字以上・500文字以内（`collectQuestionTextValidationErrors`）。
 * `explanation` (`string`): 解説文。
 * `imageUrl` (`string`, 任意): 参考イラスト・写真URL。
 * `hint` (`string`, 任意): ヒントテキスト。
@@ -139,7 +139,7 @@ erDiagram
   - `'numeric'`: 数値入力（整数・小数）。全角数字・小数点・カンマ区切りに対応し、浮動小数点誤差を許容して数値比較。
   - `'char-count'`: 文字数指定。`textInputCharCount` で要求文字数（1〜100）を設定し、プレイ時は `maxLength`/`minLength` で入力を制約。正解候補の文字数も要求文字数と一致することを公開バリデーションで検証。
 * `textInputCharCount` (`number`, 任意): `textInputMode === 'char-count'` 時の要求文字数（1〜100の整数）。
-* `choices` (`array (Choice)`, 任意): 選択肢配列。〇×・多肢選択クイズ用。
+* `choices` (`array (Choice)`, 任意): 選択肢配列。〇×・多肢選択クイズ用。多肢選択（`multiple-choice`）では `isCorrect: true` を複数持てる（複数正解設問）。
 * `sortingItems` (`array (SortingItem)`, 任意): 並び替えクイズ用のソート対象要素リスト（2〜6個）。作問エディタではドラッグ＆ドロップ後の表示順から各要素の `correctOrder`（0始まり連番）を自動設定し、プレイ時はシャッフル表示後にプレイヤーがドラッグ＆ドロップで並べ替え、確定時に要素IDの並び順を解答として送信します。
 * `associationHints` (`array (string)`, 任意): 連想クイズ用の段階的ヒントリスト。最大5つのヒントを登録し、段階的にプレイヤーへ開示する。
 * `aiContextDetails` (`string`, 任意): ウミガメのスープ用詳細裏設定（AI判定用コンテキスト）。20文字以上2000文字以内。
@@ -151,7 +151,7 @@ erDiagram
 #### ネストされる `Choice` オブジェクト型
 * `id` (`string`): 選択肢の一意ID.
 * `choiceText` (`string`): 選択肢のテキスト。
-* `isCorrect` (`boolean`): 正解フラグ。
+* `isCorrect` (`boolean`): 正解フラグ。`multiple-choice` では複数の選択肢に `true` を設定可能（複数正解）。
 * `selectedCount` (`number`): 選ばれた累計回数。
 
 #### ネストされる `SortingItem` オブジェクト型 (並び替え用)
@@ -179,7 +179,7 @@ erDiagram
 | `authorName` | `string` | **必須** | 非正規化保持 | 作成者の表示名（冗長保持）。 |
 | `authorAvatar` | `string` | **必須** | 非正規化保持 | 作成者のアバターURL（冗長保持）。 |
 | `type` | `string` | **必須** | `true-false \| multiple-choice \| text-input \| quick-press \| sorting \| association \| lateral-thinking` | 問題タイプ（〇×、多肢選択、記述式、早押し、並び替え、連想、水平思考）。 |
-| `questionText` | `string` | **必須** | 最大500文字 | 設問の文章。 |
+| `questionText` | `string` | **必須** | 5〜500文字（トリム後最小5） | 設問の文章。未入力・空白のみ・5文字未満は下書き保存・公開とも不可。 |
 | `explanation` | `string` | **必須** | 最大1000文字 | 解答後の解説文章。 |
 | `imageUrl` | `string` | 任意 | 参考画像URL | 設問にアタッチされた参考画像のストレージURL。 |
 | `hint` | `string` | 任意 | 最大200文字 | 設問のヒントテキスト。 |
@@ -260,7 +260,7 @@ erDiagram
 | `totalQuestions`| `number` | **必須** | 非負整数 | クイズの総問題数。 |
 | `elapsedSeconds`| `number` | **必須** | 秒数 | 解答経過時間（秒単位）。 |
 | `failedQuestionIds`| `array (string)`| **必須** | `[]` | 間違えた問題のID配列。 |
-| `questionAnswers` | `array (QuestionAnswerRecord)` | 任意 | `[]` | 設問ごとのユーザー回答。結果画面の「あなたの回答」表示に使用。`QuestionAnswerRecord` は `{ questionId: string, userAnswer: string }` の形式。選択式は選択肢ID、並び替えはカンマ区切り要素ID列、記述式は入力テキスト、フラッシュカードは `'correct'`/`'incorrect'`。旧レコードには存在しない場合があり、その場合は「（記録なし）」表示にフォールバックする。 |
+| `questionAnswers` | `array (QuestionAnswerRecord)` | 任意 | `[]` | 設問ごとのユーザー回答。結果画面の「あなたの回答」表示に使用。`QuestionAnswerRecord` は `{ questionId: string, userAnswer: string }` の形式。選択式は選択肢ID（複数正解設問では正解として選んだIDをカンマ区切り）、並び替えはカンマ区切り要素ID列、記述式は入力テキスト、フラッシュカードは `'correct'`/`'incorrect'`。旧レコードには存在しない場合があり、その場合は「（記録なし）」表示にフォールバックする。 |
 | `difficultyVote` | `number` | 任意 | `1` 〜 `10` / `null` | 体感難易度投票。 |
 | `aiQuestionsHistory`| `array (AiQuestion)`| 任意 | `[]` | 水平思考プレイの直近最大20ターン分の対話履歴（ステートフル対話の文脈参照用）。 |
 | `aiTurnCount` | `number` | 任意 | `0` | 現在のセッションで発行した質問の総数（キャッシュヒット分を導く）。 |

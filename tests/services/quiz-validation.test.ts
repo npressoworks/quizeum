@@ -231,6 +231,39 @@ describe('validateQuizForPublish', () => {
     });
   });
 
+  // ── 問題文バリデーション ─────────────────────────────
+  describe('問題文バリデーション', () => {
+    test('問題文が空の場合エラーを返す', () => {
+      const quiz = makeQuiz({ questions: [makeQuestion({ questionText: '' })] });
+      const errors = validateQuizForPublish(quiz);
+      expect(
+        errors.some((e) => e.questionField === 'questionText' && e.message === '問題文を入力してください')
+      ).toBe(true);
+    });
+
+    test('問題文が空白のみの場合エラーを返す', () => {
+      const quiz = makeQuiz({ questions: [makeQuestion({ questionText: '   ' })] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.questionField === 'questionText')).toBe(true);
+    });
+
+    test('問題文が5文字未満の場合エラーを返す', () => {
+      const quiz = makeQuiz({ questions: [makeQuestion({ questionText: 'あいう' })] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.questionField === 'questionText' && e.message.includes('5文字以上'))).toBe(
+        true
+      );
+    });
+
+    test('問題文が500文字を超える場合エラーを返す', () => {
+      const quiz = makeQuiz({ questions: [makeQuestion({ questionText: 'あ'.repeat(501) })] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.questionField === 'questionText' && e.message.includes('500文字以内'))).toBe(
+        true
+      );
+    });
+  });
+
   // ── 正解指定バリデーション ─────────────────────────────
   describe('正解指定バリデーション', () => {
     test('選択肢問題で正解が1つも設定されていない場合エラーを返す', () => {

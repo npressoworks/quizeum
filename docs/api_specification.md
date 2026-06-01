@@ -312,9 +312,18 @@ export interface LeaderboardRecord {
 ### 3.1 クイズ登録・公開スキーマ (`quizPublishSchema`)
 クイズ公開（`isPublished = true`）時に適用される厳格なバリデーションスキーマ仕様です。
 
+**設問の問題文（`questionText`）の検証要件**:
+- **下書き保存・公開の共通**（`collectQuestionTextValidationErrors`）: 登録されている各設問について、問題文は必須。前後空白のみは未入力扱い。トリム後 **5文字以上**、全体 **500文字以内**（`MIN_QUESTION_TEXT_LENGTH` / `MAX_QUESTION_TEXT_LENGTH`）。
+- **公開時**（`questionSchema` / Zod）: 上記と同趣旨（`min(5)` / `max(500)`）。エラーは `questionField: 'questionText'` として該当設問カードの問題文テキストエリア直下に表示する。
+
 **ジャンル・タグの検証要件**:
 - **`genre`**: `metadata_genres` コレクションに存在する有効なジャンルIDでなければなりません。未選択や空文字は許容されません。
 - **`tags`**: 最大5個までの文字列配列。各要素はフロントエンドで事前に「自動名寄せ（空白/記号の排除、小文字化）」が適用された、15文字以内の正規化タグID配列である必要があります。
+
+**選択式クイズ（`type: 'multiple-choice'` / `'true-false'`）のUI・解答データ連携**:
+- 作問時: 多肢選択では各 `Choice.isCorrect` にチェックを付け、**複数の正解**を登録できる（最低1件必須）。
+- プレイ時: 正解が1件の設問はラジオボタン、2件以上はチェックボックスで選択し、「解答を確定する」ボタンで送信する。
+- 解答ペイロード: 選んだ Choice の `id` をカンマ区切りで `handleAnswerSubmit` / `questionAnswers` に保存。正誤は正解 ID 集合との完全一致で判定（`isChoiceAnswerCorrect`）。
 
 **並び替えクイズ（`type: 'sorting'`）のUI・解答データ連携**:
 - 作問時・プレイ時とも、並び替え要素リストの順序変更は**ドラッグ＆ドロップ**（推奨: `@dnd-kit/core`）で行う。上下ボタンによる順序変更UIは仕様外とする。
@@ -383,7 +392,7 @@ export const questionSchema = z.object({
     } else if (!data.choices.some(c => c.isCorrect)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: '少なくとも1つの正解を設定してください。',
+        message: '少なくとも1つの正解を設定してください（複数正解可）。',
         path: ['choices']
       });
     }
@@ -584,7 +593,7 @@ export interface Reaction {
 }
 
 // 設問ごとのユーザー回答レコード（結果画面の「あなたの回答」表示用）
-// - multiple-choice / true-false : 選択した Choice の id
+// - multiple-choice / true-false : 選択した Choice の id。複数正解設問では正解として選んだ id をカンマ区切りで連結（例: "c-1,c-3"）。単一正解の旧データは id 1 件のみ
 // - text-input / quick-press / association : 入力テキスト文字列
 // - sorting : 確定時の要素IDをカンマ区切り連結（例: "id1,id2,id3"）
 // - flashcard : 'correct' または 'incorrect'（自己申告）
