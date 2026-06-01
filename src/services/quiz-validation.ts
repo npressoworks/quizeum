@@ -86,6 +86,7 @@ function isQuestionAnswerValid(question: Question): boolean {
       return (question.choices ?? []).some((c) => c.isCorrect);
 
     case 'text-input':
+    case 'quick-press':
       // correctTextAnswerList に最低1つのエントリが必要
       return (question.correctTextAnswerList ?? []).length > 0;
 
@@ -169,6 +170,42 @@ export function validateQuizForPublish(quiz: Quiz): QuizPublishValidationError[]
         });
       }
     });
+
+    // ── クイズ形式と設問タイプの一貫性チェック ──────────
+    if (quiz.format) {
+      quiz.questions.forEach((q, idx) => {
+        if (quiz.format === 'mixed') {
+          // 複合形式: 選択式、記述式、並び替えのみ許可
+          const allowedTypes = ['multiple-choice', 'true-false', 'text-input', 'sorting'];
+          if (!allowedTypes.includes(q.type)) {
+            errors.push({
+              field: 'questions',
+              message: `問題 ${idx + 1} のタイプ「${q.type}」は、複合クイズ形式では許可されていません。`,
+              questionIndex: idx,
+            });
+          }
+        } else {
+          // 単一形式: クイズ全体の形式と設問の形式が一致していること
+          if (quiz.format === 'multiple-choice') {
+            if (q.type !== 'multiple-choice' && q.type !== 'true-false') {
+              errors.push({
+                field: 'questions',
+                message: `問題 ${idx + 1} のタイプがクイズ全体の形式（選択式）と一致していません。`,
+                questionIndex: idx,
+              });
+            }
+          } else {
+            if (q.type !== quiz.format) {
+              errors.push({
+                field: 'questions',
+                message: `問題 ${idx + 1} のタイプがクイズ全体の形式と一致していません。`,
+                questionIndex: idx,
+              });
+            }
+          }
+        }
+      });
+    }
   }
 
   // ── NGワードチェック ──────────────────────────────────

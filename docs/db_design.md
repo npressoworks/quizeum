@@ -117,12 +117,15 @@ erDiagram
 | `canonicalGenreId` | `string` | **必須** | 既存ジャンルID | 仮想統合の書き込み時解決用。タグ/ジャンルマージ関係を書き込み時に解決した、統合先の正規ジャンルID。 |
 | `canonicalTagIds` | `array (string)` | **必須** | `[]` | 仮想統合の書き込み時解決用。クイズに付与された各タグIDの統合先正規タグIDの配列（例：`['react', '歴史']`）。検索（クエリ）の高速化専用。クイズ作成・編集時およびマージ可決時に非同期で更新される。 |
 | `leaderboard` | `array (Record)`| **必須** | 最大5要素 / `[]` | 全問正解者のハイスコア＆最速全問正解ランキング。 |
+| `format` | `string` | 任意 | `'mixed'` | **[NEW]** クイズ全体の出題形式。`mixed`（複合）／`multiple-choice`／`text-input`／`quick-press`／`sorting`／`association`／`lateral-thinking`。単一形式選択時は全設問の `type` と一致させる（公開時に `validateQuizForPublish` で検証）。 |
 | `createdAt` | `timestamp` | **必須** | `request.time` | クイズ作成（下書き開始）日時。 |
 | `updatedAt` | `timestamp` | **必須** | `request.time` | クイズ内容・問題等の最終更新日時。 |
 
 #### ネストされる `Question` オブジェクト型
 * `id` (`string`): 問題の一意ID（UUIDまたは連番）。
-* `type` (`'true-false' \| 'multiple-choice' \| 'text-input' \| 'sorting' \| 'association' \| 'lateral-thinking'`): 問題タイプ。
+* `type` (`'true-false' \| 'multiple-choice' \| 'text-input' \| 'quick-press' \| 'sorting' \| 'association' \| 'lateral-thinking'`): 問題タイプ。
+  - `text-input`（記述式）: テキスト入力による正解判定（旧称：短答式）。
+  - `quick-press`（早押し）: 問題文の一文字ずつ表示と早押しボタンによる解答。`correctTextAnswerList` 必須。プレイ時の早押しタイムは `localStorage`（`quizeum_qp_times_{attemptId}`）に一時保存（DB非永続）。
   - `sorting`（並び替えクイズ）: 提示された複数の要素を、正しい順番（インデックス）にドラッグ＆ドロップ等で並び替える形式です。
   - `association`（連想クイズ）: 段階的なヒント（連想ヒントリスト）を提示して、最終的な正解を導き出させる形式です。
 * `questionText` (`string`): 問題文。
@@ -130,7 +133,7 @@ erDiagram
 * `imageUrl` (`string`, 任意): 参考イラスト・写真URL。
 * `hint` (`string`, 任意): ヒントテキスト。
 * `limitTime` (`number`, 任意): 制限秒数。
-* `correctTextAnswerList` (`array (string)`, 任意): 正解パターンリスト。短答式および連想クイズの正解判定用。
+* `correctTextAnswerList` (`array (string)`, 任意): 正解パターンリスト。記述式・早押し・連想クイズの正解判定用。
 * `choices` (`array (Choice)`, 任意): 選択肢配列。〇×・多肢選択クイズ用。
 * `sortingItems` (`array (SortingItem)`, 任意): 並び替えクイズ用のソート対象要素リスト。ドラッグ＆ドロップにより正しい順番（`correctOrder`）に並び替えるための2〜6つの要素。
 * `associationHints` (`array (string)`, 任意): 連想クイズ用の段階的ヒントリスト。最大5つのヒントを登録し、段階的にプレイヤーへ開示する。
@@ -169,13 +172,13 @@ erDiagram
 | `authorId` | `string` | **必須** | `users.id` 参照または `'deleted_user'` | 設問作成者の `uid`。 |
 | `authorName` | `string` | **必須** | 非正規化保持 | 作成者の表示名（冗長保持）。 |
 | `authorAvatar` | `string` | **必須** | 非正規化保持 | 作成者のアバターURL（冗長保持）。 |
-| `type` | `string` | **必須** | `true-false \| multiple-choice \| text-input \| sorting \| association \| lateral-thinking` | 問題タイプ（〇×、多肢選択、短答、並び替え、連想、水平思考）。 |
+| `type` | `string` | **必須** | `true-false \| multiple-choice \| text-input \| quick-press \| sorting \| association \| lateral-thinking` | 問題タイプ（〇×、多肢選択、記述式、早押し、並び替え、連想、水平思考）。 |
 | `questionText` | `string` | **必須** | 最大500文字 | 設問の文章。 |
 | `explanation` | `string` | **必須** | 最大1000文字 | 解答後の解説文章。 |
 | `imageUrl` | `string` | 任意 | 参考画像URL | 設問にアタッチされた参考画像のストレージURL。 |
 | `hint` | `string` | 任意 | 最大200文字 | 設問のヒントテキスト。 |
 | `limitTime` | `number` | 任意 | 5〜300秒 | 解答制限秒数。 |
-| `correctTextAnswerList` | `array (string)` | 任意 | 短答形式の正解候補 | 短答式・連想クイズ用の正解判定文字列リスト。 |
+| `correctTextAnswerList` | `array (string)` | 任意 | 記述・早押し形式の正解候補 | 記述式・早押し・連想クイズ用の正解判定文字列リスト。 |
 | `choices` | `array (Choice)` | 任意 | 選択肢配列 | 〇×・多肢選択クイズ用の選択肢オブジェクト配列。 |
 | `sortingItems` | `array (SortingItem)` | 任意 | 並び替え用要素リスト | 並び替えクイズ用。 |
 | `associationHints` | `array (string)` | 任意 | 連想ヒント配列 | 連想クイズ用の段階的ヒントリスト。 |

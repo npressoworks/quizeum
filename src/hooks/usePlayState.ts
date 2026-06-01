@@ -129,6 +129,19 @@ export function usePlayState({ quizId, userId, mode, questions }: UsePlayStatePr
       isCorrect = currentQuestion.correctTextAnswerList?.some(
         (ans) => ans.trim().toLowerCase().replace(/\s+/g, '') === cleanInput
       ) ?? false;
+    } else if (currentQuestion.type === 'quick-press') {
+      const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
+      // 早押し問題の正解候補は Base64 難読化されているため、デコードして比較
+      isCorrect = currentQuestion.correctTextAnswerList?.some(
+        (ans) => {
+          try {
+            const decoded = decodeURIComponent(escape(atob(ans)));
+            return decoded.trim().toLowerCase().replace(/\s+/g, '') === cleanInput;
+          } catch (e) {
+            return false;
+          }
+        }
+      ) ?? false;
     } else if (currentQuestion.type === 'sorting') {
       // 並び替え要素の正しい順序を検証
       // カンマ区切りの要素ID文字列（例："id1,id2,id3"）を受け取ると想定

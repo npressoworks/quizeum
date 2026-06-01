@@ -241,6 +241,28 @@ describe('validateQuizForPublish', () => {
       expect(errors.some((e) => e.field === 'questions')).toBe(true);
     });
 
+    test('quick-press問題でcorrectTextAnswerListが空の場合エラーを返す', () => {
+      const questionWithNoAnswer = makeQuestion({
+        type: 'quick-press',
+        choices: undefined,
+        correctTextAnswerList: [],
+      });
+      const quiz = makeQuiz({ questions: [questionWithNoAnswer] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(true);
+    });
+
+    test('quick-press問題でcorrectTextAnswerListが設定されている場合エラーを返さない', () => {
+      const questionWithAnswer = makeQuestion({
+        type: 'quick-press',
+        choices: undefined,
+        correctTextAnswerList: ['正解'],
+      });
+      const quiz = makeQuiz({ questions: [questionWithAnswer] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(false);
+    });
+
     test('lateral-thinking問題でaiContextDetailsとtruthKeywordsが設定されている場合はエラーを返さない', () => {
       const validLateralQuestion = makeQuestion({
         type: 'lateral-thinking',
@@ -275,6 +297,64 @@ describe('validateQuizForPublish', () => {
       const quiz = makeQuiz({ questions: [invalidQuestion] });
       const errors = validateQuizForPublish(quiz);
       expect(errors.some((e) => e.field === 'questions')).toBe(true);
+    });
+
+    test('クイズ形式と設問タイプが不一致の場合エラーを返す（単一形式）', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['正解'],
+      });
+      const quiz = makeQuiz({
+        format: 'multiple-choice',
+        questions: [question],
+      });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(true);
+    });
+
+    test('クイズ形式と設問タイプが一致している場合エラーを返さない（単一形式）', () => {
+      const question = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['正解'],
+      });
+      const quiz = makeQuiz({
+        format: 'text-input',
+        questions: [question],
+      });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(false);
+    });
+
+    test('複合形式(mixed)で許可されていない設問形式が含まれる場合エラーを返す', () => {
+      const lateralQuestion = makeQuestion({
+        type: 'lateral-thinking',
+        choices: undefined,
+        aiContextDetails: '真相',
+        truthKeywords: ['エッセンス'],
+      });
+      const quiz = makeQuiz({
+        format: 'mixed',
+        questions: [lateralQuestion],
+      });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(true);
+    });
+
+    test('複合形式(mixed)で許可された設問形式のみが含まれる場合エラーを返さない', () => {
+      const mcQuestion = makeQuestion({ type: 'multiple-choice' });
+      const tiQuestion = makeQuestion({
+        type: 'text-input',
+        choices: undefined,
+        correctTextAnswerList: ['正解'],
+      });
+      const quiz = makeQuiz({
+        format: 'mixed',
+        questions: [mcQuestion, tiQuestion],
+      });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(false);
     });
   });
 

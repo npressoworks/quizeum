@@ -36,6 +36,7 @@ function QuizResultPageContent({ quizId }: ContentProps) {
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [online, setOnline] = useState<boolean>(true);
+  const [quickPressTimes, setQuickPressTimes] = useState<{ [questionId: string]: number } | null>(null);
 
   // 投票・リアクション状況
   const [voted, setVoted] = useState<'positive' | 'negative' | null>(null);
@@ -107,6 +108,16 @@ function QuizResultPageContent({ quizId }: ContentProps) {
               completedAt: new Date(localAtt.completedAt),
             });
             setDifficultyVote(localAtt.difficultyVote ?? null);
+          }
+        }
+
+        // 早押しタイムを localStorage からロードしてクリア
+        const key = attemptId || localId;
+        if (key) {
+          const savedTimes = localStorage.getItem(`quizeum_qp_times_${key}`);
+          if (savedTimes) {
+            setQuickPressTimes(JSON.parse(savedTimes));
+            localStorage.removeItem(`quizeum_qp_times_${key}`);
           }
         }
       } catch (e) {
@@ -254,6 +265,22 @@ function QuizResultPageContent({ quizId }: ContentProps) {
     );
   }
 
+  // 早押しタイム統計の計算
+  const isQuickPressQuiz = quiz.format === 'quick-press' || quiz.questions.some((q) => q.type === 'quick-press');
+  let averagePressTime = 0;
+  let fastestPressTime = 0;
+  let showPressStats = false;
+
+  if (isQuickPressQuiz && quickPressTimes && Object.keys(quickPressTimes).length > 0) {
+    const times = Object.values(quickPressTimes);
+    if (times.length > 0) {
+      const sum = times.reduce((acc, t) => acc + t, 0);
+      averagePressTime = Number((sum / times.length).toFixed(2));
+      fastestPressTime = Number(Math.min(...times).toFixed(2));
+      showPressStats = true;
+    }
+  }
+
   return (
     <div className={styles.container}>
       <Link href="/" className={styles.backBtn}>
@@ -294,6 +321,41 @@ function QuizResultPageContent({ quizId }: ContentProps) {
           </span>
         </div>
       </div>
+
+      {/* 早押し統計カード */}
+      {showPressStats && (
+        <div style={{
+          background: 'var(--glass-bg)',
+          border: 'var(--glass-border)',
+          backdropFilter: 'var(--glass-blur)',
+          padding: '24px 32px',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          gap: '20px',
+          flexWrap: 'wrap',
+          boxShadow: '0 0 20px rgba(0, 245, 212, 0.05)',
+          borderLeft: '4px solid #00f5d4',
+          marginTop: '8px',
+          marginBottom: '8px'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold', marginBottom: '4px' }}>⚡ 平均早押しタイム</span>
+            <span style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#00f5d4' }}>{averagePressTime} <span style={{ fontSize: '1rem' }}>秒</span></span>
+          </div>
+          <div style={{ width: '1px', height: '40px', background: 'var(--border-light)' }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold', marginBottom: '4px' }}>🏆 最速早押しタイム</span>
+            <span style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{fastestPressTime} <span style={{ fontSize: '1rem' }}>秒</span></span>
+          </div>
+          <div style={{ width: '1px', height: '40px', background: 'var(--border-light)' }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold', marginBottom: '4px' }}>🎯 早押し正答数</span>
+            <span style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{Object.keys(quickPressTimes || {}).length} <span style={{ fontSize: '1rem' }}>問</span></span>
+          </div>
+        </div>
+      )}
 
       {/* 評価フィードバックパネル (オンライン時のみフル利用可能) */}
       <div className={styles.feedbackPanel}>
@@ -423,6 +485,22 @@ function QuizResultPageContent({ quizId }: ContentProps) {
                   ) : (
                     <span className={styles.incorrectLabel}>
                       <X size={16} /> 不正解
+                    </span>
+                  )}
+                  {isCorrect && quickPressTimes && quickPressTimes[q.id] !== undefined && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      background: 'rgba(0, 245, 212, 0.12)',
+                      color: '#00f5d4',
+                      border: '1px solid rgba(0, 245, 212, 0.25)',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.78rem',
+                      fontWeight: 'bold',
+                      gap: '4px'
+                    }}>
+                      ⚡ 早押し: {quickPressTimes[q.id]}秒
                     </span>
                   )}
                 </div>

@@ -402,7 +402,7 @@ export default function CreatorDashboardPage() {
                   count: choice.selectedCount || Math.floor(Math.random() * 20) + 1, // ダミー
                 }));
               } else {
-                // 短答式やその他のタイプの場合は正誤のパイチャート
+                // 記述式やその他のタイプの場合は正誤のパイチャート
                 const corrects = q.correctCount || Math.floor(Math.random() * 30) + 5;
                 const incorrects = q.incorrectCount || Math.floor(Math.random() * 15) + 1;
                 pieData = [

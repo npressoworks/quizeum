@@ -52,7 +52,21 @@ export default function ReviewPage() {
       if (gatheredQuestions.length === 0) {
         setNoQuestions(true);
       } else {
-        setFailedQuestions(gatheredQuestions);
+        // カンニング防止：quick-press問題の生データを難読化
+        const obscured = gatheredQuestions.map((q) => {
+          if (q.type === 'quick-press') {
+            return {
+              ...q,
+              questionText: btoa(unescape(encodeURIComponent(q.questionText))),
+              correctTextAnswerList: q.correctTextAnswerList?.map((ans) =>
+                btoa(unescape(encodeURIComponent(ans)))
+              ) || [],
+            };
+          }
+          return q;
+        });
+
+        setFailedQuestions(obscured);
         setSolvedMap({});
         setPhase('playing');
         setCurrentIdx(0);
@@ -79,9 +93,21 @@ export default function ReviewPage() {
       const selectedChoice = currentQuestion.choices?.find((c) => c.id === answerTextOrChoiceId);
       isCorrect = !!selectedChoice?.isCorrect;
     } else if (currentQuestion.type === 'text-input') {
-      const cleanInput = answerTextOrChoiceId.trim().toLowerCase();
+      const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
       isCorrect = currentQuestion.correctTextAnswerList?.some(
-        (ans) => ans.trim().toLowerCase() === cleanInput
+        (ans) => ans.trim().toLowerCase().replace(/\s+/g, '') === cleanInput
+      ) ?? false;
+    } else if (currentQuestion.type === 'quick-press') {
+      const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
+      isCorrect = currentQuestion.correctTextAnswerList?.some(
+        (ans) => {
+          try {
+            const decoded = decodeURIComponent(escape(atob(ans)));
+            return decoded.trim().toLowerCase().replace(/\s+/g, '') === cleanInput;
+          } catch (e) {
+            return false;
+          }
+        }
       ) ?? false;
     }
 
@@ -194,7 +220,15 @@ export default function ReviewPage() {
           </div>
 
           <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '24px', lineHeight: 1.5 }}>
-            {failedQuestions[currentIdx]?.questionText}
+            {failedQuestions[currentIdx]?.type === 'quick-press'
+              ? (() => {
+                  try {
+                    return decodeURIComponent(escape(atob(failedQuestions[currentIdx]?.questionText)));
+                  } catch (e) {
+                    return failedQuestions[currentIdx]?.questionText;
+                  }
+                })()
+              : failedQuestions[currentIdx]?.questionText}
           </h2>
 
           {/* 選択肢 */}
@@ -221,8 +255,8 @@ export default function ReviewPage() {
             </div>
           )}
 
-          {/* 短答記述 */}
-          {failedQuestions[currentIdx]?.type === 'text-input' && (
+          {/* 記述式・早押し */}
+          {(failedQuestions[currentIdx]?.type === 'text-input' || failedQuestions[currentIdx]?.type === 'quick-press') && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();

@@ -45,6 +45,13 @@ describe('AttemptService - saveAttempt', () => {
       data: () => ({
         playCount: 10,
         leaderboard: [],
+        questions: [
+          { id: 'q1' },
+          { id: 'q2' },
+          { id: 'q3' },
+          { id: 'q4' },
+          { id: 'q5' },
+        ],
       }),
     };
 
@@ -91,6 +98,13 @@ describe('AttemptService - saveAttempt', () => {
       data: () => ({
         playCount: 10,
         leaderboard: [],
+        questions: [
+          { id: 'q1' },
+          { id: 'q2' },
+          { id: 'q3' },
+          { id: 'q4' },
+          { id: 'q5' },
+        ],
       }),
     };
 

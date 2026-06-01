@@ -7,7 +7,7 @@ import { saveQuiz, getQuiz, updateQuiz } from '@/services/quiz';
 import { validateQuizForPublish, normalizeTag, QuizPublishValidationError } from '@/services/quiz-validation';
 import { Quiz, Question, Choice } from '@/types';
 import styles from '@/app/quiz/create/create.module.css';
-import { Trash2, Plus, Info, AlertTriangle, Image, ArrowLeft, Save, Send } from 'lucide-react';
+import { Trash2, Plus, Info, AlertTriangle, Image, ArrowLeft, Save, Send, HelpCircle } from 'lucide-react';
 
 interface QuizEditorProps {
   quizId?: string; // 編集モードの場合はIDが渡される
@@ -49,6 +49,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState(5);
   const [genre, setGenre] = useState('programming');
+  const [format, setFormat] = useState<'mixed' | 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking'>('mixed');
   
   // タグ関連ステート
   const [tagInput, setTagInput] = useState('');
@@ -95,7 +96,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
   useEffect(() => {
     if (!quizId) {
       // 新規作成時はデフォルトで1問追加しておく
-      addDefaultQuestion();
+      addDefaultQuestion('mixed');
       return;
     }
 
@@ -116,6 +117,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
           setTags(quiz.tags);
           setOriginalTags(quiz.originalTags);
           setQuestions(quiz.questions);
+          setFormat(quiz.format || 'mixed');
         } else {
           setErrorText('対象のクイズが見つかりません。');
         }
@@ -153,30 +155,146 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
   }, [questions, searchParams]);
 
   // デフォルト設問の追加
-  const addDefaultQuestion = () => {
+  const addDefaultQuestion = (customFormat?: typeof format) => {
+    const activeFormat = customFormat || format;
+    const defaultType = activeFormat === 'mixed' ? 'multiple-choice' : activeFormat;
+
     const newQuestion: Question = {
       id: Math.random().toString(36).substring(2, 9),
-      type: 'multiple-choice',
+      type: defaultType,
       questionText: '',
       explanation: '',
       imageUrl: null,
       hint: null,
       limitTime: null,
-      choices: [
+      correctCount: 0,
+      incorrectCount: 0,
+    };
+
+    // タイプごとの初期値設定
+    if (newQuestion.type === 'multiple-choice') {
+      newQuestion.choices = [
         { id: '1', choiceText: '選択肢 1', isCorrect: true, selectedCount: 0 },
         { id: '2', choiceText: '選択肢 2', isCorrect: false, selectedCount: 0 },
         { id: '3', choiceText: '選択肢 3', isCorrect: false, selectedCount: 0 },
         { id: '4', choiceText: '選択肢 4', isCorrect: false, selectedCount: 0 },
-      ],
-      correctCount: 0,
-      incorrectCount: 0,
-    };
-    setQuestions([...questions, newQuestion]);
+      ];
+    } else if (newQuestion.type === 'text-input' || newQuestion.type === 'quick-press') {
+      newQuestion.correctTextAnswerList = ['正解テキスト'];
+    } else if (newQuestion.type === 'sorting') {
+      newQuestion.sortingItems = [
+        { id: '1', text: '要素 1', correctOrder: 0 },
+        { id: '2', text: '要素 2', correctOrder: 1 },
+      ];
+    } else if (newQuestion.type === 'association') {
+      newQuestion.associationHints = ['ヒント 1'];
+      newQuestion.correctTextAnswerList = ['正解テキスト'];
+    } else if (newQuestion.type === 'lateral-thinking') {
+      newQuestion.aiContextDetails = '';
+      newQuestion.truthKeywords = [];
+    }
+
+    setQuestions((prev) => [...prev, newQuestion]);
   };
 
   // 設問の追加
   const handleAddQuestion = () => {
     addDefaultQuestion();
+  };
+
+  // クイズ形式が変更された際の処理 (一括変換ロジック含む)
+  const handleFormatChange = (newFormat: typeof format) => {
+    if (newFormat === format) return;
+
+    if (questions.length > 0) {
+      const confirmMsg = newFormat === 'mixed'
+        ? '複合クイズ形式に変更します。既存の問題タイプは維持されますが、各設問のトグルから選択式、記述式、並び替えを自由に選択できるようになります。よろしいですか？'
+        : `クイズ全体の出題形式を「${getFormatLabel(newFormat)}」に変更します。既存のすべての問題が「${getFormatLabel(newFormat)}」形式に一括変換されます（一部のデータが初期化される可能性があります）。よろしいですか？`;
+      
+      if (!confirm(confirmMsg)) return;
+    }
+
+    setFormat(newFormat);
+
+    const defaultType = newFormat === 'mixed' ? 'multiple-choice' : newFormat;
+    const nextQuestions = questions.map((q) => {
+      let targetType = q.type;
+      if (newFormat === 'mixed') {
+        const allowedTypes = ['multiple-choice', 'true-false', 'text-input', 'sorting'];
+        if (!allowedTypes.includes(q.type)) {
+          targetType = 'multiple-choice';
+        }
+      } else {
+        targetType = defaultType;
+      }
+
+      const updated: Question = {
+        ...q,
+        type: targetType,
+      };
+
+      if (targetType === 'multiple-choice') {
+        updated.choices = q.choices || [
+          { id: '1', choiceText: '選択肢 1', isCorrect: true, selectedCount: 0 },
+          { id: '2', choiceText: '選択肢 2', isCorrect: false, selectedCount: 0 },
+          { id: '3', choiceText: '選択肢 3', isCorrect: false, selectedCount: 0 },
+          { id: '4', choiceText: '選択肢 4', isCorrect: false, selectedCount: 0 },
+        ];
+        updated.correctTextAnswerList = undefined;
+        updated.sortingItems = undefined;
+        updated.associationHints = undefined;
+        updated.aiContextDetails = undefined;
+        updated.truthKeywords = undefined;
+      } else if (targetType === 'text-input' || targetType === 'quick-press') {
+        updated.correctTextAnswerList = q.correctTextAnswerList || ['正解テキスト'];
+        updated.choices = undefined;
+        updated.sortingItems = undefined;
+        updated.associationHints = undefined;
+        updated.aiContextDetails = undefined;
+        updated.truthKeywords = undefined;
+      } else if (targetType === 'sorting') {
+        updated.sortingItems = q.sortingItems || [
+          { id: '1', text: '要素 1', correctOrder: 0 },
+          { id: '2', text: '要素 2', correctOrder: 1 },
+        ];
+        updated.choices = undefined;
+        updated.correctTextAnswerList = undefined;
+        updated.associationHints = undefined;
+        updated.aiContextDetails = undefined;
+        updated.truthKeywords = undefined;
+      } else if (targetType === 'association') {
+        updated.associationHints = q.associationHints || ['ヒント 1'];
+        updated.correctTextAnswerList = q.correctTextAnswerList || ['正解テキスト'];
+        updated.choices = undefined;
+        updated.sortingItems = undefined;
+        updated.aiContextDetails = undefined;
+        updated.truthKeywords = undefined;
+      } else if (targetType === 'lateral-thinking') {
+        updated.aiContextDetails = q.aiContextDetails || '';
+        updated.truthKeywords = q.truthKeywords || [];
+        updated.choices = undefined;
+        updated.correctTextAnswerList = undefined;
+        updated.sortingItems = undefined;
+        updated.associationHints = undefined;
+      }
+
+      return updated;
+    });
+
+    setQuestions(nextQuestions);
+  };
+
+  const getFormatLabel = (fmt: string) => {
+    switch (fmt) {
+      case 'mixed': return '複合';
+      case 'multiple-choice': return '選択式';
+      case 'text-input': return '記述式';
+      case 'quick-press': return '早押し';
+      case 'sorting': return '並び替え';
+      case 'association': return '連想';
+      case 'lateral-thinking': return 'ウミガメのスープ';
+      default: return fmt;
+    }
   };
 
   // 設問の削除
@@ -189,8 +307,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     setQuestions(nextQuestions);
   };
 
-  // 設問タイプの切り替え (選択式 / 短答文字入力式 / 並び替え / 連想 / ウミガメのスープ)
-  const handleToggleQuestionType = (idx: number, type: 'multiple-choice' | 'text-input' | 'sorting' | 'association' | 'lateral-thinking') => {
+  // 設問タイプの切り替え (選択式 / 記述式 / 早押し / 並び替え / 連想 / ウミガメのスープ)
+  const handleToggleQuestionType = (idx: number, type: 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking') => {
     const nextQuestions = [...questions];
     nextQuestions[idx].type = type;
     
@@ -206,8 +324,14 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       nextQuestions[idx].associationHints = undefined;
       nextQuestions[idx].aiContextDetails = undefined;
       nextQuestions[idx].truthKeywords = undefined;
-    } else if (type === 'text-input' && !nextQuestions[idx].correctTextAnswerList) {
+    } else if ((type === 'text-input' || type === 'quick-press') && !nextQuestions[idx].correctTextAnswerList) {
       nextQuestions[idx].correctTextAnswerList = ['正解テキスト'];
+      nextQuestions[idx].choices = undefined;
+      nextQuestions[idx].sortingItems = undefined;
+      nextQuestions[idx].associationHints = undefined;
+      nextQuestions[idx].aiContextDetails = undefined;
+      nextQuestions[idx].truthKeywords = undefined;
+    } else if ((type === 'text-input' || type === 'quick-press') && nextQuestions[idx].correctTextAnswerList) {
       nextQuestions[idx].choices = undefined;
       nextQuestions[idx].sortingItems = undefined;
       nextQuestions[idx].associationHints = undefined;
@@ -281,7 +405,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     }
   };
 
-  // 短答式正解のテキスト更新
+  // 記述式・早押し正解のテキスト更新
   const handleTextAnswerChange = (qIdx: number, aIdx: number, text: string) => {
     const nextQuestions = [...questions];
     if (nextQuestions[qIdx].correctTextAnswerList) {
@@ -290,7 +414,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     }
   };
 
-  // 短答式正解の追加
+  // 記述式・早押し正解の追加
   const handleAddTextAnswer = (qIdx: number) => {
     const nextQuestions = [...questions];
     if (nextQuestions[qIdx].correctTextAnswerList) {
@@ -299,7 +423,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     }
   };
 
-  // 短答式正解の削除
+  // 記述式・早押し正解の削除
   const handleRemoveTextAnswer = (qIdx: number, aIdx: number) => {
     const nextQuestions = [...questions];
     if (nextQuestions[qIdx].correctTextAnswerList) {
@@ -530,6 +654,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       questions,
       questionCount: questions.length,
       status,
+      format, // 追加
       playCount: 0,
       bookmarksCount: 0,
       flagsCount: 0,
@@ -585,6 +710,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
           questions,
           questionCount: questions.length,
           status,
+          format, // 追加
         });
       } else {
         const newId = await saveQuiz(quizData, status);
@@ -678,6 +804,77 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       <div className={styles.grid}>
         {/* メイン編集エリア */}
         <div className={styles.leftColumn}>
+          {/* クイズ全体の出題形式設定 (新規追加) */}
+          <div className={styles.editorCard}>
+            <h2 className={styles.sectionTitle}>
+              <HelpCircle size={20} />
+              クイズ全体の出題形式 <span style={{ color: 'var(--color-danger)' }}>*</span>
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              クイズ全体のルールと設問タイプを決定します。単一形式を選ぶと、全ての設問がそのタイプに固定されます。「複合」を選ぶと設問ごとに形式を選択できます。
+            </p>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: '12px',
+              marginTop: '8px'
+            }}>
+              {[
+                { id: 'mixed', label: '複合', icon: '🌀', desc: '選択式・記述式・並び替えを自由に組み合わせ可能' },
+                { id: 'multiple-choice', label: '選択式', icon: '📝', desc: '複数の選択肢から1つの正解を選ぶ定番クイズ' },
+                { id: 'text-input', label: '記述式', icon: '✍️', desc: 'テキスト入力で正確な正解ワードを記述する問題' },
+                { id: 'quick-press', label: '早押し', icon: '⚡', desc: '問題が一文字ずつ表示され、回答ボタンを押して答える' },
+                { id: 'sorting', label: '並び替え', icon: '↕️', desc: 'バラバラの要素を正しい順番に並び替える形式' },
+                { id: 'association', label: '連想', icon: '💡', desc: '段階的に開示されるヒントから正解を推測する' },
+                { id: 'lateral-thinking', label: 'ウミガメのスープ', icon: '🐢', desc: 'AIが真相の判定を行う状況構築型・水平思考' },
+              ].map((item) => {
+                const isActive = format === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleFormatChange(item.id as any)}
+                    style={{
+                      padding: '16px',
+                      borderRadius: '10px',
+                      background: isActive ? 'rgba(157, 78, 221, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                      border: isActive ? '2px solid var(--color-primary)' : '1px solid var(--border-light)',
+                      boxShadow: isActive ? '0 0 15px rgba(157, 78, 221, 0.2)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease-in-out',
+                      transform: isActive ? 'translateY(-2px)' : 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                        e.currentTarget.style.borderColor = 'var(--border-light)';
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.4rem' }}>{item.icon}</span>
+                      <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: isActive ? 'var(--color-primary)' : 'var(--text-main)' }}>
+                        {item.label}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4', margin: 0 }}>
+                      {item.desc}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* 基本メタデータ入力 (要件 1.1) */}
           <div className={styles.editorCard}>
             <h2 className={styles.sectionTitle}>
@@ -736,44 +933,47 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                     </button>
                   </div>
 
-                  {/* 設問タイプ切り替えトグル (要件 1.4) */}
-                  <div className={styles.typeToggle}>
-                    <button
-                      type="button"
-                      className={`${styles.toggleBtn} ${q.type === 'multiple-choice' ? styles.toggleBtnActive : ''}`}
-                      onClick={() => handleToggleQuestionType(qIdx, 'multiple-choice')}
-                    >
-                      選択式
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.toggleBtn} ${q.type === 'text-input' ? styles.toggleBtnActive : ''}`}
-                      onClick={() => handleToggleQuestionType(qIdx, 'text-input')}
-                    >
-                      短答式
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.toggleBtn} ${q.type === 'sorting' ? styles.toggleBtnActive : ''}`}
-                      onClick={() => handleToggleQuestionType(qIdx, 'sorting')}
-                    >
-                      並び替え
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.toggleBtn} ${q.type === 'association' ? styles.toggleBtnActive : ''}`}
-                      onClick={() => handleToggleQuestionType(qIdx, 'association')}
-                    >
-                      連想
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.toggleBtn} ${q.type === 'lateral-thinking' ? styles.toggleBtnActive : ''}`}
-                      onClick={() => handleToggleQuestionType(qIdx, 'lateral-thinking')}
-                    >
-                      ウミガメのスープ
-                    </button>
-                  </div>
+                  {/* 設問タイプ切り替えトグル (複合形式のみ) */}
+                  {format === 'mixed' ? (
+                    <div className={styles.typeToggle}>
+                      <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${q.type === 'multiple-choice' ? styles.toggleBtnActive : ''}`}
+                        onClick={() => handleToggleQuestionType(qIdx, 'multiple-choice')}
+                      >
+                        選択式
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${q.type === 'text-input' ? styles.toggleBtnActive : ''}`}
+                        onClick={() => handleToggleQuestionType(qIdx, 'text-input')}
+                      >
+                        記述式
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${q.type === 'sorting' ? styles.toggleBtnActive : ''}`}
+                        onClick={() => handleToggleQuestionType(qIdx, 'sorting')}
+                      >
+                        並び替え
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--border-light)',
+                      fontSize: '0.85rem',
+                      color: 'var(--text-muted)',
+                      marginBottom: '16px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      ⚡ この問題の形式はクイズ全体の出題形式（<strong>{getFormatLabel(format)}</strong>）に固定されています。
+                    </div>
+                  )}
 
                   <div className={styles.formGroup}>
                     <label className={styles.label}>問題文</label>
@@ -809,8 +1009,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                     </div>
                   )}
 
-                  {/* 短答入力式の設問入力 */}
-                  {q.type === 'text-input' && q.correctTextAnswerList && (
+                  {/* 記述式（旧短答入力式）または早押し式の設問入力 */}
+                  {(q.type === 'text-input' || q.type === 'quick-press') && q.correctTextAnswerList && (
                     <div className={styles.textAnswersContainer}>
                       <label className={styles.label}>正解テキスト候補（大文字・小文字表記揺れなど複数設定可能）</label>
                       {q.correctTextAnswerList.map((ans, aIdx) => (
@@ -930,7 +1130,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
                         <Plus size={14} /> ヒントを追加する
                       </button>
 
-                      {/* 連想の正解設定 (短答式の correctTextAnswerList と同一構造) */}
+                      {/* 連想の正解設定 (記述式の correctTextAnswerList と同一構造) */}
                       {q.correctTextAnswerList && (
                         <div className={styles.textAnswersContainer} style={{ marginTop: '16px', borderTop: '1px dashed var(--border-light)', paddingTop: '16px' }}>
                           <label className={styles.label}>正解テキスト候補（大文字・小文字表記揺れなど複数設定可能）</label>

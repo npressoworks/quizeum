@@ -101,6 +101,30 @@ sequenceDiagram
   - 正規化された入力値が、設問オブジェクトに登録されている正解パターンリスト（`correctTextAnswerList`）のいずれかの要素と完全一致（または部分一致）しているかを検証します。
   - いずれかの正解パターンと合致すれば即座に正解（`isCorrect = true`）と判定し、全ヒントを開示して解説を表示します。すべてのパターンと合致しない場合は不正解（`isCorrect = false`）と判定します。
 
+##### ③ 記述式クイズ (text-input) の判定ロジック
+* **正誤判定ロジック (Client-side)**:
+  - プレイヤーが送信した回答文字列に対し、前後空白のトリム、小文字化、連続空白の除去（`replace(/\s+/g, '')`）を施した正規化値を算出します。
+  - 設問の `correctTextAnswerList` 各要素に同様の正規化を適用し、いずれかと完全一致すれば正解とします（旧 UI 表記「短答式」から「記述式」へ改称）。
+
+##### ④ 早押しクイズ (quick-press) のプレイ・判定・タイム計測ロジック
+* **クイズ詳細画面 (`/quiz/[id]`)**:
+  - `quiz.format === 'quick-press'` または設問に `type === 'quick-press'` が含まれる場合、模擬試験・フラッシュカードの選択 UI を非表示とし、通常モード固定の案内カードを表示します。
+  - 「解答後にその場で正誤・解説を表示」チェックボックス（デフォルト ON）の状態をクエリ `feedback=true|false` としてプレイ URL に付与します（`/quiz/[id]/play?mode=normal&feedback=...`）。
+* **カンニング防止（クライアント難読化）**:
+  - プレイ画面・弱点克服（復習）画面のクイズ読み込み時、`type === 'quick-press'` の設問について `questionText` および `correctTextAnswerList` の各要素を `btoa(unescape(encodeURIComponent(...)))` で Base64 エンコードし、DOM 上の平文露出と DevTools による先読みを抑止します。表示・判定時は `atob` + `decodeURIComponent(escape(...))` で復号します。
+* **UI フロー（1 設問あたり）**:
+  1. **問読み開始**: 「🔊 問読みを開始する」ボタンで `isReadingStarted = true`。
+  2. **アニメーション表示**: プレフィックス「問題：」を 200ms/文字で表示 → 1 秒待機 → 本文を 200ms/文字で表示。本文の最初の 1 文字が描画された瞬間を `quickPressStartTimeRef` に記録（計測開始）。
+  3. **早押し**: 「🔴 押して回答する！」でインターバルを停止し、計測終了（秒・小数第 2 位）を `currentQuickPressTime` に保持。入力欄を活性化。
+  4. **解答送信**: 正規化後に復号済み `correctTextAnswerList` と照合。正解時のみ `quickPressTimes[questionId] = currentQuickPressTime` をマージ。
+  5. **即時フィードバック分岐** (`showFeedback` = URL の `feedback` パラメータ、未指定時 `true`):
+     - `true`: その場で正誤・解説・早押しタイムを表示し、「次の問題へ」で `handleAnswerSubmit` を呼ぶ。
+     - `false`: 正誤 UI を省略し、送信と同時に `handleAnswerSubmit` へ委譲（`usePlayState` 側でも Base64 復号付き判定を実施）。
+* **タイムの永続化と結果画面**:
+  - プレイ完了（オンライン/オフライン）時に `localStorage.setItem('quizeum_qp_times_{attemptId}', JSON.stringify(quickPressTimes))` を実行。
+  - 結果画面 (`/quiz/[id]/result`) で読み込み後 `removeItem` し、平均・最速・正答数の統計カードおよび設問別バッジを表示します。
+* **弱点克服プレイ**: 復習画面でも `quick-press` 設問は難読化を適用。表示は全文を即時復号表示（一文字アニメーションは省略）。正誤判定はプレイ画面と同一の正規化・復号ロジックを使用します。
+
 ---
 
 ### 1.2 クイズ作成・公開フロー
@@ -116,7 +140,8 @@ sequenceDiagram
     participant US as UserService
     participant DB as Firestore (Database)
 
-    Creator->>QC: タイトル、説明、初期難易度(1-10)、問題群を入力
+    Creator->>QC: タイトル、説明、初期難易度(1-10)、出題形式(format)、問題群を入力
+    Note over QC: format 選択<br>mixed / 単一形式(選択式・記述式・早押し・並び替え・連想・水平思考)<br>単一形式時は全設問 type を自動固定
     
     alt 下書き保存の場合 (isPublished = false)
         Creator->>QC: 「下書き保存」をクリック
@@ -131,7 +156,8 @@ sequenceDiagram
     else 公開申請の場合 (isPublished = true)
         Creator->>QC: 「公開する」をクリック
         Note over QC: Zodによる厳格なスキーマ検証 (quizPublishSchema)
-        QC->>QC: 設問数(>=1)、各設問正解設定、文字数制限（水平思考のAI用コンテキストは20〜2000文字）などを検証
+        QC->>QC: 設問数(>=1)、各設問正解設定、format と設問 type の一貫性、文字数制限（水平思考のAI用コンテキストは20〜2000文字）などを検証
+        Note over QC: validateQuizForPublish<br>・mixed: multiple-choice / true-false / text-input / sorting のみ<br>・単一形式: 全設問 type が format と一致<br>・quick-press / text-input: correctTextAnswerList 必須
         
         alt バリデーション失敗
             QC-->>Creator: エラー箇所を赤色強調表示、修正指示トースト表示
@@ -152,7 +178,7 @@ sequenceDiagram
                 DB-->>QS: 統合先 canonicalId の解決
                 QS->>DB: トランザクション開始
                 DB->>DB: 各設問を questions コレクションに独立保存
-                DB->>DB: quizzes ドキュメント保存<br>(questionIds配列 + questions非正規化ネストコピー + canonicalGenreId / canonicalTagIds)
+                DB->>DB: quizzes ドキュメント保存<br>(questionIds配列 + questions非正規化ネストコピー + format + canonicalGenreId / canonicalTagIds)
                 QS-->>QC: 保存完了 (quizId)
                 deactivate QS
                 

@@ -63,7 +63,7 @@ export interface Question {
   authorId?: string;      // 作成者のユーザーID
   authorName?: string;    // 作成者の表示名 (非正規化)
   authorAvatar?: string;  // 作成者のアバターURL (非正規化)
-  type: 'true-false' | 'multiple-choice' | 'text-input' | 'sorting' | 'association' | 'lateral-thinking'; // 問題タイプ
+  type: 'true-false' | 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking'; // 問題タイプ
   questionText: string;
   explanation: string;    // 正解後の解説
   imageUrl: string | null; // 参考画像URL
@@ -119,6 +119,7 @@ export interface Quiz {
   canonicalGenreId: string; // 統合先の正規ジャンルID
   canonicalTagIds: string[]; // 統合先の正規タグID配列
   leaderboard: LeaderboardRecord[]; // ランキング
+  format?: 'mixed' | 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking'; // クイズ全体の形式
   createdAt: Date;
   updatedAt: Date;
 }

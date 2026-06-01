@@ -27,6 +27,7 @@ export default function QuizDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [bookmarked, setBookmarked] = useState<boolean>(false);
   const [selectedMode, setSelectedMode] = useState<'normal' | 'exam' | 'flashcard'>('normal');
+  const [showInstantFeedback, setShowInstantFeedback] = useState<boolean>(true);
   const [bookmarkLoading, setBookmarkLoading] = useState<boolean>(false);
 
   // クイズデータの読み込み
@@ -73,6 +74,8 @@ export default function QuizDetailPage({ params }: PageProps) {
     
     // ウミガメスープ問題（lateral-thinking）が含まれているかを判定
     const isLateral = quiz.questions.some((q) => q.type === 'lateral-thinking');
+    // 早押し問題が含まれているかを判定
+    const isQuick = quiz.format === 'quick-press' || quiz.questions.some((q) => q.type === 'quick-press');
     
     if (isLateral) {
       // ウミガメスープ問題は専用のプレイ遷移（モードは lateral となる）
@@ -82,6 +85,9 @@ export default function QuizDetailPage({ params }: PageProps) {
         return;
       }
       router.push(`/quiz/${quiz.id}/play?mode=lateral`);
+    } else if (isQuick) {
+      // 早押し問題は通常モード固定でプレイ
+      router.push(`/quiz/${quiz.id}/play?mode=normal&feedback=${showInstantFeedback}`);
     } else {
       router.push(`/quiz/${quiz.id}/play?mode=${selectedMode}`);
     }
@@ -112,6 +118,8 @@ export default function QuizDetailPage({ params }: PageProps) {
 
   // ウミガメスープ判定
   const isLateralThinkingQuiz = quiz.questions.some((q) => q.type === 'lateral-thinking');
+  // 早押しクイズ判定
+  const isQuickPressQuiz = quiz.format === 'quick-press' || quiz.questions.some((q) => q.type === 'quick-press');
 
   // リーダーボードを完了タイム（秒数）の昇順でソート（上位10名）
   const sortedLeaderboard = quiz.leaderboard
@@ -262,6 +270,47 @@ export default function QuizDetailPage({ params }: PageProps) {
                 「はい」「いいえ」で答えられる質問をAIに投げ、真相を解き明かしましょう！
               </p>
             </div>
+          ) : isQuickPressQuiz ? (
+            /* 早押しクイズの場合はモード選択を固定して専用案内 */
+            <div className={`${styles.modeOption} ${styles.modeSelected}`} style={{ cursor: 'default' }}>
+              <div className={styles.modeHeader}>
+                <Timer size={18} className="text-neon-accent" />
+                <span>早押し通常プレイ</span>
+              </div>
+              <p className={styles.modeDesc} style={{ marginBottom: '12px' }}>
+                1文字ずつ表示される早押し問題に対応した専用プレイモードです。
+                問題が読めた瞬間にボタンを押し、回答を記述しましょう！
+              </p>
+              
+              {/* 即時正誤トグルスイッチ */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--border-light)',
+                marginTop: '12px'
+              }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>
+                  解答後にその場で正誤・解説を表示
+                </span>
+                <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={showInstantFeedback}
+                    onChange={(e) => setShowInstantFeedback(e.target.checked)}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      accentColor: 'var(--color-primary)',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
           ) : (
             /* 通常クイズの場合は3つのモードをトグル */
             <>
@@ -307,7 +356,7 @@ export default function QuizDetailPage({ params }: PageProps) {
           )}
 
           <button className={`btn btn-primary ${styles.playBtn}`} onClick={handlePlayStart} style={{ width: '100%', marginTop: '10px' }}>
-            {isLateralThinkingQuiz ? 'チャットを開始する' : 'プレイを開始する'}
+            {isLateralThinkingQuiz ? 'チャットを開始する' : isQuickPressQuiz ? '早押しを開始する' : 'プレイを開始する'}
           </button>
         </div>
       </div>
