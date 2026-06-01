@@ -134,9 +134,9 @@ sequenceDiagram
 * **カンニング防止（クライアント難読化）**:
   - プレイ画面・弱点克服（復習）画面のクイズ読み込み時、`type === 'quick-press'` の設問について `questionText` および `correctTextAnswerList` の各要素を `btoa(unescape(encodeURIComponent(...)))` で Base64 エンコードし、DOM 上の平文露出と DevTools による先読みを抑止します。表示・判定時は `atob` + `decodeURIComponent(escape(...))` で復号します。
 * **UI フロー（1 設問あたり）**:
-  1. **問読み開始**: 「🔊 問読みを開始する」ボタンで `isReadingStarted = true`。
-  2. **アニメーション表示**: プレフィックス「問題：」を 200ms/文字で表示 → 1 秒待機 → 本文を 200ms/文字で表示。本文の最初の 1 文字が描画された瞬間を `quickPressStartTimeRef` に記録（計測開始）。
-  3. **早押し**: 「🔴 押して回答する！」でインターバルを停止し、計測終了（秒・小数第 2 位）を `currentQuickPressTime` に保持。入力欄を活性化。
+  1. **問読み開始**: 「🔊 問読みを開始する」ボタンで `isReadingStarted = true`。`useQuickPressStream` が `displayTokens` を組み立てる。
+  2. **アニメーション表示**: プレフィックス「問題：」をクライアントで 200ms/文字・各文字ワイプ 250ms で表示 → 1 秒待機 → 本文トークンを 200ms/文字で受信・追記（公開プレイは `GET /api/quiz/quick-press-stream` の NDJSON、テストプレイは `mode: 'local'` で同一間隔のクライアント生成）。本文の最初のトークン到着時に `onBodyTimingStart` を呼び、`quickPressStartTimeRef` に記録（計測開始）。表示は `QuickPressQuestionText`（`framer-motion` / `MarkdownContent` は使用しない）。
+  3. **早押し**: 「🔴 押して回答する！」で `cancelStream()`（`reader.cancel()` / `AbortController`）により以降のトークン受信を停止し、計測終了（秒・小数第 2 位）を `currentQuickPressTime` に保持。入力欄を活性化。
   4. **解答送信**: 正規化後に復号済み `correctTextAnswerList` と照合。正解時のみ `quickPressTimes[questionId] = currentQuickPressTime` をマージ。
   5. **即時フィードバック分岐** (`showFeedback` = URL の `feedback` パラメータ、未指定時 `true`):
      - `true`: その場で正誤・解説・早押しタイムを表示し、「次の問題へ」で `handleAnswerSubmit` を呼ぶ。
@@ -1759,19 +1759,24 @@ match /quizzes/{quizId} {
 - **作問画面**（`quiz-editor.tsx`）: 問題文 `textarea` の変更に応じて、入力欄直下のプレビュー領域へ `parseMarkdownToHtml(questionText)` の結果を `dangerouslySetInnerHTML` で描画する。
 - **プレイ画面**（`play/page.tsx`）、**弱点克服**（`/quiz/review`）、**フラッシュカード**、**模擬試験**、**テストプレイ**（`/quiz/test-play/play`）: 設問カード上部の問題文表示に `parseMarkdownToHtml(currentQuestion.questionText)` を適用する。
 - **早押し（`quick-press`）**:
-  - **本文のカンニング防止**: 公開プレイでは `GET /api/quiz/quick-press-stream` が Firestore 上の `questionText` を 200ms/文字で `ReadableStream` 送信する。クライアントのクイズオブジェクトでは `questionText` を空にし、未送信分は DOM に存在しない。
-  - **ラベル「問題：」**: クライアント側で 200ms/文字表示後、1000ms 待機してからストリーム受信開始（計測開始は本文の最初のチャンク到着時）。
-  - **マークダウン表示**: 受信済み本文に `buildQuickPressDisplayMarkdown` を適用し `parseMarkdownToHtml` で描画。記法記号は露出しない。
-  - **演出**: `QuickPressQuestionText`（`framer-motion`）で更新のたびにフェードイン。
-  - **早押しボタン**: `reader.cancel()` / `AbortController` で以降のチャンク受信を遮断。
-  - **テストプレイ**: 下書きは Firestore 未保存のため `useQuickPressStream` の `mode: 'local'` で同一タイミングのクライアント演出を使用（F-308）。
+  - **本文のカンニング防止**: 公開プレイでは `GET /api/quiz/quick-press-stream` が Firestore 上の `questionText`（マークダウンソース）をサーバーで `parseMarkdownToQuickPressTokens` に変換し、`{"char":"…","bold":boolean}` 形式の NDJSON を 200ms/文字で `ReadableStream` 送信する（`Content-Type: application/x-ndjson`）。クライアントのクイズオブジェクトでは `questionText` を空にし、未送信トークンは DOM に存在しない。
+  - **ラベル「問題：」**: クライアント側で 200ms/文字・ワイプ 250ms 表示後、1000ms 待機してから本文ストリーム受信開始（計測開始は本文の最初のトークン到着時、`onBodyTimingStart`）。
+  - **表示パイプライン**: `useQuickPressStream` が `displayTokens: QuickPressCharToken[]` を保持し、`QuestionTextDisplay` → `QuickPressQuestionText` がトークンごとに `<span>` を生成。マークダウン記法（`*` や `[` 等）はプレイ中に画面へ露出しない（パースはサーバー／ローカルモードの事前変換のみ）。
+  - **演出**: 各 `<span>` に `background-clip: text` と `quick-press-wipe-in`（250ms、定数 `QUICK_PRESS_WIPE_CHAR_MS`）を適用し、文字追加のたびに左から削り出すワイプを実行。強調（`**…**`）は `bold: true` と `charBold` スタイルで `--color-accent` を用いる。フォントは `quick-press-question-text.module.css` で通常 1.85rem・強調 1.15em（プレイ画面 `.questionText` の 1.4rem より大きい）。
+  - **早押しボタン**: `cancelStream()` により `reader.cancel()` / `AbortController` で以降の NDJSON 受信を遮断。
+  - **テストプレイ**: 下書きは Firestore 未保存のため `useQuickPressStream` の `mode: 'local'` で `parseMarkdownToQuickPressTokens` による同一タイミングのクライアント配信を使用（F-308）。
+  - **関連モジュール**: `src/lib/quick-press-plain-text.ts`（パース・NDJSON）、`src/lib/quick-press-stream-config.ts`（送信間隔・ワイプ時間）、`src/hooks/useQuickPressStream.ts`、`src/components/quiz/quick-press-question-text.tsx`。
 - **水平思考（`lateral-thinking`）**: チャット上部の設問サマリー表示にも同一パイプラインを適用する。プレイヤーが AI へ送る自由記述（最大100文字）は問題文とは別フィールドであり、マークダウン対象外。
 
 ```typescript
+// quick-press 以外の設問
 <p
   className={styles.questionText}
   dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.questionText) }}
 />
+
+// quick-press（問読み中）
+<QuickPressQuestionText tokens={displayTokens} className={styles.questionText} />
 ```
 
 #### 8.2.2 解説文（`explanation`）

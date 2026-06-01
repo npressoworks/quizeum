@@ -24,7 +24,7 @@ export function QuickPressQuestionText({
 }: QuickPressQuestionTextProps) {
   return (
     <h2
-      className={`${styles.root} ${className ?? ''}`}
+      className={`${className ?? ''} ${styles.root}`}
       style={
         {
           '--quick-press-wipe-ms': `${QUICK_PRESS_WIPE_CHAR_MS}ms`,

@@ -7,11 +7,11 @@
   }
 }
 
-.root {
-  font-size: inherit;
-  font-weight: inherit;
-  color: inherit;
-  line-height: inherit;
+h2.root {
+  font-size: 1.85rem;
+  font-weight: 400;
+  color: var(--text-main);
+  line-height: 1.45;
 }
 
 .char {
@@ -25,5 +25,6 @@
 }
 
 .charBold {
+  font-size: 1.15em;
   font-weight: 800;
 }

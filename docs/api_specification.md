@@ -89,6 +89,51 @@ export function clearTestPlaySession(): void;
 * **AttemptService との関係**: テストプレイ完了時は `saveAttempt` を**呼び出さない**。`Attempt.mode = 'test-play'` は将来の拡張用型として予約するが、現行実装では `attempts` ドキュメントは作成しない。
 * **水平思考 AI API**: テストプレイ中は `askAiQuestion` / `verifyTruth` を呼び出さない（ターン制限・API コストの消費防止）。真相判定が必要な場合は `truthKeywords` のクライアント側部分一致のみ。
 
+#### 早押し問題文ストリーム API（Next.js Route Handler / F-308）
+
+公開プレイで早押し設問の本文を先読み不能にするため、Firestore 上の `questionText` をサーバーでトークン化し、時間差でストリーミング配信する。
+
+| 項目 | 仕様 |
+| :--- | :--- |
+| **エンドポイント** | `GET /api/quiz/quick-press-stream` |
+| **実装** | `src/app/api/quiz/quick-press-stream/route.ts` |
+| **クエリ** | `quizId`（必須）, `questionId`（必須） |
+| **認証** | 任意。`Authorization: Bearer <ID_TOKEN>` を付与可能（将来の拡張用）。未認証でも公開済みクイズのストリームは取得可。 |
+| **前提** | 対象クイズ `status === 'published'`、設問 `type === 'quick-press'`、本文非空 |
+| **レスポンス** | `Content-Type: application/x-ndjson; charset=utf-8`、`Cache-Control: no-store`、本文は `ReadableStream` |
+| **1行フォーマット** | 改行区切り JSON 1 件 = 表示用 1 文字トークン。例: `{"char":"早","bold":true}\n` |
+| **送信間隔** | トークン 1 件ごとに `QUICK_PRESS_BODY_CHAR_MS`（200ms）待機 |
+| **サーバーパース** | `parseMarkdownToQuickPressTokens`（`src/lib/quick-press-plain-text.ts`）。`**…**` → `bold: true`、`*…*`・`[label](url)`・改行は平文化ルールに従い `bold: false` |
+| **クライアント** | `useQuickPressStream`（`mode: 'api'`）が NDJSON を `parseQuickPressStreamLine` で解釈し `displayTokens` に追記。ラベル「問題：」は API 対象外（クライアントのみ 200ms/文字）。計測開始は本文最初のトークン到着時。 |
+| **表示** | `QuickPressQuestionText` が `displayTokens` を CSS ワイプ（`QUICK_PRESS_WIPE_CHAR_MS` = 250ms）で描画。 |
+
+**HTTP エラー（JSON ボディ）**
+
+| ステータス | `error` | 条件 |
+| :--- | :--- | :--- |
+| 400 | `missing-params` | `quizId` または `questionId` 未指定 |
+| 400 | `invalid-question` | 設問なし、または `quick-press` 以外 |
+| 400 | `empty-question` | 問題文が空 |
+| 403 | `not-published` | 未公開クイズ |
+| 404 | `not-found` | クイズ不存在 |
+| 500 | `internal-error` | サーバー例外 |
+
+```typescript
+/** 早押し問題文ストリームの 1 文字トークン（NDJSON 1 行） */
+export interface QuickPressCharToken {
+  char: string;   // 表示上の 1 文字（改行はスペースに正規化済み）
+  bold: boolean;  // **…** 由来の強調
+}
+
+/** サーバー送信（src/lib/quick-press-plain-text.ts） */
+export function serializeQuickPressStreamToken(token: QuickPressCharToken): string;
+
+/** クライアント受信 */
+export function parseQuickPressStreamLine(line: string): QuickPressCharToken | null;
+```
+
+* **テストプレイ**: Firestore 未保存のため本 API は呼ばない。`useQuickPressStream` の `mode: 'local'` で同一トークン列・同一間隔をクライアント生成する。
+
 * **Zodバリデーションの適用仕様**: 
   `createQuiz` および `updateQuiz` において、`isPublished: true` (公開申請) の場合は後述の `quizPublishSchema` による厳格な検証を行います。`isPublished: false` (下書き保存) の場合は、タイトルなどの最低限の入力チェックのみ行い、途中の未完成状態であっても保存できるようにします。
 
