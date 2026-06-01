@@ -1,7 +1,7 @@
 .container {
   max-width: 1000px;
   margin: 40px auto;
-  padding: 0 20px;
+  padding: 0 20px 100px; /* Added padding-bottom to account for fixed actionsBar */
 }
 
 .title {
@@ -449,11 +449,16 @@
 
 /* Action buttons */
 .actionsBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background-color: var(--bg-body);
+  padding: 20px;
   display: flex;
   justify-content: flex-end;
   gap: 16px;
-  margin-top: 40px;
-  padding-top: 24px;
   border-top: 1px solid var(--border-light);
 }
 
