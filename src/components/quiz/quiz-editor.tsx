@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { saveQuiz, getQuiz, updateQuiz } from '@/services/quiz';
 import { validateQuizForPublish, normalizeTag, QuizPublishValidationError } from '@/services/quiz-validation';
+import { hasAnyQuestionUserInput } from '@/services/quiz-question-input';
 import { Quiz, Question, Choice } from '@/types';
 import styles from '@/app/quiz/create/create.module.css';
 import { Trash2, Plus, Info, AlertTriangle, Image, ArrowLeft, Save, Send, HelpCircle } from 'lucide-react';
@@ -207,7 +208,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
   const handleFormatChange = (newFormat: typeof format) => {
     if (newFormat === format) return;
 
-    if (questions.length > 0) {
+    if (hasAnyQuestionUserInput(questions)) {
       const confirmMsg = newFormat === 'mixed'
         ? '複合クイズ形式に変更します。既存の問題タイプは維持されますが、各設問のトグルから選択式、記述式、並び替えを自由に選択できるようになります。よろしいですか？'
         : `クイズ全体の出題形式を「${getFormatLabel(newFormat)}」に変更します。既存のすべての問題が「${getFormatLabel(newFormat)}」形式に一括変換されます（一部のデータが初期化される可能性があります）。よろしいですか？`;
@@ -310,6 +311,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
 
   // 設問タイプの切り替え (選択式 / 記述式 / 早押し / 並び替え / 連想 / ウミガメのスープ)
   const handleToggleQuestionType = (idx: number, type: 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking') => {
+    if (questions[idx].type === type) return;
+
     const nextQuestions = [...questions];
     nextQuestions[idx].type = type;
     
