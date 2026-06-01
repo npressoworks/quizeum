@@ -1,28 +1,48 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { MarkdownContent } from '@/components/markdown/markdown-content';
+import type { CSSProperties } from 'react';
+import type { QuickPressCharToken } from '@/lib/quick-press-plain-text';
+import { QUICK_PRESS_WIPE_CHAR_MS } from '@/lib/quick-press-stream-config';
+import styles from './quick-press-question-text.module.css';
 
 type QuickPressQuestionTextProps = {
-  markdown: string;
+  tokens: QuickPressCharToken[];
   className?: string;
 };
 
+const NORMAL_GRADIENT =
+  'linear-gradient(to right, var(--text-main) 50%, rgba(243, 240, 252, 0) 50%)';
+const BOLD_GRADIENT =
+  'linear-gradient(to right, var(--color-accent) 50%, rgba(0, 245, 212, 0) 50%)';
+
 /**
- * 早押しタイプライター表示。framer-motion で逐次更新時にフェードインする。
+ * 早押し問題文: ストリームで届いたトークンを1文字ずつ左ワイプで表示する。
  */
 export function QuickPressQuestionText({
-  markdown,
+  tokens,
   className,
 }: QuickPressQuestionTextProps) {
   return (
-    <motion.div
-      className={className}
-      initial={false}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.08, ease: 'easeOut' }}
+    <h2
+      className={`${styles.root} ${className ?? ''}`}
+      style={
+        {
+          '--quick-press-wipe-ms': `${QUICK_PRESS_WIPE_CHAR_MS}ms`,
+        } as CSSProperties
+      }
     >
-      <MarkdownContent markdown={markdown} as="h2" />
-    </motion.div>
+      {tokens.map((token, index) => (
+        <span
+          key={index}
+          className={`${styles.char} ${token.bold ? styles.charBold : ''}`}
+          style={{
+            backgroundImage: token.bold ? BOLD_GRADIENT : NORMAL_GRADIENT,
+            backgroundSize: '200% 100%',
+          }}
+        >
+          {token.char === ' ' ? '\u00A0' : token.char}
+        </span>
+      ))}
+    </h2>
   );
 }

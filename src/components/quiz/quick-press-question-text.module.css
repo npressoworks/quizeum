@@ -1,0 +1,29 @@
+@keyframes quick-press-wipe-in {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+.root {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  line-height: inherit;
+}
+
+.char {
+  display: inline-block;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  animation: quick-press-wipe-in var(--quick-press-wipe-ms, 250ms) linear forwards;
+}
+
+.charBold {
+  font-weight: 800;
+}

@@ -3,6 +3,8 @@ export const QUICK_PRESS_LABEL = '問題：';
 export const QUICK_PRESS_LABEL_CHAR_MS = 200;
 export const QUICK_PRESS_BODY_PAUSE_MS = 1000;
 export const QUICK_PRESS_BODY_CHAR_MS = 200;
+/** 1文字あたりの左ワイプ演出（CSS animation duration） */
+export const QUICK_PRESS_WIPE_CHAR_MS = 250;
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { quizzesRef } from '@/lib/firebase/firestore';
+import {
+  parseMarkdownToQuickPressTokens,
+  serializeQuickPressStreamToken,
+} from '@/lib/quick-press-plain-text';
 import { QUICK_PRESS_BODY_CHAR_MS, sleep } from '@/lib/quick-press-stream-config';
-import type { Question, Quiz } from '@/types';
+import type { Quiz } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/quiz/quick-press-stream?quizId=&questionId=
- * 問題文本文（マークダウンソース）を1文字ずつ遅延送信し、先読みを防ぐ。
+ * 問題文をパースし、強調フラグ付きトークンを NDJSON で1文字ずつ遅延送信する。
  */
 export async function GET(request: NextRequest): Promise<Response> {
   const quizId = request.nextUrl.searchParams.get('quizId');
@@ -43,14 +47,14 @@ export async function GET(request: NextRequest): Promise<Response> {
       return NextResponse.json({ error: 'empty-question' }, { status: 400 });
     }
 
+    const tokens = parseMarkdownToQuickPressTokens(bodyText);
     const encoder = new TextEncoder();
-    const characters = Array.from(bodyText);
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          for (const char of characters) {
-            controller.enqueue(encoder.encode(char));
+          for (const token of tokens) {
+            controller.enqueue(encoder.encode(serializeQuickPressStreamToken(token)));
             await sleep(QUICK_PRESS_BODY_CHAR_MS);
           }
           controller.close();
@@ -62,7 +66,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
         'Cache-Control': 'no-store',
       },
     });

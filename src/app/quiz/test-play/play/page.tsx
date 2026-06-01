@@ -119,7 +119,7 @@ function TestPlayPageContent() {
       ? decodeStoredQuestionText(quickPressQuestion.questionText, 'quick-press')
       : '';
 
-  const { displayMarkdown: quickPressDisplayMarkdown, cancelStream: cancelQuickPressStream } =
+  const { displayTokens: quickPressDisplayTokens, cancelStream: cancelQuickPressStream } =
     useQuickPressStream({
       enabled: Boolean(quickPressQuestion && isReadingStarted),
       mode: 'local',
@@ -317,7 +317,7 @@ function TestPlayPageContent() {
         <QuestionTextDisplay
           question={currentQuestion}
           className={styles.questionText}
-          quickPressDisplayMarkdown={quickPressDisplayMarkdown}
+          quickPressDisplayTokens={quickPressDisplayTokens}
           isQuickPressReading={isReadingStarted}
         />
 

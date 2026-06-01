@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { QuickPressCharToken } from '@/lib/quick-press-plain-text';
 import {
-  buildQuickPressDisplayMarkdown,
-  markdownToPlainText,
-} from '@/lib/markdown-typewriter';
+  parseMarkdownToQuickPressTokens,
+  parseQuickPressStreamLine,
+} from '@/lib/quick-press-plain-text';
 import {
   QUICK_PRESS_BODY_CHAR_MS,
   QUICK_PRESS_BODY_PAUSE_MS,
@@ -26,6 +27,17 @@ type UseQuickPressStreamOptions = {
   onBodyTimingStart?: () => void;
 };
 
+function labelTokensForLength(length: number): QuickPressCharToken[] {
+  return Array.from(QUICK_PRESS_LABEL.slice(0, length)).map((char) => ({
+    char,
+    bold: false,
+  }));
+}
+
+function errorTokens(message: string): QuickPressCharToken[] {
+  return Array.from(message).map((char) => ({ char, bold: false }));
+}
+
 export function useQuickPressStream({
   enabled,
   mode,
@@ -35,7 +47,7 @@ export function useQuickPressStream({
   getIdToken,
   onBodyTimingStart,
 }: UseQuickPressStreamOptions) {
-  const [displayMarkdown, setDisplayMarkdown] = useState('');
+  const [displayTokens, setDisplayTokens] = useState<QuickPressCharToken[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
 
@@ -76,7 +88,7 @@ export function useQuickPressStream({
 
     const isStale = () => cancelled || runId !== runIdRef.current;
 
-    async function streamBodyFromApi(label: string) {
+    async function streamBodyFromApi() {
       const token = getIdTokenRef.current
         ? await getIdTokenRef.current()
         : null;
@@ -97,38 +109,40 @@ export function useQuickPressStream({
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
       readerRef.current = reader;
 
-      let bodyRaw = '';
+      let lineBuffer = '';
       while (true) {
         const { value, done } = await reader.read();
         if (done || isStale()) break;
-        if (value) {
-          bodyRaw += value;
-          setDisplayMarkdown(
-            buildQuickPressDisplayMarkdown(
-              label,
-              bodyRaw,
-              markdownToPlainText(bodyRaw).length
-            )
-          );
+        if (!value) continue;
+
+        lineBuffer += value;
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() ?? '';
+
+        const chunk: QuickPressCharToken[] = [];
+        for (const line of lines) {
+          const bodyToken = parseQuickPressStreamLine(line);
+          if (bodyToken) chunk.push(bodyToken);
+        }
+        if (chunk.length > 0 && !isStale()) {
+          setDisplayTokens((prev) => [...prev, ...chunk]);
         }
       }
     }
 
-    async function streamBodyLocally(label: string, fullBody: string) {
-      const plainLength = markdownToPlainText(fullBody).length;
-      for (let visible = 1; visible <= plainLength; visible++) {
+    async function streamBodyLocally(fullBody: string) {
+      const bodyTokens = parseMarkdownToQuickPressTokens(fullBody);
+      for (const bodyToken of bodyTokens) {
         if (isStale()) return;
         await sleep(QUICK_PRESS_BODY_CHAR_MS);
         if (isStale()) return;
-        setDisplayMarkdown(
-          buildQuickPressDisplayMarkdown(label, fullBody, visible)
-        );
+        setDisplayTokens((prev) => [...prev, bodyToken]);
       }
     }
 
     async function run() {
       setStreamError(null);
-      setDisplayMarkdown('');
+      setDisplayTokens([]);
       setIsStreaming(true);
       abortActiveIO();
 
@@ -137,7 +151,7 @@ export function useQuickPressStream({
           if (isStale()) return;
           await sleep(QUICK_PRESS_LABEL_CHAR_MS);
           if (isStale()) return;
-          setDisplayMarkdown(QUICK_PRESS_LABEL.slice(0, i));
+          setDisplayTokens(labelTokensForLength(i));
         }
 
         if (isStale()) return;
@@ -147,9 +161,9 @@ export function useQuickPressStream({
         onBodyTimingStartRef.current?.();
 
         if (mode === 'local') {
-          await streamBodyLocally(QUICK_PRESS_LABEL, localBodyRef.current);
+          await streamBodyLocally(localBodyRef.current);
         } else {
-          await streamBodyFromApi(QUICK_PRESS_LABEL);
+          await streamBodyFromApi();
         }
       } catch (err) {
         if (isStale()) return;
@@ -157,8 +171,9 @@ export function useQuickPressStream({
           return;
         }
         console.error('[useQuickPressStream]', err);
-        setStreamError('問題：問題の読み込みに失敗しました。');
-        setDisplayMarkdown('問題：問題の読み込みに失敗しました。');
+        const message = '問題：問題の読み込みに失敗しました。';
+        setStreamError(message);
+        setDisplayTokens(errorTokens(message));
       } finally {
         if (!isStale()) {
           setIsStreaming(false);
@@ -179,7 +194,7 @@ export function useQuickPressStream({
   }, [enabled, mode, quizId, questionId, abortActiveIO]);
 
   return {
-    displayMarkdown,
+    displayTokens,
     isStreaming,
     streamError,
     cancelStream,

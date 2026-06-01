@@ -311,7 +311,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
   }, []);
 
   const {
-    displayMarkdown: quickPressDisplayMarkdown,
+    displayTokens: quickPressDisplayTokens,
     cancelStream: cancelQuickPressStream,
   } = useQuickPressStream({
     enabled: Boolean(quickPressQuestion && isReadingStarted),
@@ -603,7 +603,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
         <QuestionTextDisplay
           question={currentQuestion}
           className={styles.questionText}
-          quickPressDisplayMarkdown={quickPressDisplayMarkdown}
+          quickPressDisplayTokens={quickPressDisplayTokens}
           isQuickPressReading={isReadingStarted}
         />
 

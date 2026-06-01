@@ -2,20 +2,21 @@
 
 import { MarkdownContent } from '@/components/markdown/markdown-content';
 import { QuickPressQuestionText } from '@/components/quiz/quick-press-question-text';
+import type { QuickPressCharToken } from '@/lib/quick-press-plain-text';
 import type { Question } from '@/types';
 
 type QuestionTextDisplayProps = {
   question: Question | undefined;
   className?: string;
-  /** quick-press: ストリーム／ローカル演出で組み立て済みの表示用マークダウン */
-  quickPressDisplayMarkdown?: string;
+  /** quick-press: ストリームで届いた強調フラグ付きトークン列 */
+  quickPressDisplayTokens?: QuickPressCharToken[];
   isQuickPressReading?: boolean;
 };
 
 export function QuestionTextDisplay({
   question,
   className,
-  quickPressDisplayMarkdown = '',
+  quickPressDisplayTokens = [],
   isQuickPressReading = false,
 }: QuestionTextDisplayProps) {
   if (!question) {
@@ -28,7 +29,7 @@ export function QuestionTextDisplay({
     }
     return (
       <QuickPressQuestionText
-        markdown={quickPressDisplayMarkdown}
+        tokens={quickPressDisplayTokens}
         className={className}
       />
     );
