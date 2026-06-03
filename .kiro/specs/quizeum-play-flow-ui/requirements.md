@@ -1,94 +1,113 @@
-# Requirements Document: quizeum-play-flow-ui
+# 要件定義書: quizeum-play-flow-ui
 
-## Introduction
-本ドキュメントは、クイズ投稿SNS「quizeum」におけるホーム画面、クイズ探索、クイズ詳細、プレイ画面（通常・ウミガメスープ含む）、結果画面、弱点克服、およびリーダーボードを含む、ユーザーのクイズプレイに関する一連のフロントエンドUI要件を定義します。
+## はじめに
+本ドキュメントは、クイズ投稿SNS「quizeum」におけるホーム画面、クイズ探索、クイズ詳細、プレイ画面（通常・ウミガメのスープ含む）、結果画面、弱点克服、およびリーダーボードを含む、ユーザーのクイズプレイに関するフロントエンドUI要件を定義します。
 
-## Boundary Context
-- **In scope**:
+**Phase 5（2026-06）**: クイズ詳細のリーダーボード表示を、初回プレイ／リプレイの二系統に改定し、正解数優先・同点時タイムの表示規則に合わせる（データ更新は `quizeum-core` が担当）。
+
+## 境界コンテキスト
+- **対象範囲（In scope）**:
   - ホーム画面における新着・人気・トレンド・フォロータイムラインのタブ表示および複合検索。
-  - クイズ詳細画面における良問評価バッジ、リーダーボード、3つのプレイモード選択UI、および作成者本人用の編集ボタン表示と編集画面遷移機能。
+  - クイズ詳細画面における良問評価バッジ、**初回プレイ／リプレイの二系統リーダーボード**、3つのプレイモード選択UI、および作成者本人用の編集ボタン表示と編集画面遷移機能。
   - クイズ編集画面（`/quiz/[id]/edit`）における他ユーザー（非作成者）による直接アクセス時の認可保護ガード処理。
   - 通常プレイ画面における設問表示、制限時間タイマー、ヒント表示、および `localStorage` を用いたセッション保護。
   - 水平思考（ウミガメのスープ）における2カラムレイアウト、AIチャット（入力制限、ターン制限、回答生成中の「・・・AIが質問を分析中です」グレー表示、キャッシュマーク）、および真相判定。
   - クイズ結果画面における正誤解説リスト、👍/👎良問評価、難易度投票、指摘フォーム、お礼リアクション、SNS共有。
   - 過去の間違い設問を復習できる弱点克服プレイ画面（ジャンル選択機能含む）。
-  - 各種探索一覧画面（ブックマーク、タグ別、ジャンル別）および総合リーダーボード画面。
-- **Out of scope**:
-  - Gemini APIを利用した判定サーバーサイドロジックそのもの（`quizeum-core`が担当）。
-  - クイジエーター向けのクイズやクイズリストの作成・編集画面（後続スペックが担当）。
+  - 各種探索一覧画面（ブックマーク、タグ別、ジャンル別）および**プラットフォーム総合**リーダーボード画面（`/leaderboard`）。
+- **対象外（Out of scope）**:
+  - Gemini APIを利用した判定サーバーサイドロジック、リーダーボード永続化、`attempts` への書き込み（`quizeum-core` が担当）。
+  - クイズ作成者向けのクイズ・クイズリスト作成・編集画面（`quizeum-creator-dash-ui` が担当）。
+  - マイページのプレイ履歴一覧（`quizeum-auth-profile-ui` が担当）。
+  - プラットフォーム総合リーダーボード（`/leaderboard`）の集計ロジック変更。
+- **隣接システムへの期待（Adjacent expectations）**:
+  - クイズドキュメントの `leaderboardFirstPlay` / `leaderboardReplay` を読み取り表示する。`leaderboardFirstPlay` が空で旧 `leaderboard` のみ存在する場合は、初回プレイ側のフォールバック表示として旧フィールドを用いる（`quizeum-core` と同一ルール）。
 
-## Requirements
+## 要件
 
-### Requirement 1: ホーム画面 (Page: `/`)
-**Objective:** As a Quizeum User, I want to explore quizzes via tabs, genres, and a compound search filter, so that I can easily discover quizzes that interest me.
+### 要件 1: ホーム画面 (Page: `/`)
+**目的:** Quizeumのユーザーとして、タブ・ジャンル・複合検索でクイズを探索したい。それにより興味のあるクイズを見つけやすくなる。
 
-#### Acceptance Criteria
-1. The Home Screen shall display distinct tab panels for "新着順", "人気順", "トレンド順", and "タイムライン" (visible only when authenticated).
-2. The Home Screen shall display an interactive icon navigation list representing major metadata genres.
-3. The Home Screen shall display a compound search panel allowing users to filter by genre, difficulty range (1-10), question count, and play status (unplayed / played).
-4. If an unauthenticated guest user attempts to bookmark a quiz card on the Home Screen, then the Home Screen shall redirect the user to the Authentication Screen (`/login`).
+#### 受け入れ基準
+1. ホーム画面は「新着順」「人気順」「トレンド順」「タイムライン」（認証時のみ）のタブパネルを表示すること。
+2. ホーム画面は主要メタデータジャンルを表すインタラクティブなアイコン一覧を表示すること。
+3. ホーム画面は、ジャンル、難易度（1〜10）、問題数、プレイ状況（未プレイ／プレイ済み）で絞り込める複合検索パネルを表示すること。
+4. 未認証ゲストがホーム画面でクイズカードをブックマークしようとした場合、認証画面（`/login`）へ遷移させること。
 
-### Requirement 2: クイズ詳細画面 (Page: `/quiz/[id]`)
-**Objective:** As a Quizeum User, I want to view quiz metadata, ratings, leaderboards, and select a play mode, so that I can prepare for the quiz and understand its structure.
+### 要件 2: クイズ詳細画面 (Page: `/quiz/[id]`)
+**目的:** Quizeumのユーザーとして、クイズのメタ情報・評価・ランキングを確認しプレイモードを選びたい。それによりプレイ前に内容を把握できる。
 
-#### Acceptance Criteria
-1. The Quiz Detail Screen shall display the quiz title, description, thumbnail, genre, tags, difficulty (1-10), perfect score leaderboards, and bookmark toggle.
-2. The Quiz Detail Screen shall display the `reviewBadge` and `reviewScore` (re-evaluation state masked if within the 7-day re-evaluation reset period).
-3. The Quiz Detail Screen shall display an interactive Play Panel offering three modes: "通常モード", "模擬試験モード", and "フラッシュカードモード".
-4. When the user clicks the play button in the Play Panel, the Quiz Detail Screen shall redirect the user to the corresponding Quiz Play Screen (`/quiz/[id]/play`) in the selected mode.
-5. If the currently authenticated user is the creator of the quiz, then the Quiz Detail Screen shall display an "Edit Quiz" button.
-6. When the user clicks the "Edit Quiz" button, the Quiz Detail Screen shall redirect the user to the Quiz Edit Screen (`/quiz/[id]/edit`).
+#### 受け入れ基準
+1. クイズ詳細画面は、タイトル、説明、サムネイル、ジャンル、タグ、難易度（1〜10）、ブックマークトグルを表示すること。
+2. クイズ詳細画面は、`reviewBadge` と `reviewScore` を表示すること（7日間の再評価リセット期間中はマスク表示）。
+3. クイズ詳細画面は、「通常モード」「模擬試験モード」「フラッシュカードモード」の3モードを選べるプレイパネルを表示すること。
+4. プレイパネルでプレイ開始を押したとき、選択モードのクイズプレイ画面（`/quiz/[id]/play`）へ遷移すること。
+5. ログイン中ユーザーが当該クイズの作成者である場合、「クイズを編集」ボタンを表示すること。
+6. 「クイズを編集」を押したとき、クイズ編集画面（`/quiz/[id]/edit`）へ遷移すること。
 
-### Requirement 3: クイズプレイ画面 (Page: `/quiz/[id]/play`)
-**Objective:** As a Quiz Player, I want to answer quiz questions with countdowns, hints, and session preservation, so that I can enjoy a fair and reliable playing experience.
+### 要件 3: クイズプレイ画面 (Page: `/quiz/[id]/play`)
+**目的:** クイズプレイヤーとして、カウントダウン・ヒント・セッション保護付きで解答したい。それにより公平で信頼できるプレイ体験を得られる。
 
-#### Acceptance Criteria
-1. While playing in normal or exam mode, if a per-question time limit is specified, the Play Screen shall display a countdown timer and automatically submit incorrect answer on expiration (0 seconds).
-2. While playing in exam mode, the Play Screen shall apply a single overall countdown timer instead of per-question limits, allowing players to navigate freely and review previous answers.
-3. When the player clicks the "ヒントを表示" button, the Play Screen shall display the corresponding hint text.
-4. While playing, the Play Screen shall continuously serialize the current answer states and save them to `localStorage` to allow recovery on reload or crash.
-5. If the network is disconnected during play, the Play Screen shall allow the player to complete the quiz offline, presenting an offline results view upon completion.
+#### 受け入れ基準
+1. 通常または模擬試験モードで設問ごとに制限時間がある場合、カウントダウンを表示し、0秒で不正解として自動提出すること。
+2. 模擬試験モードでは設問ごとの制限ではなくクイズ全体の制限時間を適用し、前の設問へ戻って見直せること。
+3. 「ヒントを表示」を押したとき、対応するヒント文を表示すること。
+4. プレイ中、解答状態を `localStorage` に継続保存し、リロードやクラッシュから復元できること。
+5. プレイ中にオフラインになった場合、オフラインで完了でき、完了時にオフライン結果画面を表示すること。
 
-### Requirement 4: 水平思考クイズ（ウミガメのスープ）プレイモード
-**Objective:** As a Quiz Player, I want to play lateral thinking quizzes using a 2-column AI chat interface, so that I can ask questions and resolve the mystery.
+### 要件 4: 水平思考クイズ（ウミガメのスープ）プレイモード
+**目的:** クイズプレイヤーとして、2カラムのAIチャットで水平思考クイズをプレイしたい。それにより質問しながら真相に辿り着ける。
 
-#### Acceptance Criteria
-1. When playing a quiz of type `lateral-thinking`, the Play Screen shall switch to a 2-column layout, displaying the interactive AI Chat on the left and the scrollable Q&A History List on the right.
-2. If the user is unauthenticated, then the system shall redirect them to the Authentication Screen (`/login`) before loading the lateral thinking play screen.
-3. When the player submits a free-text question, while the AI response is pending, the AI Chat shall display a loading message "・・・AIが質問を分析中です" in gray text at the bottom.
-4. When a submitted question exactly matches a question in the current history, the Play Screen shall instantly return the cached answer with a "📋 既存の回答" badge, bypassing the AI API call.
-5. If a free-tier user reaches the daily limit of 20 questions for that quiz, then the AI Chat shall disable input and display a "本日の残り質問数: 0/20" warning indicator.
-6. When the player clicks "真相を解き明かす" and submits a truth summary, if the AI API approves it, then the Play Screen shall play a clear animation and redirect to the Quiz Result Screen.
+#### 受け入れ基準
+1. `lateral-thinking` 形式のとき、左にAIチャット、右にスクロール可能なQ&A履歴リストの2カラムレイアウトに切り替えること。
+2. 未認証の場合、水平思考プレイ画面読み込み前に認証画面（`/login`）へ遷移すること。
+3. 質問送信後AI応答待ちの間、AIチャット下部に灰色で「・・・AIが質問を分析中です」を表示すること。
+4. 履歴と完全一致する質問を再送したとき、即時にキャッシュ回答を「📋 既存の回答」バッジ付きで返すこと。
+5. 無料ユーザーが当該クイズの1日20回制限に達したとき、入力を無効化し「本日の残り質問数: 0/20」を表示すること。
+6. 「真相を解き明かす」で真相要約を送信しAPIが合格判定したとき、クリア演出のうえ結果画面へ遷移すること。
 
-### Requirement 5: クイズ結果画面 (Page: `/quiz/[id]/result`)
-**Objective:** As a Quiz Player, I want to see my playing score, detailed explanations, and provide quality feedback, so that I can learn and rate the content.
+### 要件 5: クイズ結果画面 (Page: `/quiz/[id]/result`)
+**目的:** クイズプレイヤーとして、スコアと解説を確認し品質フィードバックを送りたい。それにより学習しコンテンツを評価できる。
 
-#### Acceptance Criteria
-1. The Quiz Result Screen shall display the clear score (correct count / total questions), elapsed time, correctness list, and rich markdown explanations for each question.
-2. The Quiz Result Screen shall display a rating widget allowing the player to cast a binary vote (👍 Good / 👎 Bad) and rate the experienced difficulty (1-10).
-3. When the player clicks the "問題の間違い指摘" button, the Quiz Result Screen shall open a feedback form allowing selection of categories (typo, fact, alternative) and detail input.
-4. When the player clicks the "作家にお礼リアクションを送る" button, the Quiz Result Screen shall atomically send an appreciation notification to the creator.
-5. If the user is offline, the Quiz Result Screen shall display an offline indicator, disable rating votes, feedback forms, and creator reactions, and notify "Attempt queued for sync".
+#### 受け入れ基準
+1. 結果画面は正解数／総問題数、経過時間、正誤一覧、各設問のマークダウン解説を表示すること。
+2. 結果画面は👍/👎の二値投票と体感難易度（1〜10）投票UIを表示すること。
+3. 「問題の間違い指摘」でカテゴリ（誤字、事実、別解）と詳細を入力できるフォームを開けること。
+4. 「作家にお礼リアクションを送る」で作成者へ感謝通知を送信できること。
+5. オフライン時はオフライン表示とし、投票・指摘・リアクションを無効化し、同期キューイングを通知すること。
 
-### Requirement 6: 弱点克服プレイ画面 (Page: `/quiz/review`)
-**Objective:** As an Authenticated User, I want to review questions I previously failed, so that I can overcome my knowledge gaps.
+### 要件 6: 弱点克服プレイ画面 (Page: `/quiz/review`)
+**目的:** 認証ユーザーとして、過去に間違えた設問を復習したい。それにより弱点を克服できる。
 
-#### Acceptance Criteria
-1. The Review Screen shall present a genre-filter selection panel (including "オールジャンル") prior to starting the session.
-2. The Review Screen shall fetch failed questions from the database matching the filter and initiate a review play session.
-3. When the review session completes, the system shall atomically update the failed list database and reduce `users.totalFailedQuestionsCount`.
+#### 受け入れ基準
+1. 復習開始前にジャンル選択（「オールジャンル」含む）パネルを表示すること。
+2. フィルタに合致する間違い設問を取得し復習セッションを開始すること。
+3. 復習完了時、間違いリストを更新し `users.totalFailedQuestionsCount` を減算すること（`quizeum-core` 連携）。
 
-### Requirement 7: その他の探索・リーダーボード画面
-**Objective:** As a Quizeum User, I want to view global rankings and search tags/genres, so that I can explore high-quality competitive content.
+### 要件 7: その他の探索・総合リーダーボード画面
+**目的:** Quizeumのユーザーとして、全体ランキングやタグ・ジャンルで探索したい。それにより競技的・高品質なコンテンツを発見できる。
 
-#### Acceptance Criteria
-1. The Leaderboard Screen shall display tabs for "総合ハイスコア", "月間プレイ数", and "作家ランキング".
-2. The Tag Search Screen (`/tags/[tagName]`) and Genre Search Screen (`/genres/[genreName]`) shall display lists of matching quizzes sorted by popularity or newness.
-3. The Bookmarks Screen (`/bookmarks`) shall display bookmarked quizzes and lists with dynamic toggle actions.
+#### 受け入れ基準
+1. 総合リーダーボード画面（`/leaderboard`）は「総合ハイスコア」「月間プレイ数」「作家ランキング」のタブを表示すること（クイズ単位LBとは別仕様）。
+2. タグ一覧（`/tags/[tagName]`）・ジャンル一覧（`/genres/[genreName]`）は該当クイズを人気順または新着順で一覧表示すること。
+3. ブックマーク画面（`/bookmarks`）はブックマークしたクイズ・リストをトグル操作付きで表示すること。
 
-### Requirement 8: クイズ編集認可保護 (Page: `/quiz/[id]/edit`)
-**Objective:** As an Authenticated User, I want the system to restrict access to the Quiz Edit Screen, so that only the creator of the quiz can edit its content.
+### 要件 8: クイズ編集認可保護 (Page: `/quiz/[id]/edit`)
+**目的:** 認証ユーザーとして、編集画面へのアクセスを適切に制限したい。それにより作成者以外が編集できないようにする。
 
-#### Acceptance Criteria
-1. If an unauthenticated guest user attempts to access the Quiz Edit Screen directly, then the system shall redirect the user to the Authentication Screen (`/login`).
-2. If an authenticated user who is not the creator of the quiz (`user?.id !== quiz.authorId`) attempts to access the Quiz Edit Screen directly, then the Quiz Edit Screen shall display an "Unauthorized Access" (アクセス権限なし) error message and block the rendering of the editing form.
+#### 受け入れ基準
+1. 未認証ゲストが編集画面に直接アクセスした場合、認証画面（`/login`）へ遷移すること。
+2. 認証済みだが作成者でないユーザー（`user?.id !== quiz.authorId`）が直接アクセスした場合、「アクセス権限なし」を表示し編集フォームを描画しないこと。
+
+### 要件 9: クイズ単位リーダーボード表示（Phase 5）
+**目的:** Quizeumのユーザーとして、初回プレイとリプレイのランキングを分けて確認したい。それにより初見と再挑戦の記録を誤解なく比較できる。
+
+#### 受け入れ基準
+1. クイズ詳細画面は、「初回プレイランキング（上位5名）」と「リプレイランキング（上位5名）」を**別セクションまたはタブ**で表示すること（総合リーダーボード画面とは別UI）。
+2. 各ランキング表は、順位・ユーザー表示名・**正解数**・**合計解答時間（秒）**・達成日の列を含むこと。
+3. 表示順は、正解数の多い順を第一キー、同点時は合計解答時間の短い順を第二キーとすること（`quizeum-core` の順位規則と一致）。
+4. 各セクションに記録がない場合、「まだ記録がありません」等の空状態を表示すること。全問正解者のみ表示する文言や挙動は用いないこと。
+5. 初回プレイデータは `leaderboardFirstPlay` を読み取ること。未移行クイズで当該フィールドが空のときのみ、旧 `leaderboard` フィールドを初回プレイ側のフォールバックとして表示してよい。
+6. リプレイデータは `leaderboardReplay` のみを読み取ること。
+7. E2Eおよびアクセシビリティ用に、クイズLB領域に `data-testid="quiz-leaderboard"` を付与し、初回側に `data-testid="highscore-leaderboard"`（または同等）、各行に `data-testid="leaderboard-entry"` を付与すること。
+8. クイズ詳細画面は、リーダーボード配列の更新・並び替えロジックを実装してはならない（読み取りと表示のみ。更新は `quizeum-core`）。

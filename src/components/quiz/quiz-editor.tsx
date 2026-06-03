@@ -831,6 +831,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       canonicalGenreId: '',
       canonicalTagIds: [],
       leaderboard: [],
+      leaderboardFirstPlay: [],
+      leaderboardReplay: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -880,6 +882,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
       canonicalGenreId: '',
       canonicalTagIds: [],
       leaderboard: [],
+      leaderboardFirstPlay: [],
+      leaderboardReplay: [],
     };
 
     // 公開時のみバリデーションチェック

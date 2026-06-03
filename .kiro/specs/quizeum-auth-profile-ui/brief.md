@@ -20,8 +20,10 @@ Next.js App Router と CSS Modules を用いた、シンプルでカジュアル
   - フォロー/フォロワー一覧画面 (`/profile/[uid]/connections`): つながりの確認とダイレクトなフォロートグル。
   - 通知一覧画面 (`/notifications`): アクティビティ通知（フォロー、指摘修正完了等）の時系列表示。
   - リアクション履歴画面 (`/profile/[uid]/likes`): 自分が送った / もらったリアクション（お礼・いいね）の履歴。
+  - **Phase 5**: 本人プロフィールのプレイ履歴（`GET /api/user/play-history`、ページング、クイズ詳細へのリンク）。
 - **Out**:
   - クイズのプレイや作成などの別スコープの画面。
+  - 他ユーザーのプレイ履歴閲覧、履歴API・永続化（`quizeum-core`）。
 
 ## Boundary Candidates
 - `src/app/login/page.tsx`

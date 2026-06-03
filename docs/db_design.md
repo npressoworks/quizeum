@@ -116,7 +116,9 @@ erDiagram
 | `activeResetRequestId` | `string \| null` | 任意 | `null` | **[NEW]** 現在進行中の良問評価リセット申請ドキュメントのID。マスク解除時または申請解決時に `null` に戻される。 |
 | `canonicalGenreId` | `string` | **必須** | 既存ジャンルID | 仮想統合の書き込み時解決用。タグ/ジャンルマージ関係を書き込み時に解決した、統合先の正規ジャンルID。 |
 | `canonicalTagIds` | `array (string)` | **必須** | `[]` | 仮想統合の書き込み時解決用。クイズに付与された各タグIDの統合先正規タグIDの配列（例：`['react', '歴史']`）。検索（クエリ）の高速化専用。クイズ作成・編集時およびマージ可決時に非同期で更新される。 |
-| `leaderboard` | `array (Record)`| **必須** | 最大5要素 / `[]` | 全問正解者のハイスコア＆最速全問正解ランキング。 |
+| `leaderboard` | `array (Record)`| **任意（後方互換）** | 最大5要素 / `[]` | **[非推奨・移行中]** 旧単一LB。新規は `leaderboardFirstPlay` / `leaderboardReplay` を使用。 |
+| `leaderboardFirstPlay` | `array (Record)`| **必須** | 最大5要素 / `[]` | 初回プレイ完了記録のランキング（正解数降順→合計解答時間昇順）。 |
+| `leaderboardReplay` | `array (Record)`| **必須** | 最大5要素 / `[]` | 2回目以降のプレイ完了記録のランキング（比較式は初回LBと同一）。 |
 | `format` | `string` | 任意 | `'mixed'` | **[NEW]** クイズ全体の出題形式。`mixed`（複合）／`multiple-choice`／`text-input`／`quick-press`／`sorting`／`association`／`lateral-thinking`。単一形式選択時は全設問の `type` と一致させる（公開時に `validateQuizForPublish` で検証）。 |
 | `createdAt` | `timestamp` | **必須** | `request.time` | クイズ作成（下書き開始）日時。 |
 | `updatedAt` | `timestamp` | **必須** | `request.time` | クイズ内容・問題等の最終更新日時。 |
@@ -162,9 +164,11 @@ erDiagram
 #### ネストされる `LeaderboardRecord` オブジェクト型
 * `userId` (`string`): ユーザーID。
 * `displayName` (`string`): ユーザー表示名（非正規化）。
-* `score` (`number`): スコア。
-* `elapsedSeconds` (`number`): 経過秒数。
+* `score` (`number`): 正解数（`totalQuestions - failedQuestionIds.length`）。
+* `elapsedSeconds` (`number`): プレイ開始から完了までの合計解答時間（秒）。
 * `completedAt` (`timestamp`): 登録日時。
+
+**ランキング比較**: `score` 降順 → `elapsedSeconds` 昇順。各LB配列は同一 `userId` を最大1件とする。
 
 ---
 
@@ -492,16 +496,20 @@ erDiagram
 8. **弱点克服・復習用最新履歴取得クエリ用**:
    * コレクション: `attempts`
    * フィールド: `userId` (昇順) ＋ `quizId` (昇順) ＋ `completedAt` (降順)
-9. **良問評価クエリ用**:
+9. **本人プレイ履歴一覧用（Phase 5）**:
+   * コレクション: `attempts`
+   * フィールド: `userId` (昇順) ＋ `completedAt` (降順)
+   * 備考: `firestore.indexes.json` に定義。`listUserPlayHistory` は `mode !== 'test-play'` をアプリ層でフィルタ。
+10. **良問評価クエリ用**:
    * コレクション: `quizReviews`
    * フィールド: `quizId` (昇順) ＋ `createdAt` (降順)
-10. **ユーザー別良問評価重複防止用**:
+11. **ユーザー別良問評価重複防止用**:
     * コレクション: `quizReviews`
     * フィールド: `quizId` (昇順) ＋ `reviewerId` (昇順)
-11. **信頼スコアイベントバッチ処理用**:
+12. **信頼スコアイベントバッチ処理用**:
     * コレクション: `users/{uid}/reputationEvents` (サブコレクション)
     * フィールド: `processedAt` (昇順) ＋ `createdAt` (昇順)
-12. **マージリクエスト一覧用**:
+13. **マージリクエスト一覧用**:
     * コレクション: `mergeRequests`
     * フィールド: `status` (昇順) ＋ `createdAt` (降順)
 

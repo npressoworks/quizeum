@@ -103,6 +103,8 @@ export function prepareQuizForTestPlay(
     canonicalGenreId: draft.canonicalGenreId ?? '',
     canonicalTagIds: draft.canonicalTagIds ?? [],
     leaderboard: [],
+    leaderboardFirstPlay: [],
+    leaderboardReplay: [],
     format: draft.format,
     createdAt: now,
     updatedAt: now,

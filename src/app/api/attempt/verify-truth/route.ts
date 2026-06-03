@@ -15,7 +15,19 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { collection, doc, getDoc, updateDoc, arrayUnion, increment, runTransaction } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  query,
+  where,
+  arrayUnion,
+  increment,
+  runTransaction,
+} from 'firebase/firestore';
+import { buildLeaderboardUpdatesForQuiz } from '@/lib/leaderboard-update';
 import { db } from '@/lib/firebase/config';
 import {
   buildVerifyTruthPrompt,
@@ -133,22 +145,36 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     };
 
     if (isCorrect) {
-      // 合格: トランザクションでアトミックに完了マーク、履歴追加、リーダーボード更新
       const elapsedSeconds = attempt.elapsedSeconds;
+      const priorSnap = await getDocs(
+        query(
+          attemptsCollection,
+          where('userId', '==', userId),
+          where('quizId', '==', attempt.quizId)
+        )
+      );
+      const priorCompletedCount = priorSnap.docs.filter((d) => {
+        if (d.id === attemptId) return false;
+        const data = d.data() as Attempt;
+        return data.completedAt != null;
+      }).length;
 
       await runTransaction(db, async (transaction) => {
         const quizTransactionSnap = await transaction.get(quizRef);
         if (!quizTransactionSnap.exists()) throw new Error('クイズが見つかりません。');
         const currentQuiz = quizTransactionSnap.data() as Quiz;
 
-        // 1. attempt を完了、履歴追加
         transaction.update(attemptRef, {
           completedAt: now,
-          score: attempt.totalQuestions, // ウミガメは全問正解扱い
+          score: attempt.totalQuestions,
           aiTruthAttempts: arrayUnion(newTruthAttempt),
         });
 
-        // 2. クイズのリーダーボードとプレイ数インクリメント
+        const quizUpdates: Record<string, unknown> = {
+          playCount: increment(1),
+          updatedAt: now,
+        };
+
         const leaderboardEntry = {
           userId,
           displayName: displayName ?? '',
@@ -157,16 +183,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           completedAt: now,
         };
 
-        const newLeaderboard = [...(currentQuiz.leaderboard ?? [])];
-        newLeaderboard.push(leaderboardEntry);
-        newLeaderboard.sort((a, b) => b.score - a.score || a.elapsedSeconds - b.elapsedSeconds);
-        const top5Leaderboard = newLeaderboard.slice(0, 5);
+        const lbResult = buildLeaderboardUpdatesForQuiz(
+          currentQuiz,
+          priorCompletedCount,
+          leaderboardEntry,
+          attempt.mode
+        );
+        if (lbResult) {
+          Object.assign(quizUpdates, lbResult.updates);
+        }
 
-        transaction.update(quizRef, {
-          leaderboard: top5Leaderboard,
-          playCount: increment(1),
-          updatedAt: now,
-        });
+        transaction.update(quizRef, quizUpdates);
       });
 
       return NextResponse.json({ isCorrect: true, advice: null });

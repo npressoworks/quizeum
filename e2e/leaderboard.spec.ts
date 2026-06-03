@@ -113,7 +113,7 @@ test.describe('リーダーボード・競技機能 E2Eテスト', () => {
 
     // 2. クイズのリーダーボード情報を確認（詳細ページ内）
     const quizLeaderboard = page.locator('[data-testid="quiz-leaderboard"]').first()
-      .or(page.locator('div').filter({ hasText: /ハイスコア|ランキング|最速/ }).first());
+      .or(page.locator('div').filter({ hasText: /初回プレイ|リプレイ|ランキング/ }).first());
 
     if (await quizLeaderboard.isVisible()) {
       await expect(quizLeaderboard).toBeVisible();
@@ -155,8 +155,7 @@ test.describe('リーダーボード・競技機能 E2Eテスト', () => {
     }
   });
 
-  test('クイズ詳細画面: ハイスコアランキングが表示されること', async ({ page }) => {
-    // 1. ホームページからクイズを選択
+  test('クイズ詳細画面: 初回プレイランキングが表示されること', async ({ page }) => {
     await page.goto('/');
     const firstQuizCard = page.locator('[data-testid="quiz-card"]').first();
     await firstQuizCard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
@@ -164,29 +163,21 @@ test.describe('リーダーボード・競技機能 E2Eテスト', () => {
       await firstQuizCard.click();
     }
 
-    // クイズ詳細ページであることを確認
     await expect(page).toHaveURL(/\/quiz\/[\w-]+$/);
 
-    // 2. ハイスコアランキングセクションを確認
-    const highscoreSection = page.locator('[data-testid="highscore-leaderboard"]').first()
-      .or(page.locator('div').filter({ hasText: /ハイスコア|歴代/ }).first());
+    const quizLb = page.locator('[data-testid="quiz-leaderboard"]').first();
+    await expect(quizLb).toBeVisible();
 
-    if (await highscoreSection.isVisible()) {
-      await expect(highscoreSection).toBeVisible();
+    await expect(page.locator('[data-testid="quiz-leaderboard-tab-first"]').first()).toBeVisible();
+    await expect(page.locator('[data-testid="highscore-leaderboard"]').first()).toBeVisible();
 
-      // 3. ランキングエントリを確認
-      const entries = page.locator('[data-testid="highscore-entry"]');
-      const entryCount = await entries.count();
-
-      // エントリがある場合は確認
-      if (entryCount > 0) {
-        expect(entryCount).toBeGreaterThan(0);
-      }
+    const entryCount = await page.locator('[data-testid="leaderboard-entry"]').count();
+    if (entryCount > 0) {
+      expect(entryCount).toBeGreaterThan(0);
     }
   });
 
-  test('クイズ詳細画面: 最速全問正解ランキングが表示されること', async ({ page }) => {
-    // 1. ホームページからクイズを選択
+  test('クイズ詳細画面: リプレイランキングが表示されること', async ({ page }) => {
     await page.goto('/');
     const firstQuizCard = page.locator('[data-testid="quiz-card"]').first();
     await firstQuizCard.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
@@ -194,25 +185,13 @@ test.describe('リーダーボード・競技機能 E2Eテスト', () => {
       await firstQuizCard.click();
     }
 
-    // クイズ詳細ページであることを確認
     await expect(page).toHaveURL(/\/quiz\/[\w-]+$/);
 
-    // 2. 最速ランキングセクションを確認
-    const fastestSection = page.locator('[data-testid="fastest-leaderboard"]').first()
-      .or(page.locator('div').filter({ hasText: /最速|タイムアタック/ }).first());
+    const replayTab = page.locator('[data-testid="quiz-leaderboard-tab-replay"]').first();
+    await expect(replayTab).toBeVisible();
+    await replayTab.click();
 
-    if (await fastestSection.isVisible()) {
-      await expect(fastestSection).toBeVisible();
-
-      // 3. ランキングエントリを確認
-      const entries = page.locator('[data-testid="fastest-entry"]');
-      const entryCount = await entries.count();
-
-      // エントリがある場合は確認
-      if (entryCount > 0) {
-        expect(entryCount).toBeGreaterThan(0);
-      }
-    }
+    await expect(page.locator('[data-testid="replay-leaderboard"]').first()).toBeVisible();
   });
 
   test('F-803: 短答式問題が正常に機能すること', async ({ page }) => {

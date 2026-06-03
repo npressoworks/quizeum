@@ -5,11 +5,15 @@
 
 本システムは、Next.jsのApp RouterおよびReact、TypeScriptのフルスタック構成に加え、Firebase（Auth, Firestore, Storage）および外部AI（Gemini API）のハイブリッドアーキテクチャを採用し、セキュリティとパフォーマンス、ユーザー体験（UX）を最高レベルで実現します。
 
+**Phase 5（2026-06）**: クイズ単位リーダーボードを初回プレイ／リプレイの二系統に分割し、正解数優先・同点時タイムの順位規則で更新する。全問正解は不要。あわせて本人向けプレイ履歴取得APIをコア層に追加する（表示UIは `quizeum-auth-profile-ui` が担当）。
+
 ### Goals
 - ページの初期HTML読み込み時間を通常トラフィック下で平均0.5秒以内に維持する。
 - プレイ中の不意なリロードやオフライン切断時における解答データ損失をローカルで保護・復元する。
 - ユーザー退会時、アトミックな書き込み制限（最大500件）を回避しつつ即時Auth物理削除と非同期ジョブによる関連データの安全なクレンジングを完了する。
 - 水平思考クイズにおいて、セキュアなサーバーサイド呼び出し、ターン制限（1日20回）、および同一質問キャッシュによる低コストで高精度なAI判定を実装する。
+- 初回プレイ／リプレイの二系統リーダーボードを、単一の順位比較ロジックで一貫更新し、不正なクライアント改ざんをサーバー側トランザクションで防ぐ。
+- 本人プレイ履歴をページング付きで安全に返却する（他ユーザーからの取得は拒否）。
 
 ### Non-Goals
 - 外部システムや外部ファイルからのクイズ・クイズリストの一括インポート機能の実装。
@@ -26,10 +30,15 @@
 - **水平思考プレイ判定ロジック**: サーバーAPIを仲介するGemini API連携（直近最大20回分の会話履歴参照を伴うステートフル化）、同一質問キャッシュ一致判定、1日同一クイズ20回制限（無料ユーザー）、必須キーワード全一致による即正解チェックとAIフォールバックによるハイブリッド真相判定（B2方式）。
 - **メタデータ管理**: 表記揺れタグの自動名寄せおよび類似サジェスト、表記揺れタグ/ジャンルのモデレータ投票による仮想マージ関係の解決と canonical 解決。
 - **オフライン/セッション保護**: クライアントローカル永続ストレージでの進捗永続化およびオンライン復帰時の自動バッチ同期。
+- **クイズリーダーボード（初回／リプレイ）**: `quizzes.leaderboardFirstPlay` / `quizzes.leaderboardReplay` の更新ロジック、順位比較、トランザクション内の attempt 回数判定。
+- **プレイ履歴クエリ**: 認証済み本人向け `attempts` 一覧のページング取得（クイズタイトル非正規化の解決を含む）。
 
 ### Out of Boundary
 - 外部APIへの直接のクライアント通信（AI呼び出しなど）はSecurity Rulesで拒否され、すべてNext.js API Routeを経由します。
 - クイズデータの一括JSONインポートは行わず、手動によるエクスポート（ダウンロード）パッケージ生成のみを担当します。
+- プラットフォーム総合リーダーボード（`/leaderboard`）の集計・表示。
+- マイページ／プロフィール画面のプレイ履歴UIレイアウト（`quizeum-auth-profile-ui`）。
+- クイズ詳細画面のリーダーボードタブUI（`quizeum-play-flow-ui`）。
 
 ### Allowed Dependencies
 - **外部AI API**: 生成AI自動判定に必要な外部API（Google Gemini API等）。
@@ -40,6 +49,8 @@
 - `spec.json` の型定義（`User`, `Quiz`, `Attempt` 等）のスキーマ変更。
 - 退会処理時における匿名化対象コレクションの追加。
 - AI自動真相判定のプロンプト構成やGemini APIのインターフェース変更。
+- `leaderboardFirstPlay` / `leaderboardReplay` フィールド追加および旧 `leaderboard` 読み取り互換の廃止方針。
+- プレイ履歴APIのレスポンス形状またはページングカーソル形式の変更。
 
 ---
 
@@ -99,12 +110,16 @@ src/
 │       │   ├── ask-ai/
 │       │   │   └── route.ts      # AI質問判定API (4.1, 4.2)
 │       │   └── verify-truth/
-│       │       └── route.ts      # AI真相判定API (4.5, 4.6)
+│       │       └── route.ts      # AI真相判定API (4.5, 4.6, 9.8)
 │       └── user/
-│           └── delete-account/
-│               └── route.ts      # 即時退会Auth物理削除API (1.4)
+│           ├── delete-account/
+│           │   └── route.ts      # 即時退会Auth物理削除API (1.4)
+│           └── play-history/
+│               └── route.ts      # 本人プレイ履歴API (10.1–10.5)
+├── lib/
+│   └── leaderboard-ranking.ts    # 順位比較・マージ・top5抽出 (9.4–9.6)
 ├── services/
-│   ├── attempt.ts                # プレイ履歴・進捗同期・キャッシュ管理 (3.1, 3.2, 4.3)
+│   ├── attempt.ts                # saveAttempt内LB更新、listUserPlayHistory (3.1, 3.6, 9.x, 10.x)
 │   ├── bookmark.ts               # ブックマークのアトミック管理 (5.3)
 │   ├── moderation.ts             # NGワード・通報・マージリクエスト管理 (7.1, 7.2, 7.4)
 │   ├── quiz-list.ts              # リストの管理 (5.4)
@@ -124,10 +139,42 @@ src/
 - `src/app/api/attempt/ask-ai/route.ts` — Firestore から履歴を取得して直近20回分の履歴を Gemini に渡しステートフルな呼び出しを行うよう修正。
 - `src/app/api/attempt/verify-truth/route.ts` — 必須キーワード一致による即合格（AIバイパス）とAIフォールバックを組み合わせたハイブリッド判定処理を追加。
 - `src/components/quiz/quiz-editor.tsx` — ウミガメスープ形式の問題作成時に、タグ風UIで必須キーワードを追加・削除できるフォームを追加。
+- `src/types/index.ts` — `leaderboardFirstPlay` / `leaderboardReplay`、`PlayHistoryEntry` 等を追加。
+- `src/lib/leaderboard-ranking.ts` — **新規**。順位比較・ユーザー1枠マージ・上位5抽出の純関数。
+- `src/services/attempt.ts` — 全問正解ガードを撤廃し、トランザクション内で初回／リプレイLBを更新。`listUserPlayHistory` を追加。
+- `src/app/api/attempt/verify-truth/route.ts` — 共通LB更新ヘルパーを利用（重複ロジック削除）。
+- `src/app/api/user/play-history/route.ts` — **新規**。IDトークン検証後、本人のみ履歴を返却。
+- `firestore.indexes.json`（またはプロジェクト既定のインデックス定義）— `attempts`: `userId` + `completedAt` 降順クエリ用複合インデックスを追加。
+- `tests/lib/leaderboard-ranking.test.ts` — **新規**。順位・マージ・top5の単体テスト。
+- `tests/services/attempt-leaderboard.test.ts` — **新規**。初回／リプレイ振り分けの統合テスト。
 
 ---
 
 ## System Flows
+
+### クイズリーダーボード更新フロー（`saveAttempt` / `verify-truth` 共通）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Svc as AttemptService / VerifyTruthAPI
+    participant Rank as leaderboard-ranking.ts
+    participant DB as Firestore
+
+    Svc->>DB: トランザクション開始
+    Svc->>DB: 当該 userId+quizId の完了済み attempts 件数を取得（新規 attempt 作成前）
+    alt 完了済み件数 == 0（今回が初回完了）
+        Note over Svc: 対象 board = firstPlay
+    else 完了済み件数 >= 1（リプレイ）
+        Note over Svc: 対象 board = replay（firstPlay は変更しない）
+    end
+    Svc->>Rank: isStrictlyBetter / mergeUserEntryAndTakeTop5
+    Rank-->>Svc: 更新後配列（最大5件）
+    Svc->>DB: attempts 作成、playCount++、leaderboardFirstPlay または leaderboardReplay 更新
+    Svc->>DB: コミット
+```
+
+**フロー上の決定**: 全問正解チェックは行わない。ゲスト・`test-play` は LB 更新対象外（attempt 永続化自体が行われない）。
 
 ### 水平思考クイズ（ウミガメのスープ）ステートフルAI質問対話フロー
 
@@ -259,7 +306,20 @@ sequenceDiagram
 | 3.3 | オフラインプレイ結果と自動同期 | `LocalAttemptSession` | `syncPendingAttempts` | - |
 | 3.4 | オフラインリストプレイの進行ブロック | `LocalAttemptSession` | `checkConnectivity` | - |
 | 3.5 | プレイ結果画面（良問評価・難易度投票）| `ReviewService` | `submitReview` | - |
-| 3.6 | 自己ベスト・ハイスコア自動登録 | `QuizService` | `updateLeaderboard` | - |
+| 3.6 | 永続化試行保存とLB更新委譲 | `AttemptService` | `saveAttempt` | リーダーボード更新フロー |
+| 9.1 | 永続化完了時のLB評価 | `AttemptService` | `saveAttempt` | リーダーボード更新フロー |
+| 9.2 | 初回完了は firstPlay のみ | `AttemptService` | `saveAttempt` (tx) | リーダーボード更新フロー |
+| 9.3 | 2回目以降は replay のみ | `AttemptService` | `saveAttempt` (tx) | リーダーボード更新フロー |
+| 9.4 | 正解数優先・同点タイム順 | `leaderboard-ranking.ts` | `compareLeaderboard` | - |
+| 9.5 | ユーザー1枠・厳密優位時のみ差し替え | `leaderboard-ranking.ts` | `mergeUserEntryAndTakeTop5` | - |
+| 9.6 | 上位5件保持 | `leaderboard-ranking.ts` | `mergeUserEntryAndTakeTop5` | - |
+| 9.7 | 全問正解不要 | `AttemptService` | `saveAttempt` | - |
+| 9.8 | ウミガメ合格時の同一LB規則 | `VerifyTruthAPI` | `/api/attempt/verify-truth` | 真相判定フロー |
+| 10.1 | 本人履歴・完了日時降順 | `AttemptService` / PlayHistoryAPI | `listUserPlayHistory` | - |
+| 10.2 | test-play 除外 | `AttemptService` | `listUserPlayHistory` | - |
+| 10.3 | 表示用メタデータ | `AttemptService` | `listUserPlayHistory` | - |
+| 10.4 | 初回20件+カーソル | `PlayHistoryAPI` | `GET /api/user/play-history` | - |
+| 10.5 | 他人の履歴拒否 | `PlayHistoryAPI` | `GET /api/user/play-history` | - |
 | 2.7 | 必須キーワード(エッセンス)のタグ風UI入力 | `QuizCreator` / UI | `truthKeywords` タグ入力UI | - |
 | 2.8 | クイズ公開時の必須キーワードバリデーション | `QuizService` | `validateQuizForPublish` | - |
 | 4.1 | 最大20回分の会話履歴を参照したステートフルAI質問 | `AskAiQuestionAPI` | `/api/attempt/ask-ai` | 質問対話フロー |
@@ -299,8 +359,10 @@ sequenceDiagram
 | Component | Domain/Layer | Intent | Req Coverage | Key Dependencies (P0/P1) | Contracts |
 |-----------|--------------|--------|--------------|--------------------------|-----------|
 | `UserService` | Service | ユーザープロフィール、称号、フォロー管理 | 1.2, 1.3, 5.1 | Firestore (P0) | Service, State |
-| `QuizService` | Service | クイズのライフサイクル、エクスポート、ハイスコア更新 | 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.6 | Firestore (P0), NGChecker (P1) | Service, API |
-| `AttemptService` | Service | 解答結果の永続化、セッションキャッシュ、オフライン同期 | 3.1, 3.2, 3.3, 3.4, 5.5 | Firestore (P0), LocalStore (P1) | Service, State, Batch |
+| `QuizService` | Service | クイズのライフサイクル、エクスポート | 2.1, 2.2, 2.3, 2.4, 2.5, 2.6 | Firestore (P0), NGChecker (P1) | Service, API |
+| `leaderboard-ranking` | Lib | LB順位比較・マージ・top5 | 9.4, 9.5, 9.6 | - | Pure functions |
+| `AttemptService` | Service | 解答永続化、LB更新、本人プレイ履歴、オフライン同期 | 3.1, 3.2, 3.3, 3.4, 3.6, 5.5, 9.1–9.7, 10.1–10.3 | Firestore (P0), LocalStore (P1), leaderboard-ranking (P0) | Service, State, Batch |
+| `/api/user/play-history` | API Route | 本人プレイ履歴の認可付き取得 | 10.1, 10.4, 10.5 | AuthAdmin (P0), AttemptService (P0) | API |
 | `BookmarkService` | Service | クイズ・リストのブックマークアトミック管理 | 5.3 | Firestore (P0) | Service, State |
 | `QuizListService` | Service | リストの作成、ドラッグ＆ドロップ、パッケージング | 5.4, 5.6 | Firestore (P0), QuizService (P1) | Service, State |
 | `ReviewService` | Service | 良問評価、間違い指摘、修正通知、リセットバッチ | 3.5, 6.1, 6.2, 6.3, 6.5 | Firestore (P0), CloudTasks (P1) | Service, State, Batch |
@@ -334,42 +396,94 @@ export interface UserService {
 
 #### `QuizService`
 - **Intent**: クイズの保存、編集、Zod検証、NGワード二重検証付き公開、エクスポート。
-- **Requirements**: `2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.6`
+- **Requirements**: `2.1, 2.2, 2.3, 2.4, 2.5, 2.6`
 
 ```typescript
 export interface QuizService {
-  // クイズの新規作成または下書き保存 (2.1)
   saveQuiz(quiz: Omit<Quiz, 'id' | 'playCount' | 'bookmarksCount' | 'createdAt' | 'updatedAt'>, status: 'draft' | 'published'): Promise<string>;
-  
-  // タグの自動名寄せと類似サジェスト検知 (2.3)
   normalizeTag(input: string): string;
   getSimilarTagSuggest(tag: string): Promise<string | null>;
-  
-  // クイズの削除と関連データの非同期クリーンアップ (2.5)
   deleteQuiz(quizId: string): Promise<void>;
-  
-  // クイズ一括エクスポート (2.6)
   exportQuizzes(uid: string): Promise<QuizExportPackage>;
-  
-  // ハイスコア・タイムアタックランキングの更新 (3.6)
-  updateLeaderboard(quizId: string, record: Omit<LeaderboardRecord, 'completedAt'>): Promise<void>;
 }
 ```
 - **Validation Hooks**: `saveQuiz` で公開（`published`）する際、Zodスキーマ `quizPublishSchema` を強制検証し、NGワードが含まれていれば保存を拒否する。
+- **Note**: リーダーボード更新は `AttemptService.saveAttempt` および `verify-truth` トランザクション内に集約（旧 `updateLeaderboard` 単体呼び出しは廃止方向）。
+
+#### `leaderboard-ranking`（純関数ライブラリ）
+- **Intent**: 要件9の順位規則を単一実装に集約し、`saveAttempt` と `verify-truth` の重複を排除する。
+- **Requirements**: `9.4, 9.5, 9.6`
+
+```typescript
+export type LeaderboardBoard = 'firstPlay' | 'replay';
+
+/** a が b より上位なら負の数、同順位なら 0、下位なら正の数（sort 用） */
+export function compareLeaderboardRecords(
+  a: Pick<LeaderboardRecord, 'score' | 'elapsedSeconds'>,
+  b: Pick<LeaderboardRecord, 'score' | 'elapsedSeconds'>
+): number;
+
+export function isStrictlyBetter(
+  candidate: Pick<LeaderboardRecord, 'score' | 'elapsedSeconds'>,
+  existing: Pick<LeaderboardRecord, 'score' | 'elapsedSeconds'>
+): boolean;
+
+export function mergeUserEntryAndTakeTop5(
+  entries: LeaderboardRecord[],
+  userId: string,
+  incoming: Omit<LeaderboardRecord, 'completedAt'> & { completedAt: Date }
+): LeaderboardRecord[];
+
+export function resolveLeaderboardBoard(priorCompletedAttemptCount: number): LeaderboardBoard;
+```
+- **Invariants**: ソートは `score` 降順 → `elapsedSeconds` 昇順。返却配列は最大5要素。同一 `userId` は最大1件。
 
 #### `AttemptService`
-- **Intent**: プレイ結果の永続化、ローカルストレージ退避、オフライン結果同期。
-- **Requirements**: `3.1, 3.2, 3.3, 3.4, 5.5`
+- **Intent**: プレイ結果の永続化、トランザクション内リーダーボード更新、本人プレイ履歴クエリ、オフライン同期。
+- **Requirements**: `3.1, 3.2, 3.3, 3.4, 3.6, 5.5, 9.1–9.7, 10.1–10.3`
 
 ```typescript
 export interface AttemptService {
-  // プレイ結果の永続永続化 (3.1)
   saveAttempt(attemptData: Omit<Attempt, 'id' | 'completedAt'>): Promise<string>;
-  
-  // 間違えた問題の一括更新 (3.1)
   updateFailedQuestions(uid: string, quizId: string, solvedQuestionIds: string[]): Promise<void>;
+
+  listUserPlayHistory(params: {
+    uid: string;
+    limit?: number;       // default 20
+    cursor?: string | null;
+  }): Promise<PlayHistoryPage>;
+}
+
+export interface PlayHistoryEntry {
+  attemptId: string;
+  quizId: string;
+  quizTitle: string;
+  score: number;
+  totalQuestions: number;
+  mode: Attempt['mode'];
+  completedAt: Date;
+  elapsedSeconds: number;
+}
+
+export interface PlayHistoryPage {
+  items: PlayHistoryEntry[];
+  nextCursor: string | null;
 }
 ```
+- **Preconditions (`saveAttempt`)**: `userId` がゲストでないこと。`score` / `totalQuestions` / `failedQuestionIds` の整合性検証は現行どおり。
+- **Postconditions (`saveAttempt`)**: トランザクション内で prior 完了件数に基づき `firstPlay` または `replay` を更新。新記録が既存ユーザーエントリより優位でない場合は当該ユーザーのエントリは差し替えないが、他ユーザーとの競合で top5 から外れる可能性は許容する。
+- **Implementation Notes**: クイズタイトルは `quizzes` を `quizId` でバッチ取得して `PlayHistoryEntry` に埋める。カーソルは `completedAt` + `attemptId` の不透明エンコード（例: Base64 JSON）。
+
+#### `/api/user/play-history`
+- **Intent**: クライアントからの本人プレイ履歴取得を ID トークンで保護する。
+- **Requirements**: `10.1, 10.4, 10.5`
+
+| Method | Endpoint | Request | Response | Errors |
+|--------|----------|---------|----------|--------|
+| GET | `/api/user/play-history` | Query: `limit?`, `cursor?` — Header: `Authorization: Bearer <ID_TOKEN>` | `PlayHistoryPage` | 401, 403 |
+
+- **Preconditions**: `verifyIdToken` 成功。クエリの `uid` を受け付けない（トークンの `uid` のみ使用）。
+- **Postconditions**: トークン `uid` と一致する履歴のみ返却。他人指定は 403。
 
 ---
 
@@ -445,7 +559,10 @@ export interface Quiz {
   activeResetRequestId: string | null;
   canonicalGenreId: string;
   canonicalTagIds: string[];
-  leaderboard: LeaderboardRecord[];
+  /** @deprecated 読み取り互換のみ。書き込みは firstPlay / replay を使用 */
+  leaderboard?: LeaderboardRecord[];
+  leaderboardFirstPlay: LeaderboardRecord[];
+  leaderboardReplay: LeaderboardRecord[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -484,8 +601,8 @@ export interface SortingItem {
 export interface LeaderboardRecord {
   userId: string;
   displayName: string;
-  score: number;
-  elapsedSeconds: number;
+  score: number;           // 正解数（第1キー）
+  elapsedSeconds: number;  // 合計解答時間・秒（第2キー）
   completedAt: Date;
 }
 
@@ -533,6 +650,29 @@ export interface FeedbackReport {
 }
 ```
 
+### Physical Data Model（Firestore `quizzes` 追記）
+
+| フィールド | 型 | 制約 | 説明 |
+|-----------|-----|------|------|
+| `leaderboardFirstPlay` | `LeaderboardRecord[]` | 最大5 / 必須 `[]` | 初回完了 attempt のランキング |
+| `leaderboardReplay` | `LeaderboardRecord[]` | 最大5 / 必須 `[]` | 2回目以降のランキング |
+| `leaderboard` | `LeaderboardRecord[]` | 任意 | 移行期間の読み取りフォールバック |
+
+**`attempts` クエリ（プレイ履歴）**: `where('userId','==',uid)` + `orderBy('completedAt','desc')` + `limit` + `startAfter(cursor)`。`mode != 'test-play'` はクエリ後フィルタまたは将来 `where('mode','not-in',...)`（インデックス要検討）。
+
+### Migration Strategy
+
+```mermaid
+flowchart LR
+  A[読み取り] --> B{leaderboardFirstPlay あり?}
+  B -->|Yes| C[そのまま使用]
+  B -->|No| D[leaderboard を firstPlay として扱う]
+  E[書き込み] --> F[firstPlay / replay のみ更新]
+```
+
+- 新規クイズ作成時は `leaderboardFirstPlay: []`, `leaderboardReplay: []` を初期化。
+- 既存ドキュメントの一括移行スクリプトは Phase 5 対象外（手動／別タスク）。読み取り側で `leaderboard ?? []` を `leaderboardFirstPlay` のフォールバックとする。
+
 ---
 
 ## Error Handling
@@ -551,6 +691,9 @@ export interface FeedbackReport {
 ## Testing Strategy
 
 ### Unit Tests
+- **リーダーボード順位**: `compareLeaderboardRecords` が正解数優先・同点タイム短い方上位を満たすこと。
+- **リーダーボードマージ**: 同一ユーザーの非優位記録で差し替えないこと、優位記録で差し替えること、5件超過時に下位が落ちること。
+- **`resolveLeaderboardBoard`**: prior 件数 0 → `firstPlay`、1以上 → `replay`。
 - **タグ正規化の検証**: `normalizeTag` が全半角トリム、小文字化、記号排除を完璧に行うかを検証。
 - **称号バッジ条件判定**: 累計プレイ数が条件（例：100回）を満たした際に、正確に該当バッジを配列に追加するロジックをモック検証。
 - **同一質問キャッシュの検証**: 完全一致する質問が `aiQuestionsHistory` に存在する場合に、AIを呼び出さずキャッシュの回答を返すことを単体テスト。
@@ -558,6 +701,9 @@ export interface FeedbackReport {
 - **会話履歴マッピング検証**: 履歴から直近20回の Q&A ペアが正しく Gemini SDK の `Content[]` 型にマッピングされることを単体テスト。
 
 ### Integration Tests
+- **初回プレイLB**: 1回目の `saveAttempt` が `leaderboardFirstPlay` のみ更新し `leaderboardReplay` を変更しないこと。
+- **リプレイLB**: 2回目の `saveAttempt` が `leaderboardReplay` のみ更新し、初回LB上の当該ユーザー行を変更しないこと。
+- **本人プレイ履歴API**: 有効トークンで 200、他ユーザー指定相当の不正アクセスで 403、test-play 除外を検証。
 - **退会時非同期クレンジング**: API Routeに退会リクエストを送信し、Auth物理削除完了とCloud Tasksへのジョブ登録、およびFirestore匿名化が整合性高く動作することを検証。
 - **ウミガメスープB2ハイブリッド真相判定**:
   - 必須キーワードが揃っている場合にAIを呼び出さず、即時Firestoreを更新して合格レスポンスを返す統合テスト。

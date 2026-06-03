@@ -89,4 +89,42 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     // コンテキストをクローズ
     await context.close();
   });
+
+  test('本人プロフィール: プレイ履歴タブが表示され他人プロフィールでは非表示', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+
+    await page.goto('/login');
+    const e2eLoginBtn = page.locator('#e2e-test-login-btn');
+    await expect(e2eLoginBtn).toBeVisible();
+    await e2eLoginBtn.click();
+    await expect(page).toHaveURL('/');
+
+    await page.locator('header img').first().click();
+    await page.locator('text=マイページ').click();
+    await expect(page).toHaveURL(/\/profile\//);
+
+    const historyTab = page.locator('[data-testid="profile-tab-history"]');
+    await expect(historyTab).toBeVisible();
+    await historyTab.click();
+
+    const historySection = page.locator('[data-testid="play-history-section"]');
+    await expect(historySection).toBeVisible();
+
+    const emptyOrEntries =
+      (await page.locator('[data-testid="play-history-entry"]').count()) > 0 ||
+      (await page.locator('text=まだプレイ履歴がありません').isVisible());
+    expect(emptyOrEntries).toBe(true);
+
+    const profileUrl = page.url();
+    const uidMatch = profileUrl.match(/\/profile\/([^/?]+)/);
+    expect(uidMatch).toBeTruthy();
+    const otherUid = uidMatch![1] === 'other-user-e2e' ? 'another-user' : 'other-user-e2e';
+    await page.goto(`/profile/${otherUid}`);
+    await expect(page.locator('[data-testid="profile-tab-history"]')).toHaveCount(0);
+
+    await context.close();
+  });
 });

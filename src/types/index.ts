@@ -124,7 +124,10 @@ export interface Quiz {
   activeResetRequestId: string | null; // 申請中の評価リセットID
   canonicalGenreId: string; // 統合先の正規ジャンルID
   canonicalTagIds: string[]; // 統合先の正規タグID配列
-  leaderboard: LeaderboardRecord[]; // ランキング
+  /** @deprecated 読み取り互換。書き込みは leaderboardFirstPlay / leaderboardReplay */
+  leaderboard?: LeaderboardRecord[];
+  leaderboardFirstPlay: LeaderboardRecord[];
+  leaderboardReplay: LeaderboardRecord[];
   format?: 'mixed' | 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking'; // クイズ全体の形式
   createdAt: Date;
   updatedAt: Date;
@@ -184,7 +187,7 @@ export interface Attempt {
   userId: string;
   quizId: string;
   listId?: string | null;
-  mode: 'normal' | 'exam' | 'flashcard' | 'review' | 'list';
+  mode: 'normal' | 'exam' | 'flashcard' | 'review' | 'list' | 'test-play';
   score: number;          // 正解数
   totalQuestions: number; // 全問題数
   elapsedSeconds: number; // 経過秒数
@@ -195,6 +198,22 @@ export interface Attempt {
   aiTurnCount: number;    // 質問ターン数
   aiTurnLimit: number | null; // 質問制限数
   completedAt: Date;
+}
+
+export interface PlayHistoryEntry {
+  attemptId: string;
+  quizId: string;
+  quizTitle: string;
+  score: number;
+  totalQuestions: number;
+  mode: Attempt['mode'];
+  completedAt: Date;
+  elapsedSeconds: number;
+}
+
+export interface PlayHistoryPage {
+  items: PlayHistoryEntry[];
+  nextCursor: string | null;
 }
 
 // 8. 指摘レポート (feedbackReports)

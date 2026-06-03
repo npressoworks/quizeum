@@ -67,3 +67,32 @@
   - `src/app/profile/[uid]/likes/page.tsx` に、「送ったリアクション」と「受け取ったリアクション」のタブ切替リストを構築し、各履歴カードからクイズ詳細へ遷移するように実装する。
   - _Requirements: 6.1, 6.2_
   - _Boundary: LikesPage_
+
+### 7. 本人プレイ履歴専用タブ（Phase 5）
+- [x] 7.1 プレイ履歴APIクライアントの実装 (P)
+  - `src/lib/play-history-client.ts` に、Bearer IDトークン付きで `GET /api/user/play-history` を呼び出す関数と、プレイモードの日本語表示ラベル関数を実装する。
+  - 完了時、`cursor` 指定で追記ページを取得でき、401/403/500 は呼び出し元が扱えるエラーとして返ること。
+  - _Requirements: 7.2, 7.3, 7.8_
+  - _Boundary: play-history-client_
+- [x] 7.2 プレイ履歴パネルコンポーネントの実装 (P)
+  - `ProfilePlayHistoryPanel` を実装し、履歴行（クイズタイトルリンク・正解数/総数・モード・完了日時・経過秒）、空状態、ローディング、エラー表示、「もっと見る」追記読み込みを提供する。
+  - タブ初回表示時にのみ初回フェッチし、`data-testid`（`play-history-section`, `play-history-entry`, `play-history-load-more`）を付与する。
+  - _Requirements: 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8_
+  - _Depends: 7.1_
+  - _Boundary: ProfilePlayHistoryPanel_
+- [x] 7.3 プロフィール画面への「プレイ履歴」第3タブ統合
+  - 本人プロフィール（`isMyProfile`）のときのみ「プレイ履歴」タブボタン（`data-testid="profile-tab-history"`）を表示し、選択時に `ProfilePlayHistoryPanel` を描画する。
+  - 他人のプロフィールでは第3タブが存在しないこと。完了時、既存のクイズ/リストタブと切替が問題なく動作すること。
+  - _Requirements: 2.2, 2.6, 7.1_
+  - _Depends: 7.2_
+  - _Boundary: ProfilePage-Tabs_
+- [x] 7.4 プレイ履歴タブのE2Eテスト追加
+  - 本人プロフィールでプレイ履歴タブ表示・履歴行・クイズ詳細遷移を検証する。他人プロフィールではタブ非表示を検証する。
+  - _Requirements: 7.1, 7.7_
+  - _Depends: 7.3_
+  - _Boundary: E2E-profile-play-history_
+- [x] 7.5 プレイ履歴クライアントの単体テスト（任意）
+  - `getAttemptModeLabel` と API レスポンスの `completedAt` 変換をモック fetch で検証する。
+  - _Requirements: 7.3_
+  - _Depends: 7.1_
+  - _Boundary: play-history-client_

@@ -28,11 +28,15 @@ import {
   Heart,
   Grid,
   List,
+  History,
   ChevronRight,
   AlertTriangle
 } from 'lucide-react';
 import { User, Quiz, QuizList as QuizListType, Badge } from '@/types';
+import { ProfilePlayHistoryPanel } from '@/components/profile/profile-play-history-panel';
 import styles from './profile.module.css';
+
+type ProfileContentTab = 'quizzes' | 'lists' | 'history';
 
 // バッジのアイコンマッピング
 const getBadgeIcon = (iconName: string) => {
@@ -87,7 +91,7 @@ export default function ProfilePage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [quizLists, setQuizLists] = useState<QuizListType[]>([]);
   const [followingState, setFollowingState] = useState(false);
-  const [activeTab, setActiveTab] = useState<'quizzes' | 'lists'>('quizzes');
+  const [activeTab, setActiveTab] = useState<ProfileContentTab>('quizzes');
   const [loading, setLoading] = useState(true);
   const [submittingFollow, setSubmittingFollow] = useState(false);
   const [isDeletedPending, setIsDeletedPending] = useState(false);
@@ -326,10 +330,23 @@ export default function ProfilePage() {
               <List size={18} />
               <span>作成したリスト ({quizLists.length})</span>
             </button>
+            {isMyProfile && (
+              <button
+                type="button"
+                className={`${styles.tabButton} ${activeTab === 'history' ? styles.activeTab : ''}`}
+                data-testid="profile-tab-history"
+                onClick={() => setActiveTab('history')}
+              >
+                <History size={18} />
+                <span>プレイ履歴</span>
+              </button>
+            )}
           </div>
 
           {/* Tab Panels */}
-          {activeTab === 'quizzes' ? (
+          {activeTab === 'history' ? (
+            <ProfilePlayHistoryPanel isActive={activeTab === 'history'} />
+          ) : activeTab === 'quizzes' ? (
             <div className={styles.gridContainer}>
               {quizzes.length === 0 ? (
                 <div className={styles.emptyState}>
@@ -366,7 +383,7 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'lists' ? (
             <div className={styles.gridContainer}>
               {quizLists.length === 0 ? (
                 <div className={styles.emptyState} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
@@ -411,7 +428,7 @@ export default function ProfilePage() {
                 </>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </main>

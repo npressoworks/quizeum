@@ -1,6 +1,5 @@
 import {
   collection,
-  addDoc,
   doc,
   getDoc,
   getDocs,
@@ -8,14 +7,42 @@ import {
   query,
   where,
   orderBy,
+  limit,
+  startAfter,
   runTransaction,
   increment,
   arrayUnion,
   arrayRemove,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase/config';
 import { quizzesRef, usersRef } from '../lib/firebase/firestore';
-import { Attempt, Quiz, Question } from '../types';
+import { Attempt, Quiz, Question, PlayHistoryPage, PlayHistoryEntry } from '../types';
+import {
+  buildLeaderboardUpdatesForQuiz,
+  isLeaderboardEligibleAttempt,
+} from '../lib/leaderboard-update';
+
+/** 新規 attempt 保存前: 同一 user+quiz の完了済み件数 */
+async function countPriorCompletedAttempts(
+  userId: string,
+  quizId: string,
+  excludeAttemptId?: string
+): Promise<number> {
+  const snap = await getDocs(
+    query(
+      attemptsCollection,
+      where('userId', '==', userId),
+      where('quizId', '==', quizId)
+    )
+  );
+
+  return snap.docs.filter((d) => {
+    if (excludeAttemptId && d.id === excludeAttemptId) return false;
+    const data = d.data() as Attempt;
+    return data.completedAt != null;
+  }).length;
+}
 import {
   getPendingSyncAttempts,
   clearPendingSyncAttempt,
@@ -31,13 +58,17 @@ const attemptsCollection = collection(db, 'attempts');
 /**
  * プレイ結果を Firestore に保存する。
  * アトミックなトランザクション内で、attemptsへのレコード追加、
- * プレイ回数加算、パーフェクト時のリーダーボード更新をすべて行う。
+ * プレイ回数加算、初回／リプレイリーダーボード更新をすべて行う。
  */
 export async function saveAttempt(
   attemptData: Omit<Attempt, 'id' | 'completedAt'>
 ): Promise<string> {
   const completedAt = new Date();
   const attemptDocRef = doc(attemptsCollection);
+
+  const priorCompletedCount = isLeaderboardEligibleAttempt(attemptData)
+    ? await countPriorCompletedAttempts(attemptData.userId, attemptData.quizId)
+    : 0;
 
   const payload: Omit<Attempt, 'id'> = {
     ...attemptData,
@@ -90,27 +121,28 @@ export async function saveAttempt(
     // attempt の追加
     transaction.set(attemptDocRef, payload);
 
-    const quizUpdates: Record<string, any> = {
+    const quizUpdates: Record<string, unknown> = {
       playCount: increment(1),
       updatedAt: completedAt,
     };
 
-    // パーフェクトスコア時はリーダーボードにエントリを追加
-    if (attemptData.score === attemptData.totalQuestions) {
+    if (isLeaderboardEligibleAttempt(attemptData)) {
       const leaderboardEntry = {
         userId: attemptData.userId,
-        displayName: displayName, // 取得したユーザー名を設定
+        displayName,
         score: attemptData.score,
         elapsedSeconds: attemptData.elapsedSeconds,
         completedAt,
       };
-
-      // クイズ内のリーダーボード配列を更新
-      const newLeaderboard = [...(quiz.leaderboard ?? [])];
-      newLeaderboard.push(leaderboardEntry);
-      newLeaderboard.sort((a, b) => b.score - a.score || a.elapsedSeconds - b.elapsedSeconds);
-      // 上位5名にスライス
-      quizUpdates.leaderboard = newLeaderboard.slice(0, 5);
+      const lbResult = buildLeaderboardUpdatesForQuiz(
+        quiz,
+        priorCompletedCount,
+        leaderboardEntry,
+        attemptData.mode
+      );
+      if (lbResult) {
+        Object.assign(quizUpdates, lbResult.updates);
+      }
     }
 
     transaction.update(quizDocRef, quizUpdates);
@@ -238,6 +270,120 @@ export async function updateFailedQuestionsCount(uid: string, delta: number): Pr
     totalFailedQuestionsCount: increment(delta),
     updatedAt: new Date(),
   });
+}
+
+const PLAY_HISTORY_PAGE_SIZE = 20;
+const NON_PERSISTED_PLAY_MODES = new Set<Attempt['mode']>(['test-play']);
+
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value;
+  if (value instanceof Timestamp) return value.toDate();
+  if (typeof value === 'string' || typeof value === 'number') {
+    return new Date(value);
+  }
+  return new Date(0);
+}
+
+function encodePlayHistoryCursor(completedAt: Date, attemptId: string): string {
+  return Buffer.from(
+    JSON.stringify({ completedAt: completedAt.toISOString(), attemptId }),
+    'utf8'
+  ).toString('base64url');
+}
+
+function decodePlayHistoryCursor(
+  cursor: string
+): { completedAt: Date; attemptId: string } | null {
+  try {
+    const raw = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+      completedAt: string;
+      attemptId: string;
+    };
+    if (!raw.completedAt || !raw.attemptId) return null;
+    return { completedAt: new Date(raw.completedAt), attemptId: raw.attemptId };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 本人のプレイ履歴（完了済み attempts）をページング取得する。
+ */
+export async function listUserPlayHistory(params: {
+  uid: string;
+  limit?: number;
+  cursor?: string | null;
+}): Promise<PlayHistoryPage> {
+  const pageSize = params.limit ?? PLAY_HISTORY_PAGE_SIZE;
+  const decoded = params.cursor ? decodePlayHistoryCursor(params.cursor) : null;
+
+  let attemptsQuery = query(
+    attemptsCollection,
+    where('userId', '==', params.uid),
+    orderBy('completedAt', 'desc'),
+    limit(pageSize + 1)
+  );
+
+  if (decoded) {
+    const cursorSnap = await getDoc(doc(attemptsCollection, decoded.attemptId));
+    if (cursorSnap.exists()) {
+      attemptsQuery = query(
+        attemptsCollection,
+        where('userId', '==', params.uid),
+        orderBy('completedAt', 'desc'),
+        startAfter(cursorSnap),
+        limit(pageSize + 1)
+      );
+    }
+  }
+
+  const snap = await getDocs(attemptsQuery);
+  const docs = snap.docs.filter((d) => {
+    const mode = (d.data() as Attempt).mode;
+    return !NON_PERSISTED_PLAY_MODES.has(mode);
+  });
+
+  const hasMore = docs.length > pageSize;
+  const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+  const quizTitleCache = new Map<string, string>();
+  const items: PlayHistoryEntry[] = [];
+
+  for (const docSnap of pageDocs) {
+    const data = docSnap.data() as Attempt;
+    if (!data.completedAt) continue;
+
+    let quizTitle = quizTitleCache.get(data.quizId);
+    if (!quizTitle) {
+      const quizSnap = await getDoc(doc(quizzesRef, data.quizId));
+      quizTitle = quizSnap.exists()
+        ? (quizSnap.data() as Quiz).title
+        : '（削除されたクイズ）';
+      quizTitleCache.set(data.quizId, quizTitle);
+    }
+
+    items.push({
+      attemptId: docSnap.id,
+      quizId: data.quizId,
+      quizTitle,
+      score: data.score,
+      totalQuestions: data.totalQuestions,
+      mode: data.mode,
+      completedAt: toDate(data.completedAt),
+      elapsedSeconds: data.elapsedSeconds,
+    });
+  }
+
+  const last = pageDocs[pageDocs.length - 1];
+  const nextCursor =
+    hasMore && last
+      ? encodePlayHistoryCursor(
+          toDate((last.data() as Attempt).completedAt),
+          last.id
+        )
+      : null;
+
+  return { items, nextCursor };
 }
 
 /* ==========================================================================

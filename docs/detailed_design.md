@@ -9,7 +9,7 @@
 主要なビジネスロジックにおけるフロントエンド、サービスレイヤー、およびデータベース（Firestore）間の相互作用を定義します。
 
 ### 1.1 クイズ解答〜結果登録フロー
-通常モードおよび模擬試験モードにおける解答データの永続化、プレイ数カウント更新、およびハイスコアリーダーボード更新フローです。プレイ中の不意の離脱を保護するオフライン・リロード保護セッションを含みます。
+通常モードおよび模擬試験モードにおける解答データの永続化、プレイ数カウント更新、およびクイズ単位リーダーボード（初回プレイ／リプレイ）更新フローです。プレイ中の不意の離脱を保護するオフライン・リロード保護セッションを含みます。リーダーボード登録は**全問正解不要**（正解数優先・同点時タイム短縮）。
 
 ```mermaid
 sequenceDiagram
@@ -65,21 +65,52 @@ sequenceDiagram
     US-->>QP: 新規獲得バッジリスト
     deactivate US
 
-    Note over QP, QS: ハイスコア・タイムアタックの記録更新判定
-    alt 全問正解 または 自己ベスト更新
-        QP->>QS: updateLeaderboard(quizId, record)
-        activate QS
-        QS->>DB: トランザクション開始
-        DB->>DB: quizzes.leaderboard 配列を取得
-        QS->>QS: 新規記録を挿入・ソートし上位5名にスライス
-        DB->>DB: quizzes.leaderboard を更新
-        QS-->>QP: 更新完了
-        deactivate QS
+    Note over QP, AS: リーダーボード記録（saveAttempt トランザクション内）
+    alt 永続化対象プレイ完了（test-play 除外・全問正解不要）
+        QP->>AS: saveAttempt(attemptData) ※LB更新含む
+        activate AS
+        AS->>DB: prior 完了件数で firstPlay / replay を決定
+        AS->>AS: mergeUserEntryAndTakeTop5・score降順→elapsed昇順
+        DB->>DB: leaderboardFirstPlay または leaderboardReplay を更新
+        deactivate AS
     end
 
     QP->>LS: 解答セッション(localStorage)の破棄
     QP->>Player: 結果画面 (/quiz/[id]/result) へ遷移
 ```
+
+### 1.2 本人プレイ履歴表示フロー（プロフィール）
+ログイン中ユーザーが自身のプロフィール（`/profile/[uid]` で `uid === auth.uid`）で「プレイ履歴」タブを選択したときのフローです。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 本人ユーザー
+    participant PP as プロフィール画面
+    participant Panel as ProfilePlayHistoryPanel
+    participant Client as play-history-client
+    participant API as GET /api/user/play-history
+    participant AS as AttemptService.listUserPlayHistory
+
+    User->>PP: 「プレイ履歴」タブを選択
+    PP->>Panel: isActive=true（初回のみフェッチ）
+    Panel->>Client: fetchPlayHistoryPage()
+    Client->>API: Bearer IDトークン
+    API->>AS: listUserPlayHistory(uid)
+    AS-->>API: PlayHistoryPage
+    API-->>Client: JSON
+    Client-->>Panel: items + nextCursor
+    Panel->>User: 一覧表示（タイトルリンク・スコア・モード・日時）
+    opt nextCursor あり
+        User->>Panel: 「もっと見る」
+        Panel->>Client: fetchPlayHistoryPage(cursor)
+        Client->>API: cursor 付き GET
+        API-->>Panel: 追記 items
+    end
+```
+
+* **UI**: `src/components/profile/profile-play-history-panel.tsx`。他人プロフィールではタブ非表示。
+* **クイズ詳細LB UI**: `src/components/quiz/quiz-dual-leaderboard.tsx` — `getLeaderboardFirstPlay` / `getLeaderboardReplay` で読み取りのみ（`leaderboard` フォールバックは初回側）。
 
 #### 1.1.1 並び替えクイズおよび連想クイズの解答判定仕様
 

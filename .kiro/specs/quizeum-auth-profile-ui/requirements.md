@@ -1,65 +1,86 @@
-# Requirements Document: quizeum-auth-profile-ui
+# 要件定義書: quizeum-auth-profile-ui
 
-## Introduction
-本ドキュメントは、クイズ投稿SNS「quizeum」におけるユーザー認証、プロフィール管理、ソーシャル連携、および通知機能のフロントエンドUI要件を定義します。本機能はユーザーが快適にプロフィールを構築し、他のユーザーと繋がり、アクティビティ通知を受け取るための基本UIを提供します。
+## はじめに
+本ドキュメントは、クイズ投稿SNS「quizeum」におけるユーザー認証、プロフィール管理、ソーシャル連携、通知、および本人向けプレイ履歴表示のフロントエンドUI要件を定義します。
 
-## Boundary Context
-- **In scope**:
-  - Google認証によるログイン・新規登録UIおよびログイン状態による動的リダイレクト処理。
-  - 称号バッジ一覧、信頼スコア、権限ティアー表示を統合したプロフィール画面。
-  - 表示名（最大30文字）および自己紹介（最大200文字）の編集フォーム。
-  - フォロー・フォロワー一覧およびダイレクトフォロートグルUI。
-  - 時系列順のアクティビティ通知一覧表示。
-  - 退会処理中アカウントへのアクセスブロックと404フォールバック。
-- **Out of scope**:
-  - 退会処理の裏側のFirestoreデータ匿名化クレンジング処理（`quizeum-core`が担当）。
-  - クイズのプレイや作成画面UI（後続スペックが担当）。
+**Phase 5（2026-06）**: ログイン中ユーザーが自身のプロフィールで、完了済みプレイ履歴を一覧・ページング表示し、クイズ詳細へ再遷移できるUIを追加する（データ取得APIは `quizeum-core` が担当）。
 
-## Requirements
+## 境界コンテキスト
+- **対象範囲（In scope）**:
+  - ソーシャルサインイン（Google / X / Microsoft）および開発用簡易ログインを含む認証画面とログイン状態に応じたリダイレクト。
+  - プロフィール画面（`/profile/[uid]`）: 基本情報、バッジ、信頼スコア・権限ティアー、作成クイズ／リストタブ、フォロー操作、弱点克服導線（本人）、退会処理中フォールバック。
+  - **Phase 5**: 本人プロフィールのコンテンツ領域に「プレイ履歴」**専用タブ** — クイズ名・スコア・モード・日時・経過時間・クイズ詳細への導線、追加読み込み。
+  - プロフィール編集（`/profile/edit`）、フォロー／フォロワー一覧、通知一覧、リアクション履歴。
+- **対象外（Out of scope）**:
+  - `attempts` の永続化、プレイ履歴クエリAPI、IDトークン検証（`quizeum-core`）。
+  - 他ユーザーのプロフィールからのプレイ履歴閲覧（非公開）。
+  - クイズプレイ・作成画面UI（`quizeum-play-flow-ui` / `quizeum-creator-dash-ui`）。
+  - 退会時の Firestore 匿名化クレンジング本体（`quizeum-core`）。
+- **隣接システムへの期待（Adjacent expectations）**:
+  - プレイ履歴は `GET /api/user/play-history`（`Authorization: Bearer`）で取得し、トークン本人の `uid` のみ返る。クエリで他 `uid` を指定しても 403。
+  - 初回20件 + `nextCursor` による追加ページ。`test-play` はAPI側で除外済み。
 
-### Requirement 1: ユーザー認証画面 (/login)
-**Objective:** As a Guest User, I want to authenticate via Google, so that I can securely log in and customize my quizeum experience.
+## 要件
 
-#### Acceptance Criteria
-1. When the guest user clicks the Google Sign-In button on the Authentication Screen, the User Authentication System shall trigger the Google OAuth popup window using Firebase Auth.
-2. If the user successfully completes Google Authentication, then the User Authentication System shall redirect the user to the redirect source page or the Home Screen (`/`).
-3. While the user is already authenticated, when they attempt to directly access the Authentication Screen (`/login`), the User Authentication System shall automatically redirect them to the Home Screen (`/`).
+### 要件 1: ユーザー認証画面 (`/login`)
+**目的:** ゲストユーザーとして、ソーシャルアカウントで安全にログインしたい。それにより quizeum の機能を利用できる。
 
-### Requirement 2: プロフィール画面 (/profile/[uid])
-**Objective:** As a Quizeum User, I want to view user profiles, so that I can see their stats, achievements, created content, and manage connections.
+#### 受け入れ基準
+1. 認証画面は Google・X（Twitter）・Microsoft（Azure AD）のサインインボタンを表示し、Firebase Auth のポップアップで認証を開始すること。
+2. 認証に成功したとき、認証画面は `redirect` クエリがあればその遷移先へ、なければホーム（`/`）へ遷移すること。
+3. 既にログイン済みのユーザーが認証画面（`/login`）に直接アクセスした場合、ホーム（`/`）へ自動リダイレクトすること。
+4. ポップアップブロック・キャンセル・プロバイダ未有効化等の Firebase エラーは、日本語の説明メッセージとして画面に表示すること。
+5. 開発・E2Eテスト環境（`NODE_ENV !== 'production'` かつ `NEXT_PUBLIC_ENV === 'test'`）ではのみ、メール／パスワードによる簡易ログインを表示してよい（本番では表示しない）。
 
-#### Acceptance Criteria
-1. The Profile Screen shall display the target user's avatar, display name, biography, reputation score, moderation tier badge, and list of awarded badges.
-2. The Profile Screen shall display two tab panels: "作成したクイズ" and "作成したリスト".
-3. When the authenticated user views another user's profile, the Profile Screen shall display a Follow / Unfollow toggle button.
-4. When the authenticated user clicks the Follow / Unfollow button, the Profile Screen shall atomically toggle the connection state via `UserService.followUser` and update the follower count display.
-5. If the target profile has the deleteStatus set to 'delete_pending', then the Profile Screen shall block access, displaying a 404 page instead of the private profile.
+### 要件 2: プロフィール画面 (`/profile/[uid]`)
+**目的:** Quizeumのユーザーとして、他者または自身のプロフィールを確認し、つながりや投稿内容を把握したい。
 
-### Requirement 3: プロフィール編集画面 (/profile/edit)
-**Objective:** As an Authenticated User, I want to edit my profile details, so that I can update my public identity on quizeum.
+#### 受け入れ基準
+1. プロフィール画面は、対象ユーザーのアバター、表示名、自己紹介、信頼スコア、権限ティアーバッジ、獲得称号バッジ一覧を表示すること。
+2. プロフィール画面は「作成したクイズ」「作成したリスト」のタブパネルを表示すること。本人プロフィールの場合は第3タブとして「プレイ履歴」を追加すること（要件 7）。
+3. ログイン中ユーザーが他ユーザーのプロフィールを閲覧している場合、フォロー／フォロー解除トグルを表示し、操作時に `UserService` 経由で接続状態とフォロワー数表示を更新すること。
+4. 対象プロフィールの `deleteStatus` が `delete_pending` のとき、本人以外のアクセスはブロックし、404相当の表示とすること（本人には削除処理中の警告を表示してよい）。
+5. 本人プロフィールで `totalFailedQuestionsCount > 0` のとき、弱点克服（復習）セクションと `/quiz/review` への導線を表示すること。
+6. 本人プロフィールをログイン中ユーザーが閲覧している場合、プレイ履歴の表示領域を表示すること（詳細は要件 7）。
 
-#### Acceptance Criteria
-1. The Profile Edit Screen shall display an edit form containing fields for the user's display name and biography.
-2. When the user enters their display name and biography, the Profile Edit Screen shall enforce validation limits (display name maximum 30 characters, biography maximum 200 characters).
-3. When the user clicks the "保存する" button with valid inputs, the Profile Edit Screen shall invoke `UserService.updateProfile` and redirect the user back to their Profile Screen.
+### 要件 3: プロフィール編集画面 (`/profile/edit`)
+**目的:** 認証ユーザーとして、公開プロフィール情報を更新したい。
 
-### Requirement 4: フォロー/フォロワー一覧画面 (/profile/[uid]/connections)
-**Objective:** As a Quizeum User, I want to view follow connections, so that I can discover users and manage my social network.
+#### 受け入れ基準
+1. プロフィール編集画面は、表示名と自己紹介の編集フォームを表示すること。
+2. 表示名は最大30文字、自己紹介は最大200文字の入力制限を適用すること。
+3. 「保存する」を押し入力が有効なとき、`UserService.updateProfile` を呼び出し、成功後に自身のプロフィール画面へ遷移すること。
 
-#### Acceptance Criteria
-1. The Connections Screen shall display a tabbed list allowing users to toggle between "フォロー中 (Following)" and "フォロワー (Followers)".
-2. Each user card in the list shall display the user's avatar, display name, biography, and a Follow/Unfollow toggle button (except for the logged-in user themselves).
+### 要件 4: フォロー／フォロワー一覧画面 (`/profile/[uid]/connections`)
+**目的:** Quizeumのユーザーとして、つながりを確認しソーシャルネットワークを管理したい。
 
-### Requirement 5: 通知一覧画面 (/notifications)
-**Objective:** As a Quizeum User, I want to view my activity notifications, so that I can stay updated on social interactions and corrections.
+#### 受け入れ基準
+1. 接続一覧画面は「フォロー中」「フォロワー」をタブで切り替え表示すること。
+2. 各ユーザーカードはアバター、表示名、自己紹介を表示し、ログイン中ユーザー自身以外にはフォロー／フォロー解除トグルを表示すること。
 
-#### Acceptance Criteria
-1. The Notifications Screen shall display a chronological list of activities, including "followed by someone" and "quiz issues fixed by creators".
-2. When the user clicks a "quiz issues fixed" notification card, the Notifications Screen shall redirect the user to the corresponding Quiz Detail Screen.
+### 要件 5: 通知一覧画面 (`/notifications`)
+**目的:** Quizeumのユーザーとして、アクティビティ通知を時系列で確認したい。
 
-### Requirement 6: リアクション履歴画面 (/profile/[uid]/likes)
-**Objective:** As a Quizeum User, I want to view reaction history, so that I can see the positive feedback I've sent or received.
+#### 受け入れ基準
+1. 通知一覧画面は、フォロー通知やクイズ指摘修正完了などのアクティビティを時系列で表示すること。
+2. 指摘修正完了系の通知カードをクリックしたとき、該当クイズの詳細画面（`/quiz/[id]`）へ遷移すること。
 
-#### Acceptance Criteria
-1. The Likes History Screen shall display two tabs: "送ったリアクション" and "受け取ったリアクション".
-2. Each reaction card shall display the related quiz title and click-to-navigate to the corresponding Quiz Detail Screen.
+### 要件 6: リアクション履歴画面 (`/profile/[uid]/likes`)
+**目的:** Quizeumのユーザーとして、送受信したリアクション履歴を確認したい。
+
+#### 受け入れ基準
+1. リアクション履歴画面は「送ったリアクション」「受け取ったリアクション」のタブを表示すること。
+2. 各カードは関連クイズタイトルを表示し、クリックで該当クイズ詳細へ遷移すること。
+
+### 要件 7: 本人プレイ履歴表示（Phase 5）
+**目的:** ログインユーザーとして、過去に完了したクイズプレイを自分のプロフィールで振り返し、再度プレイしたい。それにより学習・復習の導線を得られる。
+
+#### 受け入れ基準
+1. ログイン中ユーザーが**自身の**プロフィールを閲覧しているときのみ、コンテンツタブに「プレイ履歴」を表示すること。他ユーザーのプロフィールでは当該タブを表示してはならない。
+2. ユーザーが「プレイ履歴」タブを選択したとき（初回選択時）、`GET /api/user/play-history` を Firebase ID トークン（Bearer）付きで呼び出し、完了日時の降順でエントリを表示すること。
+3. 各履歴行は、クイズタイトル（クイズ詳細へのリンク）、正解数／総設問数、プレイモードの表示ラベル、完了日時、合計解答時間（秒）を含むこと。
+4. 履歴が0件のとき、「まだプレイ履歴がありません」等の空状態を表示すること。
+5. APIレスポンスに `nextCursor` があるとき、「もっと見る」等の操作で `cursor` クエリを付与して追加取得し、既存リストに追記すること（初回取得件数はAPIデフォルト20件に合わせる）。
+6. 取得エラー（401／403／500）時は、再試行またはログイン案内を含むユーザー向けメッセージを表示し、クラッシュさせないこと。
+7. E2E用に、プレイ履歴領域に `data-testid="play-history-section"`、各行に `data-testid="play-history-entry"`、追加読み込みボタンに `data-testid="play-history-load-more"` を付与すること。
+8. プレイ履歴の永続化・除外ルール（`test-play` 除外等）をフロントエンドで再実装してはならない（`quizeum-core` のAPI結果を信頼する）。

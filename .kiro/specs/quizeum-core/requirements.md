@@ -1,10 +1,10 @@
-# Requirements Document
+# 要件定義書
 
-## Introduction
+## はじめに
 本ドキュメントは、クイズ投稿SNS「quizeum」におけるコアシステム（`quizeum-core`）のユーザーおよびオペレーター向けシステム要件を定義します。クイズの作成、多彩なプレイモード（通常、模擬試験、フラッシュカード、AI連携水平思考クイズ）、ソーシャルエンゲージメント、クローズド指摘フィードバック、自律的なコミュニティモデレーション、およびパフォーマンスやオフライン保護といった非機能要件を含み、高品質かつ高い信頼性を備えたプラットフォームを提供します。
 
-## Boundary Context
-- **In scope**:
+## 境界コンテキスト
+- **対象範囲（In scope）**:
   - ユーザー認証、プロフィール編集、および称号バッジ自動付与機能。
   - アカウント即時物理削除と、関連データ（作成クイズ、リスト、指摘、通知、リアクション）の非同期匿名化クレンジング。
   - クイズの新規作成、下書き保存、NGワード自動チェック付き公開、編集、削除、および作成したクイズの一括エクスポート。
@@ -18,102 +18,130 @@
   - 保存・更新時のNGワード自動チェック、コンテンツ通報と5回通報到達時の一時自動非公開化・モデレーション審査。
   - 表記揺れタグ/ジャンルの仮想統合（マージリクエスト提案とモデレータ重み付き投票可決）。
   - 新規ジャンル申請・モデレータ可決登録フロー。
-- **Out of scope**:
-  - 外部システムからのクイズリストやクイズのJSONインポート機能（エクスポートはインスコープ）。
+  - クイズ単位の「初回プレイ」および「リプレイ」リーダーボード（各上位5名）の記録・順位付け・更新。
+  - ログインユーザー本人向けプレイ履歴の取得API（ページネーション、プロフィールUIは別スペック）。
+- **対象外（Out of scope）**:
+  - 外部システムからのクイズリストやクイズのJSONインポート機能（エクスポートは対象範囲内）。
   - リアルタイムマルチプレイヤー対戦プレイ。
   - 有償広告配信サーバー構築そのものの実装。
-- **Adjacent expectations**:
+  - プラットフォーム総合リーダーボード（`/leaderboard`）の仕様変更。
+  - 他人のプロフィールからのプレイ履歴閲覧。
+  - テストプレイおよび永続化しないプレイモードの履歴・リーダーボード反映。
+- **隣接システムへの期待（Adjacent expectations）**:
   - 生成AI判定に必要な外部AIモデルAPI。
   - 画像アセットをアップロード・保管するオブジェクトストレージサービス。
   - メール送信サービス。
 
-## Requirements
+## 要件
 
-### Requirement 1: ユーザー認証およびプロフィール管理
-**Objective:** As a Quizeum User, I want to manage my account and profile securely, so that I can persist my progress, customize my public identity, and control my data visibility.
+### 要件 1: ユーザー認証およびプロフィール管理
+**目的:** Quizeumのユーザーとして、アカウントとプロフィールを安全に管理したい。それにより進捗を保持し、公開身份をカスタマイズし、データの可視性を制御できる。
 
-#### Acceptance Criteria
-1. When a user registers or logs in, the User Authentication System shall verify credentials using third-party social identity providers, preventing direct email and password authentication.
-2. When an authenticated user updates their profile, the Quizeum System shall validate and save their display name (maximum 30 characters) and biography (maximum 200 characters).
-3. When specific milestones (total play count, published quiz count, follower count) are reached by a user, the Quizeum System shall automatically award the corresponding achievement badge and append it to the user's profile.
-4. When an authenticated user requests account deletion, the Quizeum System shall immediately delete the user's account from the User Authentication System, allowing immediate re-registration with the same email address.
-5. When an account is requested to be deleted, the Quizeum System shall asynchronously anonymize the user's published quizzes, quiz lists, feedback reports, notifications, and reactions, replacing their creator information with "退会済みユーザー" and a system default avatar.
-6. While an account deletion is pending, the Quizeum System shall block all external read access to the user's private profile information.
+#### 受け入れ基準
+1. ユーザーが登録またはログインしたとき、ユーザー認証システムは第三者ソーシャル認証プロバイダを用いて資格情報を検証し、メールアドレスとパスワードによる直接認証を許可してはならない。
+2. 認証済みユーザーがプロフィールを更新したとき、Quizeum Systemは表示名（最大30文字）と自己紹介（最大200文字）を検証して保存すること。
+3. ユーザーが特定のマイルストーン（累計プレイ数、公開クイズ数、フォロワー数）に到達したとき、Quizeum Systemは対応する称号バッジを自動付与し、ユーザーのプロフィールに追加すること。
+4. 認証済みユーザーがアカウント削除を要求したとき、Quizeum Systemはユーザー認証システムから当該アカウントを即時削除し、同一メールアドレスでの再登録を直ちに可能にすること。
+5. アカウント削除が要求されたとき、Quizeum Systemはユーザーの公開クイズ、クイズリスト、指摘、通知、リアクションを非同期で匿名化し、作成者情報を「退会済みユーザー」およびシステム既定アバターに置き換えること。
+6. アカウント削除処理が保留中である間、Quizeum Systemは当該ユーザーの非公開プロフィール情報への外部からの読み取りをすべてブロックすること。
 
-### Requirement 2: クイズ作成と管理機能
-**Objective:** As a Quiz Creator, I want to draft, validate, publish, edit, and export my quizzes, so that I can share high-quality knowledge and retain ownership of my content.
+### 要件 2: クイズ作成と管理機能
+**目的:** クイズ作成者として、クイズの下書き・検証・公開・編集・エクスポートを行いたい。それにより高品質な知識を共有し、コンテンツの所有権を保持できる。
 
-#### Acceptance Criteria
-1. When a creator starts a new quiz, the Quizeum System shall allow saving the quiz as a draft with only a title, preventing external users from viewing it.
-2. When a creator publishes a quiz, the Quizeum System shall validate the quiz using publish constraints (at least 1 question, correct answers specified) and verify that it contains no prohibited words before making it publicly visible.
-3. When a creator inputs a tag, the Quizeum System shall normalize the text (trim, convert to lowercase, remove spaces and symbols) and display a warning suggest if a highly similar canonical tag already exists in the system.
-4. When a creator edits a quiz title, the Quizeum System shall automatically synchronize the updated title across all related feedback reports, reactions, and notifications.
-5. When a creator deletes a quiz, the Quizeum System shall asynchronously clean up or soft-delete all associated bookmarks, feedback reports, notifications, and reactions.
-6. When a creator requests export, the Quizeum System shall compile all quizzes created by the user (including drafts) into a single downloadable structured format.
-7. When a creator configures a lateral-thinking question, the Quizeum System shall allow the creator to add and remove multiple truth keywords (essential essences) using a visual tag-like input interface, storing them as a list of strings.
-8. When a creator publishes a quiz containing a lateral-thinking question, the Quizeum System shall validate that at least one truth keyword is registered for the lateral-thinking question, preventing publication if no keywords are specified.
+#### 受け入れ基準
+1. 作成者が新規クイズを開始したとき、Quizeum Systemはタイトルのみで下書き保存を可能にし、外部ユーザーが閲覧できないようにすること。
+2. 作成者がクイズを公開したとき、Quizeum Systemは公開制約（設問1問以上、正解の指定）で検証し、禁止語を含まないことを確認したうえで公開可視にすること。
+3. 作成者がタグを入力したとき、Quizeum Systemはテキストを正規化（トリム、小文字化、空白・記号除去）し、類似する正規タグが既に存在する場合は警告を表示すること。
+4. 作成者がクイズタイトルを編集したとき、Quizeum Systemは関連する指摘、リアクション、通知のタイトルを自動同期すること。
+5. 作成者がクイズを削除したとき、Quizeum Systemは関連するブックマーク、指摘、通知、リアクションを非同期でクリーンアップまたはソフト削除すること。
+6. 作成者がエクスポートを要求したとき、Quizeum Systemは当該ユーザーが作成した全クイズ（下書き含む）を単一のダウンロード可能な構造化形式にまとめること。
+7. 作成者が水平思考設問を設定したとき、Quizeum Systemは視覚的なタグ風UIで真相キーワード（エッセンス）を複数追加・削除でき、文字列リストとして保持すること。
+8. 水平思考設問を含むクイズを公開するとき、Quizeum Systemは水平思考設問に真相キーワードが1件以上登録されていることを検証し、未登録の場合は公開を阻止すること。
 
-### Requirement 3: クイズプレイとセッション保護
-**Objective:** As a Quiz Player, I want to play quizzes in various modes with progress protection, so that I can enjoy a seamless and uninterrupted playing experience even under unstable network conditions.
+### 要件 3: クイズプレイとセッション保護
+**目的:** クイズプレイヤーとして、進捗保護付きで多様なモードでクイズをプレイしたい。それにより不安定なネットワーク下でも途切れないプレイ体験を得られる。
 
-#### Acceptance Criteria
-1. When a player plays in normal mode, the Quizeum System shall display immediate correctness feedback and detailed explanations for each question solved, and save the attempt history.
-2. While a player is playing a quiz, the Quizeum System shall continuously serialize and save the playing progress to persistent local client storage to prevent data loss on page reload or network disconnection.
-3. If the network is disconnected during play, the Quizeum System shall allow the player to complete the quiz offline, presenting an offline results view (explanation review only, disabled voting and reactions), and queue the attempt data in persistent local client storage for automatic synchronization when connectivity is restored.
-4. If a player is offline while playing a quiz list, when the player attempts to proceed to the next quiz from the results view, the Quizeum System shall block the transition and display a connectivity error message.
-5. When a player completes a quiz, the Quizeum System shall display the results view, which includes correct/incorrect lists, overall score, elapsed time, difficulty rating (1-10 scale), closed feedback report form, creator reaction button, and social sharing links.
-6. When a player completes a quiz and achieves a perfect score or a personal best, the Quizeum System shall atomically record their score and elapsed time to the quiz's leaderboard.
+#### 受け入れ基準
+1. プレイヤーが通常モードでプレイしたとき、Quizeum Systemは各設問について即時の正誤フィードバックと詳細解説を表示し、プレイ履歴を保存すること。
+2. プレイヤーがクイズをプレイしている間、Quizeum Systemはプレイ進捗をクライアントの永続ローカルストレージへ継続的にシリアライズ保存し、ページ再読み込みや通信切断によるデータ損失を防ぐこと。
+3. プレイ中にネットワークが切断された場合、Quizeum Systemはオフラインでクイズ完了を可能にし、オフライン結果画面（解説閲覧のみ、投票・リアクション無効）を提示し、接続復帰時に自動同期するため試行データを永続ローカルストレージにキューイングすること。
+4. クイズリストプレイ中にオフラインのまま、プレイヤーが結果画面から次のクイズへ進もうとした場合、Quizeum Systemは遷移をブロックし、接続エラーメッセージを表示すること。
+5. プレイヤーがクイズを完了したとき、Quizeum Systemは正誤一覧、総合スコア、経過時間、体感難易度投票（1〜10段階）、クローズド指摘フォーム、作家リアクションボタン、SNS共有リンクを含む結果画面を表示すること。
+6. プレイヤーが永続化対象のクイズ試行を完了したとき、Quizeum Systemは試行を保存し、要件 9 に従ってクイズリーダーボードを更新すること。
 
-### Requirement 4: 水平思考クイズ（ウミガメのスープ）プレイモード
-**Objective:** As a Quiz Player, I want to interact with a stateless AI to solve lateral-thinking quizzes, so that I can query for clues dynamically and receive intelligent, real-time validation of my solution.
+### 要件 4: 水平思考クイズ（ウミガメのスープ）プレイモード
+**目的:** クイズプレイヤーとして、ステートレスなAIと対話して水平思考クイズを解きたい。それにより動的にヒントを質問し、解答の知的かつリアルタイムな検証を受けられる。
 
-#### Acceptance Criteria
-1. While playing a lateral thinking quiz, when a player submits a free-text question (up to 100 characters), the Quizeum System shall retrieve up to the last 20 question-and-comment pairs from the session's Q&A history, and securely pass them along with the new question to the AI engine using the secret setup context of the quiz, and return one of the predefined answers (Yes / No / Irrelevant / Unknown) with a brief comment.
-2. If a player is a free-tier user, the Quizeum System shall limit their AI questions to a maximum of 20 per day per quiz, sharing the count across all sessions of the same quiz and resetting it daily at midnight.
-3. When a player submits a question that exactly matches a question in their current session's Q&A history, the Quizeum System shall instantly return the cached answer without invoking the AI engine or decrementing the daily turn count.
-4. The Quizeum System shall present a two-column layout on the lateral-thinking play screen, displaying the interactive chat interface on the left and a scrollable Q&A history list panel on the right.
-5. When a player submits a truth summary to verify their solution, the Quizeum System shall verify whether all of the registered truth keywords (essential essences) are contained in the user's truth summary.
-6. When the verification confirms all truth keywords are contained in the user's truth summary, the Quizeum System shall bypass the AI engine, immediately mark the solution as correct (VERDICT: CORRECT), and trigger a clear animation and redirect the player to the results view.
-7. When the verification finds any truth keyword is missing, the Quizeum System shall securely pass the truth summary along with the secret setup context to the AI engine to evaluate if the core solution is reached.
-8. If the AI engine confirms the truth summary is correct, the Quizeum System shall trigger a clear animation and redirect the player to the results view.
-9. If the AI engine rejects the truth summary, the Quizeum System shall display AI-generated advice detailing unsolved contradictions, allowing the player to resume questioning.
+#### 受け入れ基準
+1. 水平思考クイズのプレイ中、プレイヤーが自由記述の質問（最大100文字）を送信したとき、Quizeum SystemはセッションのQ&A履歴から直近最大20件の質問とコメントのペアを取得し、クイズの秘密設定コンテキストとともに新規質問をAIエンジンへ安全に渡し、定義済み回答（はい／いいえ／関係なし／わからない）のいずれかと短いコメントを返すこと。
+2. プレイヤーが無料プランの場合、Quizeum Systemは同一クイズにつき1日最大20回のAI質問に制限し、同一クイズの全セッションでカウントを共有し、毎日深夜0時にリセットすること。
+3. プレイヤーが現在セッションのQ&A履歴と完全一致する質問を送信したとき、Quizeum SystemはAIエンジンを呼び出さず日次ターンを消費せず、キャッシュ済み回答を即時返すこと。
+4. Quizeum Systemは水平思考プレイ画面に2カラムレイアウトを提示し、左に対話型チャット、右にスクロール可能なQ&A履歴パネルを表示すること。
+5. プレイヤーが真相要約を提出して解答を検証したとき、Quizeum Systemは登録済み真相キーワード（エッセンス）がすべて真相要約に含まれるかを検証すること。
+6. 検証ですべての真相キーワードが含まれると確認されたとき、Quizeum SystemはAIエンジンをバイパスし、即時に正解（VERDICT: CORRECT）と判定し、クリア演出のうえ結果画面へ遷移させること。
+7. 検証で真相キーワードの不足が見つかったとき、Quizeum Systemは真相要約と秘密設定コンテキストをAIエンジンへ安全に渡し、核心解答に到達したかを評価すること。
+8. AIエンジンが真相要約を正解と判定した場合、Quizeum Systemはクリア演出のうえ結果画面へ遷移させること。
+9. AIエンジンが真相要約を却下した場合、Quizeum Systemは未解決の矛盾を説明するAI助言を表示し、プレイヤーが質問を再開できるようにすること。
 
-### Requirement 5: ソーシャル機能およびクイズリスト
-**Objective:** As a Quizeum User, I want to follow creators, bookmark content, react to quizzes, and organize quizzes into custom lists, so that I can discover, organize, and share quality content.
+### 要件 5: ソーシャル機能およびクイズリスト
+**目的:** Quizeumのユーザーとして、クリエイターをフォローし、コンテンツをブックマークし、クイズにリアクションし、カスタムリストに整理したい。それにより質の高いコンテンツを発見・整理・共有できる。
 
-#### Acceptance Criteria
-1. When a user follows or unfollows another user, the Quizeum System shall atomically update their follower/following counts and send a follow notification to the target user.
-2. While authenticated, the Quizeum System shall display a personalized chronological timeline of newly published quizzes from followed creators on the home screen.
-3. When a user bookmarks a quiz or a quiz list, the Quizeum System shall atomically toggle the bookmark status and update the item's bookmark count.
-4. When a user creates or edits a quiz list, the Quizeum System shall allow adding quizzes, sorting their order using drag-and-drop, and setting the list visibility (public/private).
-5. When playing a quiz list, the Quizeum System shall record individual quiz attempts sequentially, tagging each attempt with the parent list's ID and marking the mode as "list".
-6. When a user requests list export, the Quizeum System shall package the list metadata and the full contents of the user's own quizzes in that list into a downloadable file, referencing external quizzes by ID only.
+#### 受け入れ基準
+1. ユーザーが他ユーザーをフォローまたはフォロー解除したとき、Quizeum Systemはフォロー／フォロワー数をアトミックに更新し、対象ユーザーへフォロー通知を送信すること。
+2. 認証済みである間、Quizeum Systemはホーム画面にフォロー中クリエイターの新規公開クイズを時系列降順のパーソナライズドタイムラインで表示すること。
+3. ユーザーがクイズまたはクイズリストをブックマークしたとき、Quizeum Systemはブックマーク状態をアトミックにトグルし、当該アイテムのブックマーク数を更新すること。
+4. ユーザーがクイズリストを作成または編集したとき、Quizeum Systemはクイズの追加、ドラッグ＆ドロップによる並び順変更、公開／非公開の設定を可能にすること。
+5. クイズリストをプレイしたとき、Quizeum Systemは各クイズの試行を順次記録し、各試行に親リストIDを付与し、モードを「list」とマークすること。
+6. ユーザーがリストエクスポートを要求したとき、Quizeum Systemはリストメタデータとリスト内の自作クイズの完全データをダウンロード可能なファイルにまとめ、外部クイズはID参照のみとすること。
 
-### Requirement 6: 間違い指摘フィードバックおよび良問評価システム
-**Objective:** As a Quizeum User, I want to send private feedback on quiz issues and vote on quiz quality, so that creators can improve their quizzes and players can easily discover highly-rated content.
+### 要件 6: 間違い指摘フィードバックおよび良問評価システム
+**目的:** Quizeumのユーザーとして、クイズの問題点について非公開フィードバックを送り、クイズ品質に投票したい。それにより作成者が改善でき、プレイヤーが高評価コンテンツを見つけやすくなる。
 
-#### Acceptance Criteria
-1. When a player encounters an issue during play or on the result screen, the Quizeum System shall allow sending a private feedback report (containing category and details) directly to the creator.
-2. When a creator resolves a feedback report and updates their quiz, the Quizeum System shall automatically send a correction resolution notification to the player who reported the issue.
-3. When a player completes a quiz, the Quizeum System shall allow them to cast a binary vote (👍 Good / 👎 Bad) to rate the quality of the quiz, preventing creators from voting on their own content.
-4. While a quiz is in a temporary 7-day re-evaluation period after a reset request by the creator, the Quizeum System shall mask its previous quality ratings and display a re-evaluation warning badge.
-5. When a quiz reset is approved, the Quizeum System shall asynchronously delete all old rating records associated with that quiz in chunks, integrating the temporary ratings collected during the re-evaluation period as the new base ratings.
+#### 受け入れ基準
+1. プレイヤーがプレイ中または結果画面で問題に遭遇したとき、Quizeum Systemはカテゴリと詳細を含む非公開指摘を作成者へ直接送信できるようにすること。
+2. 作成者が指摘を解決しクイズを更新したとき、Quizeum Systemは指摘したプレイヤーへ修正完了通知を自動送信すること。
+3. プレイヤーがクイズを完了したとき、Quizeum Systemは二値投票（👍 良問／👎 悪問）で品質評価を可能にし、作成者が自身のコンテンツに投票できないようにすること。
+4. 作成者のリセット申請によりクイズが7日間の仮再評価期間にある間、Quizeum Systemは従来の品質評価をマスクし、再評価警告バッジを表示すること。
+5. クイズリセットが承認されたとき、Quizeum Systemは当該クイズの旧評価記録をチャンク単位で非同期削除し、再評価期間中に集計した仮評価を新たな基準評価として統合すること。
 
-### Requirement 7: コミュニティモデレーションとガバナンス
-**Objective:** As a Community Moderator or Administrator, I want to flag inappropriate content, manage tag/genre synonym merges, and approve new genres, so that we can maintain a clean, organized, and high-quality platform.
+### 要件 7: コミュニティモデレーションとガバナンス
+**目的:** コミュニティモデレータまたは管理者として、不適切コンテンツの通報、タグ／ジャンル同義語マージの管理、新規ジャンルの承認を行いたい。それによりクリーンで整理された高品質なプラットフォームを維持できる。
 
-#### Acceptance Criteria
-1. When a user flags a quiz for inappropriate content, the Quizeum System shall atomically increment the quiz's flag count.
-2. If a quiz's flag count reaches 5, the Quizeum System shall automatically change the quiz's status to suspended, hiding it from public lists and queueing it in the administrator moderation interface.
-3. When an administrator evaluates a suspended quiz, the Quizeum System shall allow them to either permanently hide/delete the quiz (sending a warning to the creator) or restore it to published status and reset the flag count to 0.
-4. When a moderator proposes a tag or genre merge, the Quizeum System shall create a merge request and allow eligible moderators to cast weighted votes (with Senior Moderators having a vote weight of 2).
-5. When a user submits a new genre request (including English ID, Japanese display name, and icon image), the Quizeum System shall queue the request for moderator voting.
-6. When a genre request meets the approval threshold (weighted votes >= 5 and approval rate >= 80%), the Quizeum System shall automatically register and enable the new genre across the platform.
+#### 受け入れ基準
+1. ユーザーがクイズを不適切コンテンツとして通報したとき、Quizeum Systemは当該クイズの通報数をアトミックにインクリメントすること。
+2. クイズの通報数が5に達した場合、Quizeum Systemはクイズステータスを一時停止に自動変更し、公開一覧から非表示にし、管理者モデレーション画面のキューに載せること。
+3. 管理者が一時停止中のクイズを審査したとき、Quizeum Systemは永久非表示／削除（作成者へ警告送信）または公開復帰と通報数0リセットのいずれかを可能にすること。
+4. モデレータがタグまたはジャンルのマージを提案したとき、Quizeum Systemはマージリクエストを作成し、資格のあるモデレータが重み付き投票できるようにすること（シニアモデレータの票は重み2）。
+5. ユーザーが新規ジャンル申請（英語ID、日本語表示名、アイコン画像）を提出したとき、Quizeum Systemはモデレータ投票用のキューに載せること。
+6. ジャンル申請が承認閾値（重み付き票5以上かつ承認率80%以上）を満たしたとき、Quizeum Systemは新規ジャンルを自動登録しプラットフォーム全体で有効化すること。
 
-### Requirement 8: パフォーマンスおよび非機能要件
-**Objective:** As a Quizeum User, I want the pages to load rapidly and the system to remain highly available during spikes, so that I can enjoy a highly responsive and reliable platform.
+### 要件 8: パフォーマンスおよび非機能要件
+**目的:** Quizeumのユーザーとして、ページを高速に読み込み、トラフィック急増時も高可用性を維持したい。それにより応答性と信頼性の高いプラットフォームを利用できる。
 
-#### Acceptance Criteria
-1. The Quizeum System shall ensure that the initial HTML response and page load time for any public quiz or list page is under 0.5 seconds on average under normal traffic conditions.
-2. The Quizeum System shall maintain a service availability such that the 5xx error rate remains below 0.1% during sudden traffic spikes.
-3. The Quizeum System shall dynamically render dynamic SEO and OGP metadata tags (title, description, thumbnail) within the initial HTML payload to allow correct parsing by search engine crawlers and social preview generators without JavaScript execution.
+#### 受け入れ基準
+1. Quizeum Systemは、通常トラフィック条件下で公開クイズまたはリストページの初期HTML応答およびページ読み込み時間を平均0.5秒未満に保つこと。
+2. Quizeum Systemは、トラフィック急増時も5xxエラー率を0.1%未満に維持する可用性を確保すること。
+3. Quizeum Systemは、初期HTMLペイロード内に動的SEOおよびOGPメタデータ（タイトル、説明、サムネイル）を埋め込み、JavaScript実行なしで検索エンジンクローラーおよびSNSプレビュー生成器が正しくパースできるようにすること。
+
+### 要件 9: クイズリーダーボード（初回プレイ・リプレイ）
+**目的:** クイズプレイヤーとして、初回プレイとリプレイでスコアとタイムに基づく別ランキングを見たい。それにより初見挑戦者と再挑戦者がそれぞれの母集団で公平に比較できる。
+
+#### 受け入れ基準
+1. 認証済みプレイヤーが永続化対象のクイズ試行を完了したとき、Quizeum Systemは当該試行を適切なリーダーボード（初回プレイまたはリプレイ）への登録候補として評価すること。
+2. プレイヤーの当該クイズにおける完了済み永続化試行数がちょうど1件のとき、Quizeum Systemは初回プレイリーダーボードのみを更新すること。
+3. プレイヤーの当該クイズにおける完了済み永続化試行数が2件以上のとき、Quizeum Systemはリプレイリーダーボードのみを更新し、初回プレイリーダーボード上の当該プレイヤーのエントリを変更してはならない。
+4. Quizeum Systemは、リーダーボードエントリを正解数を第一キー（多いほど上位）、合計解答時間（秒）を第二キー（正解数同点時は短いほど上位）で順位付けすること。
+5. リーダーボードを更新するとき、Quizeum Systemは当該リーダーボード上でユーザーあたり最大1エントリを維持し、新記録が厳密に優位（正解数が多い、または正解数同点で合計時間が短い）の場合にのみ既存エントリを差し替えること。
+6. 登録可能なリーダーボード更新のたびに、Quizeum Systemは受け入れ基準4の順位規則に従い、当該リーダーボードの上位5件のみを保持すること。
+7. Quizeum Systemは、リーダーボード登録のために全問正解（全設問正解）を要求してはならない。
+8. 水平思考の真相検証によりクイズが完了する場合、検証成功時に、Quizeum Systemは試行の正解数とクリア経過時間を用いて、同一のリーダーボード振り分けおよび順位規則を適用すること。
+
+### 要件 10: プレイ履歴取得（本人向け）
+**目的:** ログインユーザーとして、過去のクイズ試行データをシステムから取得したい。それによりプロフィールにページング付きのプレイ履歴を表示できる。
+
+#### 受け入れ基準
+1. 認証済みユーザーが自身のプレイ履歴を要求したとき、Quizeum Systemは完了済みの永続化試行を完了日時の降順で返すこと。
+2. プレイ履歴エントリを返すとき、Quizeum Systemはテストプレイおよびその他の非永続化プレイモードを結果から除外すること。
+3. 各プレイ履歴エントリを返すとき、Quizeum Systemはプロフィール表示およびクイズへの再遷移に十分な情報として、クイズ識別子、クイズタイトル、正解数、総設問数、プレイモード、完了日時、合計解答時間を含めること。
+4. Quizeum Systemは、初回20件のページング取得および追加ページの要求をサポートすること。
+5. ユーザーが他ユーザーの識別子でプレイ履歴を要求した場合、Quizeum Systemは当該他ユーザーの非公開プレイ履歴を返してはならない。

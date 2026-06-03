@@ -82,6 +82,8 @@ function makeQuiz(overrides: Partial<Quiz> = {}): Quiz {
     canonicalGenreId: '',
     canonicalTagIds: [],
     leaderboard: [],
+    leaderboardFirstPlay: [],
+    leaderboardReplay: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

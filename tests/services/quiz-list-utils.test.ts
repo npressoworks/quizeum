@@ -44,6 +44,8 @@ function makeQuiz(id: string): Quiz {
     canonicalGenreId: '',
     canonicalTagIds: [],
     leaderboard: [],
+    leaderboardFirstPlay: [],
+    leaderboardReplay: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };

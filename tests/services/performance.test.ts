@@ -41,6 +41,8 @@ const mockQuiz: Quiz = {
   canonicalGenreId: 'genre-history',
   canonicalTagIds: ['tag-history', 'tag-mystery'],
   leaderboard: [],
+  leaderboardFirstPlay: [],
+  leaderboardReplay: [],
   createdAt: new Date(),
   updatedAt: new Date(),
 };

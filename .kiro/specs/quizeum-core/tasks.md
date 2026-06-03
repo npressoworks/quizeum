@@ -102,3 +102,77 @@
   - 高負荷（スパイクアクセス）シミュレーション下でのエラー率（0.1%未満）の可用性テストを実行
   - **完了状態**: テストにおいて、クローラー向けレスポンス内のOGPタグの整合性、および多数の同時クイズプレイ接続時の応答速度が正常値を示すこと
   - _Requirements: 8.1, 8.2, 8.3_
+
+---
+
+### 5. Phase 5 拡張 — リーダーボード分割 & 本人プレイ履歴（2026-06）
+
+> 既存タスク 2.3 / 2.5 の単一 `leaderboard`・全問正解ガードは本フェーズで置き換える。
+
+- [x] 5.1 クイズ型と初期値の二系統リーダーボード対応
+  - `Quiz` に `leaderboardFirstPlay` / `leaderboardReplay` を追加し、新規作成・下書き初期化で空配列を設定する
+  - 読み取り時に旧 `leaderboard` がのみ存在するドキュメントは `leaderboardFirstPlay` のフォールバックとして扱うヘルパーを用意する
+  - **完了状態**: 型チェックが通り、新規クイズ保存ペイロードに両フィールドが含まれること
+  - _Requirements: 9.2, 9.3_
+  - _Boundary: types, QuizService_
+
+- [x] 5.2 リーダーボード順位比較・マージの純関数モジュール
+  - 正解数降順→同点時は合計解答時間昇順の比較、厳密優位判定、ユーザー1枠マージ、上位5抽出を実装する
+  - prior 完了件数から `firstPlay` / `replay` を決定する振り分け関数を実装する
+  - **完了状態**: 単体テストで同点タイム・非優位差し替え拒否・5件超過時の切り捨てが期待どおりであること
+  - _Requirements: 9.4, 9.5, 9.6_
+  - _Depends: 5.1_
+  - _Boundary: leaderboard-ranking_
+
+- [x] 5.3 `saveAttempt` トランザクション内の二系統LB更新
+  - 全問正解ガードを撤廃し、永続化対象の完了試行ごとに LB 更新候補とする（ゲスト・test-play は除外）
+  - 新規 attempt 作成前に同一 user+quiz の完了件数を数え、初回は `leaderboardFirstPlay`、2回目以降は `leaderboardReplay` のみ更新する
+  - **完了状態**: 初回プレイ後に replay 配列が空のまま、2回目以降に firstPlay 上の当該ユーザー行が変わらないこと
+  - _Requirements: 3.6, 9.1, 9.2, 9.3, 9.7_
+  - _Depends: 5.2_
+  - _Boundary: AttemptService_
+
+- [x] 5.4 (P) ウミガメ真相判定完了時のLB更新統合
+  - `verify-truth` ルート内の重複 LB ロジックを共通ヘルパーに置き換え、合格完了時に 5.3 と同一規則で更新する
+  - **完了状態**: 真相合格後のクイズドキュメントに正しい board 側のみが更新され、順位規則が `saveAttempt` と一致すること
+  - _Requirements: 9.8_
+  - _Depends: 5.2_
+  - _Boundary: VerifyTruthAPI_
+
+- [x] 5.5 本人プレイ履歴クエリサービス
+  - 認証ユーザー自身の完了済み attempts を `completedAt` 降順で取得し、test-play 等を除外する
+  - 各件にクイズタイトル・正解数・総設問数・モード・経過秒を付与し、20件＋カーソルでページングする
+  - **完了状態**: モックまたは統合テストで2ページ目取得と test-play 除外が確認できること
+  - _Requirements: 10.1, 10.2, 10.3_
+  - _Depends: 5.1_
+  - _Boundary: AttemptService_
+
+- [x] 5.6 本人プレイ履歴API Route
+  - `GET /api/user/play-history` で ID トークン検証後、トークン `uid` の履歴のみ返す（他ユーザー指定は 403）
+  - **完了状態**: 未認証で 401、有効トークンで `PlayHistoryPage` JSON、クエリに他人 uid を渡してもトークン本人のみ返ること
+  - _Requirements: 10.4, 10.5_
+  - _Depends: 5.5_
+  - _Boundary: PlayHistoryAPI_
+
+- [x] 5.7 Firestore インデックスと読み取り互換の結合確認
+  - `attempts` の `userId` + `completedAt` 降順クエリに必要な複合インデックスを定義・デプロイ手順を記載する
+  - 旧 `leaderboard` のみのクイズを読み込んだクライアント／サービスが firstPlay として表示できることを確認する
+  - **完了状態**: インデックス定義がリポジトリに追加され、履歴APIが本番相当クエリでエラーにならないこと
+  - _Depends: 5.5, 5.6_
+
+- [x] 5.8 Phase 5 統合検証
+  - 初回／リプレイ振り分け、正解数優先ソート、非全問正解での掲載、本人履歴APIの認可を統合テストで検証する
+  - **完了状態**: 関連 Jest 統合テストがグリーンであり、手動で2回プレイ＋履歴API取得のスモークが成功すること
+  - _Depends: 5.3, 5.4, 5.6_
+  - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 10.1, 10.2, 10.3, 10.4, 10.5_
+
+- [x]* 5.9 Phase 5 回帰スモーク（任意）
+  - 既存 `saveAttempt` スコア検証・オフライン同期が Phase 5 変更後も動作することをスモーク確認する
+  - **完了状態**: 既存 attempt 関連テストスイートがグリーンであること
+  - _Depends: 5.8_
+
+## Implementation Notes
+
+- LB 順位ロジックは `src/lib/leaderboard-ranking.ts`（純関数）と `src/lib/leaderboard-update.ts`（Firebase 非依存ヘルパー）に分離。`countPriorCompletedAttempts` は `attempt.ts` 内に保持。
+- プレイ履歴は `GET /api/user/play-history`（Bearer トークンの uid のみ）。UI は `quizeum-auth-profile-ui` が未実装。
+- クイズ詳細の二系統 LB 表示は暫定で `quiz/[id]/page.tsx` を更新（本番 UI 仕上げは `quizeum-play-flow-ui`）。

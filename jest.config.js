@@ -5,7 +5,7 @@ module.exports = {
   testEnvironment: 'node',
 
   // テストファイルの配置場所
-  testMatch: ['**/tests/**/*.test.ts'],
+  testMatch: ['**/tests/**/*.test.ts', '**/tests/**/*.test.tsx'],
 
   // ts-jest の設定: プロジェクトルートの tsconfig を使用
   transform: {
@@ -21,6 +21,7 @@ module.exports = {
 
   // モジュール解決のエイリアスと Firebase SDK のモック化
   moduleNameMapper: {
+    '\\.(css|less)$': '<rootDir>/tests/__mocks__/styleMock.ts',
     // Next.js の @ エイリアス
     '^@/(.*)$': '<rootDir>/src/$1',
     // Firebase SDK は純粋関数テストでは不要なためモック化

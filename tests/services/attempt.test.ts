@@ -4,7 +4,6 @@ import {
   getFailedQuestions,
   updateFailedQuestions,
 } from '../../src/services/attempt';
-
 jest.mock('firebase/firestore', () => {
   const original = jest.requireActual('firebase/firestore');
   return {
@@ -37,14 +36,17 @@ describe('AttemptService - saveAttempt', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (getDocs as jest.Mock).mockResolvedValue({ docs: [] });
   });
 
-  test('通常スコアでの保存時、プレイ回数のインクリメントをアトミックに行い、リーダーボードは更新しないこと', async () => {
+  test('通常スコアでも初回LBに記録しプレイ回数をインクリメントすること', async () => {
     const mockQuizSnap = {
       exists: () => true,
       data: () => ({
         playCount: 10,
         leaderboard: [],
+        leaderboardFirstPlay: [],
+        leaderboardReplay: [],
         questions: [
           { id: 'q1' },
           { id: 'q2' },
@@ -87,17 +89,22 @@ describe('AttemptService - saveAttempt', () => {
     expect(mockTransaction.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: quizId }),
       expect.objectContaining({
-        playCount: 1, // increment(1) のダミー
+        playCount: 1,
+        leaderboardFirstPlay: expect.arrayContaining([
+          expect.objectContaining({ userId, score: 3 }),
+        ]),
       })
     );
   });
 
-  test('パーフェクトスコアのとき、リーダーボードを更新すること', async () => {
+  test('全問正解でも初回LBに記録すること', async () => {
     const mockQuizSnap = {
       exists: () => true,
       data: () => ({
         playCount: 10,
         leaderboard: [],
+        leaderboardFirstPlay: [],
+        leaderboardReplay: [],
         questions: [
           { id: 'q1' },
           { id: 'q2' },
@@ -132,12 +139,11 @@ describe('AttemptService - saveAttempt', () => {
 
     await saveAttempt(attemptData);
 
-    // playCount と leaderboard の両方が更新されること
     expect(mockTransaction.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: quizId }),
       expect.objectContaining({
         playCount: 1,
-        leaderboard: expect.arrayContaining([
+        leaderboardFirstPlay: expect.arrayContaining([
           expect.objectContaining({
             userId,
             score: 5,

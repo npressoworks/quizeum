@@ -4,7 +4,8 @@ import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Star, Play, Award, Trophy, Timer, Layers, HelpCircle, Edit } from 'lucide-react';
+import { ArrowLeft, Star, Play, Award, Timer, Layers, HelpCircle, Edit } from 'lucide-react';
+import { QuizDualLeaderboard } from '@/components/quiz/quiz-dual-leaderboard';
 import { useAuth } from '@/context/auth-context';
 import { getQuiz } from '@/services/quiz';
 import { toggleBookmark, isBookmarked } from '@/services/bookmark';
@@ -120,11 +121,6 @@ export default function QuizDetailPage({ params }: PageProps) {
   const isLateralThinkingQuiz = quiz.questions.some((q) => q.type === 'lateral-thinking');
   // 早押しクイズ判定
   const isQuickPressQuiz = quiz.format === 'quick-press' || quiz.questions.some((q) => q.type === 'quick-press');
-
-  // リーダーボードを完了タイム（秒数）の昇順でソート（上位10名）
-  const sortedLeaderboard = quiz.leaderboard
-    ? [...quiz.leaderboard].sort((a, b) => a.elapsedSeconds - b.elapsedSeconds).slice(0, 10)
-    : [];
 
   return (
     <div className={styles.container}>
@@ -361,54 +357,7 @@ export default function QuizDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* リーダーボード */}
-      <section className={styles.leaderboardSection}>
-        <div className={styles.leaderboardTitle}>
-          <Trophy size={20} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
-          パーフェクト達成者リーダーボード (上位10名)
-        </div>
-
-        {sortedLeaderboard.length === 0 ? (
-          <div className={styles.emptyLeaderboard}>
-            まだパーフェクト達成者がいません。最初の達成者になりましょう！
-          </div>
-        ) : (
-          <div className={styles.tableWrapper}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th className={styles.th}>順位</th>
-                  <th className={styles.th}>ユーザー名</th>
-                  <th className={styles.th}>クリアタイム</th>
-                  <th className={styles.th}>達成日</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedLeaderboard.map((record, index) => {
-                  const rankClass =
-                    index === 0
-                      ? styles.rank1
-                      : index === 1
-                      ? styles.rank2
-                      : index === 2
-                      ? styles.rank3
-                      : '';
-                  return (
-                    <tr key={index}>
-                      <td className={`${styles.td} ${rankClass}`}>#{index + 1}</td>
-                      <td className={styles.td}>{record.displayName || '名無しさん'}</td>
-                      <td className={styles.td}>{record.elapsedSeconds} 秒</td>
-                      <td className={styles.td}>
-                        {new Date(record.completedAt).toLocaleDateString('ja-JP')}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <QuizDualLeaderboard quiz={quiz} />
     </div>
   );
 }
