@@ -1,4 +1,4 @@
-﻿/**
+/**
  * クイズ投稿SNS「quizeum」共通型定義
  */
 
@@ -255,3 +255,14 @@ export interface FeedbackReport {
   status: 'open' | 'resolved';
   createdAt: Date;
 }
+
+// 9. 管理者ログ (adminLogs)
+export interface AdminLog {
+  id?: string;
+  targetUid: string;
+  executorId: string;
+  action: 'reputation_reset';
+  reason: string;
+  createdAt: Date;
+}
+

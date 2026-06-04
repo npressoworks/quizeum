@@ -195,5 +195,15 @@ service cloud.firestore {
       // 通報データの変更・削除はモデレータ以上のみ許可
       allow update, delete: if isModeratorOrAbove();
     }
+
+    // -----------------------------------------------------------------
+    // adminLogs (管理者ログ) コレクションルール
+    // -----------------------------------------------------------------
+    match /adminLogs/{logId} {
+      // 管理者監査ログの閲覧はシニアモデレータ/管理者のみ許可
+      allow read: if isSeniorModeratorOrAdmin();
+      // クライアントからの直接の書き込み・変更・削除は完全に禁止（サーバーサイドAPIから特権実行のみ）
+      allow write: if false;
+    }
   }
 }
