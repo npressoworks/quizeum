@@ -5,6 +5,8 @@ import {
   checkModeratorEligibility,
   getReputationLimit,
   resetUserReputation,
+  banUser,
+  unbanUser,
 } from '../../src/services/reputation';
 
 // Firebase Firestore モック
@@ -24,6 +26,7 @@ jest.mock('firebase/firestore', () => {
     getDoc: jest.fn(),
     runTransaction: jest.fn(),
     serverTimestamp: jest.fn(() => new Date()),
+    deleteField: jest.fn(() => 'delete-field-mock'),
   };
 });
 
@@ -240,6 +243,145 @@ describe('ReputationService - resetUserReputation', () => {
     await expect(
       resetUserReputation(targetUid, executorId, '短すぎ')
     ).rejects.toThrow('リセット理由は10文字以上で入力してください。');
+  });
+});
+
+describe('ReputationService - banUser', () => {
+  const targetUid = 'target-user-uid';
+  const executorId = 'admin-executor-uid';
+  const reason = 'スパムメッセージ連投のルール違反行為のため';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('管理者が実行した場合、対象ユーザーがBANされ、adminLogsに監査ログが書き込まれること', async () => {
+    const mockTargetUserSnap = {
+      exists: () => true,
+      data: () => ({ displayName: '迷惑ユーザー' }),
+    };
+
+    const mockExecutorSnap = {
+      exists: () => true,
+      data: () => ({ moderationTier: 'admin' }),
+    };
+
+    const mockTransaction = {
+      get: jest.fn().mockImplementation((ref) => {
+        if (ref.id === targetUid) return mockTargetUserSnap;
+        return mockExecutorSnap;
+      }),
+      update: jest.fn(),
+      set: jest.fn(),
+    };
+
+    (runTransaction as jest.Mock).mockImplementation((db, callback) => {
+      return callback(mockTransaction);
+    });
+
+    await banUser(targetUid, executorId, reason);
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: targetUid }),
+      expect.objectContaining({
+        isBanned: true,
+        bannedReason: reason,
+        bannedAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      })
+    );
+
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: expect.stringContaining('adminLogs') }),
+      {
+        targetUid,
+        executorId,
+        action: 'ban',
+        reason,
+        createdAt: expect.any(Date),
+      }
+    );
+  });
+
+  test('理由が10文字未満の場合、バリデーションエラーになること', async () => {
+    await expect(
+      banUser(targetUid, executorId, '短すぎ')
+    ).rejects.toThrow('BAN理由は10文字以上で入力してください。');
+  });
+
+  test('非管理者が実行した場合、拒否されること', async () => {
+    const mockExecutorSnap = {
+      exists: () => true,
+      data: () => ({ moderationTier: 'moderator' }),
+    };
+
+    const mockTransaction = {
+      get: jest.fn().mockReturnValue(mockExecutorSnap),
+      update: jest.fn(),
+      set: jest.fn(),
+    };
+
+    (runTransaction as jest.Mock).mockImplementation((db, callback) => {
+      return callback(mockTransaction);
+    });
+
+    await expect(
+      banUser(targetUid, 'non-admin', reason)
+    ).rejects.toThrow('この操作を実行する権限がありません');
+  });
+});
+
+describe('ReputationService - unbanUser', () => {
+  const targetUid = 'target-user-uid';
+  const executorId = 'admin-executor-uid';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('管理者が実行した場合、対象ユーザーのBANが解除され、adminLogsに監査ログが書き込まれること', async () => {
+    const mockTargetUserSnap = {
+      exists: () => true,
+      data: () => ({ isBanned: true }),
+    };
+
+    const mockExecutorSnap = {
+      exists: () => true,
+      data: () => ({ moderationTier: 'admin' }),
+    };
+
+    const mockTransaction = {
+      get: jest.fn().mockImplementation((ref) => {
+        if (ref.id === targetUid) return mockTargetUserSnap;
+        return mockExecutorSnap;
+      }),
+      update: jest.fn(),
+      set: jest.fn(),
+    };
+
+    (runTransaction as jest.Mock).mockImplementation((db, callback) => {
+      return callback(mockTransaction);
+    });
+
+    await unbanUser(targetUid, executorId);
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: targetUid }),
+      expect.objectContaining({
+        isBanned: false,
+        updatedAt: expect.any(Date),
+      })
+    );
+
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: expect.stringContaining('adminLogs') }),
+      {
+        targetUid,
+        executorId,
+        action: 'unban',
+        createdAt: expect.any(Date),
+      }
+    );
   });
 });
 

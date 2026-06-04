@@ -159,32 +159,36 @@
 ## Phase 7: 管理者向けユーザー管理ツール（2026-06-04 ディスカバリー）
 
 ### Overview（本フェーズ）
-システム管理者（Super Admin）向けに、不適切なユーザーの信頼スコアやモデレータティアーを緊急時に手動でリセットし、監査ログとして `adminLogs` に記録する機能を提供する。専用画面 `/admin/users` を新設し、そこで特定のユーザーUIDによる検索、情報表示、リセット処理を実行可能にする。
+システム管理者（Super Admin）向けに、不適切なユーザーの信頼スコアやモデレータティアーを緊急時に手動でリセットする機能、およびアカウントの停止（BAN/UNBAN）処理機能を提供し、監査ログとして `adminLogs` に記録する。専用画面 `/admin/users` を新設し、そこで特定のユーザーUIDによる検索、情報表示、リセットおよびBAN/UNBAN処理を実行可能にする。また、BANされたユーザーのログインやアクセスを多重防御で遮断する。
 
 ### Approach Decision（本フェーズ）
-- **Chosen**: `/admin/users` 専用画面の新設 + Core 側リセットトランザクション + `adminLogs` 保存
-- **Why**: 既存のモデレーション画面と分離することで、将来的な管理者用ユーザーBANや権限管理機能の拡張性を担保する。
+- **Chosen**: `/admin/users` 専用画面の新設 + Core 側リセット・BANトランザクション + `adminLogs` 保存 + 多重防御（ミドルウェア、AuthContext、Firestore Rulesでのアクセス遮断）
+- **Why**: 既存のモデレーション画面と分離しつつ、重大な権限リセットとアカウント制御（BAN）をアトミックに管理し、不正アクセスを確実に防ぐため。
 - **Rejected alternatives**:
   - 既存 `/admin/moderation` への統合: 管理機能が1画面に詰め込まれすぎ、将来的な拡張が難しくなるため却下。
+  - Firebase Custom Claimsのみによる制御: トークン伝播のタイムラグがあるため、Firestore Rulesとミドルウェア/AuthContextを組み合わせた即時遮断アプローチを採用。
 
 ### Scope（本フェーズ）
 - **In**:
   - `reputation.ts` への `resetUserReputation` サービス追加（トランザクションによる `users` の `reputationScore: 0` & `moderationTier: 'newcomer'` リセット、および `adminLogs` へのログ挿入）。
+  - `isBanned` フィールドの更新（BAN/UNBAN処理）を行うサービスメソッドおよびAPIエンドポイントの追加。
   - `executorId` による厳格な `admin` ロールチェック（多重防衛）。
-  - `/admin/users` 画面の新規作成（UIDによるユーザー情報表示、手動リセット理由の入力、リセット実行アクション）。
+  - `/admin/users` 画面の新規作成（UIDによるユーザー情報表示、手動リセット・BAN/UNBAN理由の入力、実行アクション）。
   - 既存 `/admin/moderation` 画面から `/admin/users` へのナビゲーションリンク追加。
-  - Firestore Security Rules に `adminLogs` の読み書きルール追加。
+  - Firestore Security Rules に `adminLogs` の読み書きルール追加、およびBANユーザーの読み書き遮断ルールの追加。
+  - ミドルウェアおよび認証コンテキストによるBANユーザーのセッション即時遮断。
 - **Out**:
-  - ユーザーの物理削除や一時BAN（今回は要件・設計書に沿った手動リセットとログ保存のみに絞る）。
+  - ユーザーのアカウント物理削除機能自体。
 
 ### Boundary Strategy（本フェーズ）
-- **Core** がデータモデル・手動リセットAPI・`adminLogs`への書き込みを所有。
-- **Admin Users UI** が `/admin/users` での検索およびリセット実行パネルを所有。
-- **Shared seam**: `resetUserReputation` を Core に1か所集約し UI はそれを呼び出す。
+- **Core** がデータモデル、手動リセット・BAN/UNBAN API、`adminLogs`への書き込み、Firestore Rules、および認証ガードロジックを所有。
+- **Admin Users UI** が `/admin/users` での検索および各種実行パネルを所有。
+- **Shared seam**: 各種管理者アクションを Core に集約し UI はそれを呼び出す。
 
 ## Existing Spec Updates（Phase 7）
-- [ ] quizeum-core -- `resetUserReputation` メソッド、`adminLogs` スキーマ・型定義、Firestore Security Rules。Dependencies: none
+- [ ] quizeum-core -- `resetUserReputation`・`banUser`・`unbanUser` メソッド、`adminLogs` スキーマ・型定義、Firestore Security Rules（`adminLogs` 用およびBANユーザー遮断用）、認証ミドルウェア/AuthContext でのBAN検知。Dependencies: none
 
 ## Specs (dependency order)
-- [ ] quizeum-admin-users-ui -- 管理者専用ユーザー検索・手動スコアリセット画面（`/admin/users`）の実装、ルートガード。Dependencies: quizeum-core
+- [ ] quizeum-admin-users-ui -- 管理者専用ユーザー検索・手動スコアリセット・BAN/UNBAN画面（`/admin/users`）の実装、ルートガード。Dependencies: quizeum-core
+
 

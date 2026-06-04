@@ -37,6 +37,7 @@ describe('middleware-auth-cookies', () => {
     document.cookie = 'quizeum_uid=; path=/; max-age=0';
     document.cookie = 'quizeum_tier=; path=/; max-age=0';
     document.cookie = 'quizeum_role=; path=/; max-age=0';
+    document.cookie = 'quizeum_banned=; path=/; max-age=0';
   });
 
   it('ログイン時に uid と tier Cookie を設定する', () => {
@@ -45,6 +46,7 @@ describe('middleware-auth-cookies', () => {
     expect(document.cookie).toContain('quizeum_uid=user-1');
     expect(document.cookie).toContain('quizeum_tier=contributor');
     expect(document.cookie).not.toContain('quizeum_role=admin');
+    expect(document.cookie).not.toContain('quizeum_banned=true');
   });
 
   it('admin ユーザーは quizeum_role Cookie も設定する', () => {
@@ -56,12 +58,22 @@ describe('middleware-auth-cookies', () => {
     expect(document.cookie).toContain('quizeum_role=admin');
   });
 
-  it('ログアウト時に Cookie をクリアする', () => {
-    syncMiddlewareAuthCookies(baseUser(), 'user-1');
+  it('isBanned: true のユーザーは quizeum_banned Cookie も設定する', () => {
+    syncMiddlewareAuthCookies(
+      baseUser({ isBanned: true }),
+      'user-1'
+    );
+
+    expect(document.cookie).toContain('quizeum_banned=true');
+  });
+
+  it('ログアウト時に Cookie をクリアするが、quizeum_banned は維持する', () => {
+    syncMiddlewareAuthCookies(baseUser({ isBanned: true }), 'user-1');
     clearMiddlewareAuthCookies();
 
     expect(document.cookie).not.toContain('quizeum_uid=');
     expect(document.cookie).not.toContain('quizeum_tier=');
     expect(document.cookie).not.toContain('quizeum_role=');
+    expect(document.cookie).toContain('quizeum_banned=true');
   });
 });

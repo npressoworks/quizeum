@@ -1,4 +1,4 @@
-﻿# Implementation Plan: quizeum-core
+# Implementation Plan: quizeum-core
 
 ## Tasks
 
@@ -261,9 +261,46 @@
   - _Depends: 6.11_
   - _Requirements: 11.1, 11.4_
 
+---
+
+### 7. Phase 7 追記 — ユーザーのBAN機能およびアクセス制限（2026-06）
+
+- [x] 7.1 (P) BAN/UNBAN アカウント状態操作と監査ログ記録
+  - `ReputationService` に `banUser` および `unbanUser` 処理を実装し、ユーザーの `isBanned` フラグの設定・解除を行い、`adminLogs` コレクションに監査ログ（`action: 'ban'` / `'unban'`）をアトミックに記録する。
+  - **完了状態**: ユニットテストが通り、管理者権限によるBAN/UNBAN時にデータベースに `isBanned` と監査ログが正確に記録されること。
+  - _Requirements: 12.1, 12.2_
+  - _Boundary: ReputationService_
+
+- [x] 7.2 (P) 管理者用 BAN/UNBAN API ルートの構築
+  - `/api/admin/users/ban` および `/api/admin/users/unban` の API ルートを構築し、管理者以外の認可を制限しつつ `ReputationService` を呼び出す。
+  - **完了状態**: 統合テストにおいて管理者以外のトークンでのアクセスが `403 Forbidden` となり、管理者のトークンでのみBAN/UNBANが実行されること。
+  - _Requirements: 12.1, 12.2_
+  - _Depends: 7.1_
+  - _Boundary: API Layer_
+
+- [x] 7.3 (P) Firestore Security Rules による書き込み拒否（isNotBanned）
+  - `firestore.rules` に `isNotBanned()` ヘルパーを定義し、ユーザーデータ、クイズデータ、指摘データなどの主要コレクションの書き込み（create, update, delete）ルールに適用する。
+  - **完了状態**: ルールテストにおいて、`isBanned: true` のユーザーからの Firestore 書き込み要求がすべてセキュリティルールによりブロックされること。
+  - _Requirements: 12.3_
+  - _Boundary: firestore.rules_
+
+- [x] 7.4 (P) 認証セッション無効化と Cookie 連携による即時ログアウト
+  - 認証ミドルウェアおよび `AuthContext` において、`isBanned: true` を検知した際にセッションを無効化（ログアウト）し、`quizeum_banned` Cookie を設定してBAN制限画面（`/banned`）へ強制遷移するクライアント・サーバー連携ロジックを実装する。
+  - **完了状態**: BANされたユーザーが次回アクセス時、または即座に強制ログアウトされ、BAN画面に誘導されること。
+  - _Requirements: 12.3_
+  - _Boundary: AuthService, API Layer_
+
+- [x] 7.5 BAN/UNBAN 機能の統合検証
+  - BANから強制ログアウト、Security Rules によるデータ書き込み遮断、管理者APIの権限ガード、およびUNBANによる復旧フローが一貫して動作することを統合テストおよび動作確認によって検証する。
+  - **完了状態**: ユーザーBAN機能に関連するテストスイートがすべてグリーンであり、BAN時の制限とUNBAN後の復帰が正常に行われること。
+  - _Depends: 7.1, 7.2, 7.3, 7.4_
+  - _Requirements: 12.1, 12.2, 12.3_
+
 ## Implementation Notes
 
 - LB 順位ロジックは `src/lib/leaderboard-ranking.ts`（純関数）と `src/lib/leaderboard-update.ts`（Firebase 非依存ヘルパー）に分離。`countPriorCompletedAttempts` は `attempt.ts` 内に保持。
 - プレイ履歴は `GET /api/user/play-history`（Bearer トークンの uid のみ）。UI は `quizeum-auth-profile-ui` が未実装。
 - クイズ詳細の二系統 LB 表示は暫定で `quiz/[id]/page.tsx` を更新（本番 UI 仕上げは `quizeum-play-flow-ui`）。
 - **Phase 6**: canonical 解決は `src/lib/metadata-resolution.ts` に集約。読み取りは C2（canonical クエリ + `genre in` フォールバック + dedupe）。ホーム/エディタ UI は `quizeum-play-flow-ui` / `quizeum-creator-dash-ui` が `listActiveGenres` に依存。
+- **Phase 7 (BAN機能)**: 管理者権限によるAPI呼び出しの検証（Authorization ヘッダーでの `idToken` 解析）と、Firestore Rulesでの `isNotBanned()` チェック。Cookie `quizeum_banned` による即時遮断はミドルウェアおよび `AuthContext` と連携。
+

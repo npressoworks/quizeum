@@ -4,6 +4,7 @@ export const MIDDLEWARE_AUTH_COOKIE_NAMES = [
   'quizeum_uid',
   'quizeum_tier',
   'quizeum_role',
+  'quizeum_banned',
 ] as const;
 
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -44,6 +45,7 @@ export function syncMiddlewareAuthCookies(
   if (!user) {
     expireCookie('quizeum_tier');
     expireCookie('quizeum_role');
+    expireCookie('quizeum_banned');
     return;
   }
 
@@ -54,11 +56,18 @@ export function syncMiddlewareAuthCookies(
   } else {
     expireCookie('quizeum_role');
   }
+
+  if (user.isBanned === true) {
+    document.cookie = `quizeum_banned=true${attrs}`;
+  } else {
+    expireCookie('quizeum_banned');
+  }
 }
 
 export function clearMiddlewareAuthCookies(): void {
   if (typeof document === 'undefined') return;
   for (const name of MIDDLEWARE_AUTH_COOKIE_NAMES) {
+    if (name === 'quizeum_banned') continue;
     expireCookie(name);
   }
 }

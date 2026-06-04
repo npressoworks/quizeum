@@ -4,6 +4,7 @@ import {
   collection,
   runTransaction,
   serverTimestamp,
+  deleteField,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase/config';
 import { usersRef } from '../lib/firebase/firestore';
@@ -147,6 +148,105 @@ export async function resetUserReputation(
       executorId,
       action: 'reputation_reset',
       reason,
+      createdAt: serverTimestamp(),
+    });
+  });
+}
+
+/**
+ * 指定ユーザーのアカウントを停止（BAN）し、監査ログに保存する
+ *
+ * @param targetUid リセット対象ユーザー의 UID
+ * @param executorId 実行者（管理者）のUID
+ * @param reason BAN理由（10文字以上）
+ */
+export async function banUser(
+  targetUid: string,
+  executorId: string,
+  reason: string
+): Promise<void> {
+  if (reason.length < 10) {
+    throw new Error('BAN理由は10文字以上で入力してください。');
+  }
+
+  await runTransaction(db, async (transaction) => {
+    // 実行者の権限確認
+    const executorRef = doc(usersRef, executorId);
+    const executorSnap = await transaction.get(executorRef);
+
+    if (!executorSnap.exists() || (executorSnap.data()?.moderationTier as string) !== 'admin') {
+      throw new Error('この操作を実行する権限がありません');
+    }
+
+    // 対象ユーザーの存在確認
+    const targetUserRef = doc(usersRef, targetUid);
+    const targetUserSnap = await transaction.get(targetUserRef);
+
+    if (!targetUserSnap.exists()) {
+      throw new Error('対象のユーザーが見つかりません');
+    }
+
+    // アカウント停止
+    transaction.update(targetUserRef, {
+      isBanned: true,
+      bannedReason: reason,
+      bannedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // 監査ログの記録
+    const logRef = doc(collection(db, 'adminLogs'));
+    transaction.set(logRef, {
+      targetUid,
+      executorId,
+      action: 'ban',
+      reason,
+      createdAt: serverTimestamp(),
+    });
+  });
+}
+
+/**
+ * 指定ユーザーのアカウント停止を解除（UNBAN）し、監査ログに保存する
+ *
+ * @param targetUid 対象ユーザーのUID
+ * @param executorId 実行者（管理者）のUID
+ */
+export async function unbanUser(
+  targetUid: string,
+  executorId: string
+): Promise<void> {
+  await runTransaction(db, async (transaction) => {
+    // 実行者の権限確認
+    const executorRef = doc(usersRef, executorId);
+    const executorSnap = await transaction.get(executorRef);
+
+    if (!executorSnap.exists() || (executorSnap.data()?.moderationTier as string) !== 'admin') {
+      throw new Error('この操作を実行する権限がありません');
+    }
+
+    // 対象ユーザーの存在確認
+    const targetUserRef = doc(usersRef, targetUid);
+    const targetUserSnap = await transaction.get(targetUserRef);
+
+    if (!targetUserSnap.exists()) {
+      throw new Error('対象のユーザーが見つかりません');
+    }
+
+    // アカウント停止解除
+    transaction.update(targetUserRef, {
+      isBanned: false,
+      bannedReason: deleteField(),
+      bannedAt: deleteField(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // 監査ログの記録
+    const logRef = doc(collection(db, 'adminLogs'));
+    transaction.set(logRef, {
+      targetUid,
+      executorId,
+      action: 'unban',
       createdAt: serverTimestamp(),
     });
   });

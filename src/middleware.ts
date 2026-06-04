@@ -46,6 +46,15 @@ export function middleware(request: NextRequest) {
   // Cookie からユーザー認証情報を取得
   const uid = request.cookies.get('quizeum_uid')?.value;
   const moderationTier = request.cookies.get('quizeum_tier')?.value;
+  const isBanned = request.cookies.get('quizeum_banned')?.value === 'true';
+
+  // -------------------------------------------------------------------
+  // BAN ユーザーの強制リダイレクト
+  // -------------------------------------------------------------------
+  if (isBanned && pathname !== '/banned') {
+    const bannedUrl = new URL('/banned', request.url);
+    return NextResponse.redirect(bannedUrl);
+  }
 
   // -------------------------------------------------------------------
   // /admin/moderation: 管理者またはシニアモデレータのみ
@@ -57,6 +66,15 @@ export function middleware(request: NextRequest) {
 
     if (!uid || !isAdminOrSenior) {
       // 未認証または権限不足の場合は /not-found にリダイレクト（404相当）
+      const notFound = new URL('/not-found', request.url);
+      return NextResponse.redirect(notFound);
+    }
+  }
+
+  // /admin/users: 管理者のみ (Req 1.1)
+  if (pathname.startsWith('/admin/users')) {
+    const isAdmin = request.cookies.get('quizeum_role')?.value === 'admin';
+    if (!uid || !isAdmin) {
       const notFound = new URL('/not-found', request.url);
       return NextResponse.redirect(notFound);
     }
@@ -87,5 +105,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/community/merge/:path*', '/community/genres/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|api|images|.*\\..*).*)',
+  ],
 };

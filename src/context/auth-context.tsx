@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged } from '@/lib/firebase/auth';
+import { onAuthStateChanged, signOut } from '@/lib/firebase/auth';
 import { User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../lib/firebase/config';
 import { getUser, createUser } from '../services/user';
@@ -34,6 +34,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUser = async () => {
     if (firebaseUser) {
       const dbUser = await getUser(firebaseUser.uid);
+      
+      if (dbUser && dbUser.isBanned === true) {
+        await signOut(auth);
+        setUser(null);
+        setFirebaseUser(null);
+        if (typeof document !== 'undefined') {
+          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `quizeum_banned=true; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax${secure}`;
+          clearMiddlewareAuthCookies();
+        }
+        return;
+      }
+
       setUser(dbUser);
       syncMiddlewareAuthCookies(dbUser, firebaseUser.uid);
     }
@@ -47,6 +60,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           // 1. Firestore からユーザー情報を取得
           let dbUser = await getUser(fUser.uid);
+
+          // BANチェック
+          if (dbUser && dbUser.isBanned === true) {
+            await signOut(auth);
+            setUser(null);
+            setFirebaseUser(null);
+            if (typeof document !== 'undefined') {
+              const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+              document.cookie = `quizeum_banned=true; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax${secure}`;
+              clearMiddlewareAuthCookies();
+            }
+            setLoading(false);
+            return;
+          }
 
           // 2. 存在しない場合 (新規会員登録直後など) は初期ドキュメントを作成
           if (!dbUser) {

@@ -30,6 +30,7 @@ export default function AdminUsersPage() {
   const [hasSearched, setHasSearched] = useState(false);
 
   const [reason, setReason] = useState('');
+  const [banReason, setBanReason] = useState('');
   const [fetchLoading, setFetchLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -117,6 +118,96 @@ export default function AdminUsersPage() {
     } catch (err: any) {
       console.error('リセットエラー:', err);
       setErrorMessage(err.message || 'リセット処理中にエラーが発生しました。');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // BAN 処理
+  const handleBan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchedUser || !firebaseUser) return;
+    if (banReason.length < 10) {
+      setErrorMessage('BAN理由は10文字以上で入力してください。');
+      return;
+    }
+
+    setActionLoading(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch('/api/admin/users/ban', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          targetUid: searchedUser.id,
+          reason: banReason,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'BAN処理に失敗しました。');
+      }
+
+      setSuccessMessage('ユーザーアカウントを停止（BAN）しました。');
+      setBanReason('');
+
+      // 最新のユーザー情報を再取得
+      const updatedUser = await getUserProfile(searchedUser.id);
+      setSearchedUser(updatedUser);
+    } catch (err: any) {
+      console.error('BANエラー:', err);
+      setErrorMessage(err.message || 'BAN処理中にエラーが発生しました。');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // UNBAN 処理
+  const handleUnban = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchedUser || !firebaseUser) return;
+
+    if (!confirm('このユーザーのBANを解除しますか？')) return;
+
+    setActionLoading(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch('/api/admin/users/unban', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          targetUid: searchedUser.id,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'BAN解除に失敗しました。');
+      }
+
+      setSuccessMessage('ユーザーアカウントの停止（BAN）を解除しました。');
+
+      // 最新のユーザー情報を再取得
+      const updatedUser = await getUserProfile(searchedUser.id);
+      setSearchedUser(updatedUser);
+    } catch (err: any) {
+      console.error('UNBANエラー:', err);
+      setErrorMessage(err.message || 'BAN解除処理中にエラーが発生しました。');
     } finally {
       setActionLoading(false);
     }
@@ -214,7 +305,9 @@ export default function AdminUsersPage() {
                 <h3 className={styles.userName}>{searchedUser.displayName}</h3>
                 <p className={styles.userUid}>UID: {searchedUser.id}</p>
                 <div className={styles.userStatus}>
-                  {searchedUser.deleteStatus === 'delete_pending' ? (
+                  {searchedUser.isBanned ? (
+                    <span className={`${styles.statusBadge} ${styles.banned}`}>BAN済み</span>
+                  ) : searchedUser.deleteStatus === 'delete_pending' ? (
                     <span className={`${styles.statusBadge} ${styles.deleted}`}>退会申請中</span>
                   ) : (
                     <span className={`${styles.statusBadge} ${styles.active}`}>アクティブ</span>
@@ -285,6 +378,75 @@ export default function AdminUsersPage() {
                 )}
               </button>
             </form>
+          </section>
+
+          {/* BAN / UNBAN 実行フォーム */}
+          <section className={styles.banSection}>
+            {searchedUser.isBanned ? (
+              <>
+                <h2 className={styles.banTitle}>アカウント停止の解除 (UNBAN)</h2>
+                <p className={styles.banWarning}>
+                  現在このユーザーはアカウントが停止（BAN）されています。<br />
+                  理由: <strong>{searchedUser.bannedReason || '（理由なし）'}</strong>
+                </p>
+                <button
+                  type="button"
+                  id="execute-unban-btn"
+                  onClick={handleUnban}
+                  disabled={actionLoading}
+                  className={styles.unbanBtn}
+                >
+                  {actionLoading ? (
+                    <>
+                      <span className={styles.btnSpinner} /> 処理中...
+                    </>
+                  ) : (
+                    '🟢 アカウント停止を解除する'
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className={styles.banTitle}>アカウントの停止 (BAN)</h2>
+                <p className={styles.banWarning}>
+                  【注意】この操作を実行すると、対象ユーザーはシステムから即座に強制ログアウトされ、すべての機能へのアクセスが遮断されます。実行履歴は監査ログとして保存されます。
+                </p>
+                <form onSubmit={handleBan} className={styles.banForm}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="banReason" className={styles.formLabel}>
+                      BAN理由（10文字以上必須）
+                    </label>
+                    <textarea
+                      id="banReason"
+                      placeholder="ユーザーアカウントを停止する具体的な理由を入力してください..."
+                      value={banReason}
+                      onChange={(e) => setBanReason(e.target.value)}
+                      disabled={actionLoading}
+                      className={styles.reasonTextarea}
+                      rows={4}
+                      required
+                    />
+                    <span className={styles.charCount}>
+                      現在の文字数: {banReason.length} 文字
+                    </span>
+                  </div>
+                  <button
+                    type="submit"
+                    id="execute-ban-btn"
+                    disabled={actionLoading || banReason.length < 10}
+                    className={styles.banBtn}
+                  >
+                    {actionLoading ? (
+                      <>
+                        <span className={styles.btnSpinner} /> 処理中...
+                      </>
+                    ) : (
+                      '🚨 このユーザーをBANする'
+                    )}
+                  </button>
+                </form>
+              </>
+            )}
           </section>
         </div>
       )}

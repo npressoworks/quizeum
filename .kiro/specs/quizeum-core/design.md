@@ -1,4 +1,4 @@
-﻿# Technical Design Document: quizeum-core
+# Technical Design Document: quizeum-core
 
 ## Overview
 本ドキュメントは、クイズ投稿SNS「quizeum」における核心的なコアシステム（`quizeum-core`）の技術設計仕様を定義します。クイズの作成・下書き・厳格な公開バリデーション、ローカルセッション保護と自動同期を備えたプレイ環境、AIを活用したステートレスなウミガメのスープ（水平思考クイズ）対話、退会時のAuth即時物理削除と大規模非同期クレンジング、そしてコミュニティモデレーションやマージ合意によるメタデータ仮想統合を含みます。
@@ -8,6 +8,7 @@
 **Phase 5（2026-06）**: クイズ単位リーダーボードを初回プレイ／リプレイの二系統に分割し、正解数優先・同点時タイムの順位規則で更新する。全問正解は不要。あわせて本人向けプレイ履歴取得APIをコア層に追加する（表示UIは `quizeum-auth-profile-ui` が担当）。
 
 **Phase 6（2026-06）**: ジャンル・タグメタデータを `docs/` 正本に整合する。公開保存時に `canonicalGenreId` / `canonicalTagIds` を解決・非正規化し、一覧・検索は正規識別子クエリを優先しつつ legacy クイズ向けに `genre in` フォールバックを併用する（C2 方式）。`metadata-resolution` ライブラリに解決ロジックを集約し、`tagMerge.ts` をガバナンスの単一経路とする。
+また、悪質ユーザーのBAN（アカウント停止）機能を追加し、Firestore Security Rulesによるデータ書き込みの即時遮断、監査ログ記録、認証セッションの強制無効化（Cookie連携）を設計する。
 
 ### Goals
 - ページの初期HTML読み込み時間を通常トラフィック下で平均0.5秒以内に維持する。
@@ -17,6 +18,7 @@
 - 初回プレイ／リプレイの二系統リーダーボードを、単一の順位比較ロジックで一貫更新し、不正なクライアント改ざんをサーバー側トランザクションで防ぐ。
 - 本人プレイ履歴をページング付きで安全に返却する（他ユーザーからの取得は拒否）。
 - ジャンル・タグの仮想統合を保存・一覧・弱点克服フィルタまで一貫適用し、canonical 単一クエリで探索性能を確保する（legacy フォールバック併用）。
+- BANされたユーザーによるシステムへの不正書き込み（Firestore / API）を即座にブロックし、既存の認証セッションを強制的にログアウトさせる。
 
 ### Non-Goals
 - 外部システムや外部ファイルからのクイズ・クイズリストの一括インポート機能の実装。
@@ -28,13 +30,14 @@
 ## Boundary Commitments
 
 ### This Spec Owns
-- **データ永続化と整合性**: `users`, `quizzes`, `quizLists`, `follows`, `bookmarks`, `attempts`, `feedbackReports`, `flags`, `reactions`, `notifications`, `metadata_genres`, `metadata_tags`, `mergeRequests`, `genreRequests`, `quizReviews`, `reviewResetRequests` などのFirestoreスキーマ（ウミガメスープ用必須キーワード `truthKeywords` を含む）およびトランザクション設計。
+- **データ永続化と整合性**: `users`, `quizzes`, `quizLists`, `follows`, `bookmarks`, `attempts`, `feedbackReports`, `flags`, `reactions`, `notifications`, `metadata_genres`, `metadata_tags`, `mergeRequests`, `genreRequests`, `quizReviews`, `reviewResetRequests`, `adminLogs`（BAN/UNBAN等の監査ログ）などのFirestoreスキーマおよびトランザクション設計。
 - **アカウント削除プロセス**: Next.js API Routeを経由した即時Auth物理削除と、Cloud Tasks/Cloud Functionsを連動させた非同期ジョブ分割によるアトミックバッチ匿名化。
+- **ユーザーBAN/UNBAN処理とアクセス制限**: `users` の `isBanned` 等のアカウント状態管理、管理者用APIルート、Firestore Security Rulesによるデータ書き込み制限（`isNotBanned()`）、および認証セッション無効化のトリガー（クッキー `quizeum_banned` を使用した強制遷移）。
 - **水平思考プレイ判定ロジック**: サーバーAPIを仲介するGemini API連携（直近最大20回分の会話履歴参照を伴うステートフル化）、同一質問キャッシュ一致判定、1日同一クイズ20回制限（無料ユーザー）、必須キーワード全一致による即正解チェックとAIフォールバックによるハイブリッド真相判定（B2方式）。
 - **メタデータ管理（Phase 6 拡張）**: 表記揺れタグの自動名寄せ、タグマスタ自動 create、ジャンルマスタ検証、`canonicalGenreId` / `canonicalTagIds` 書き込み時解決、C2 一覧クエリ、`listActiveGenres` / `searchQuizzes`、ガバナンス単一経路（`tagMerge.ts`）、`metadata_*` Security Rules。
 - **オフライン/セッション保護**: クライアントローカル永続ストレージでの進捗永続化およびオンライン復帰時の自動バッチ同期。
 - **クイズリーダーボード（初回／リプレイ）**: `quizzes.leaderboardFirstPlay` / `quizzes.leaderboardReplay` の更新ロジック、順位比較、トランザクション内の attempt 回数判定。
-- **プレイ履歴クエリ**: 認証済み本人向け `attempts` 一覧のページング取得（クイズタイトル非正規化の解決を含む）。
+- **プレイ履歴クエリ**: 認証済み本人向け `attempts` 一覧 of ページング取得（クイズタイトル非正規化の解決を含む）。
 
 ### Out of Boundary
 - 外部APIへの直接のクライアント通信（AI呼び出しなど）はSecurity Rulesで拒否され、すべてNext.js API Routeを経由します。
@@ -42,6 +45,7 @@
 - プラットフォーム総合リーダーボード（`/leaderboard`）の集計・表示。
 - マイページ／プロフィール画面のプレイ履歴UIレイアウト（`quizeum-auth-profile-ui`）。
 - クイズ詳細画面のリーダーボードタブUI（`quizeum-play-flow-ui`）。
+- 管理者向けBAN/UNBAN操作画面のUIレイアウトおよび表示コンポーネント（`quizeum-admin-users-ui` が担当）。
 - **Phase 6**: ホーム/エディタ/ジャンル一覧の UI、ジャンル新設・マージ画面のレイアウト、既存クイズの一括 `genre` 物理書き換え、Cloud Functions への投票移行。
 
 ### Allowed Dependencies
@@ -111,6 +115,12 @@ graph TB
 src/
 ├── app/
 │   └── api/
+│       ├── admin/
+│       │   └── users/
+│       │       ├── ban/
+│       │       │   └── route.ts  # 管理者ユーザーBAN API (12.1)
+│       │       └── unban/
+│       │           └── route.ts  # 管理者ユーザーUNBAN API (12.2)
 │       ├── attempt/
 │       │   ├── ask-ai/
 │       │   │   └── route.ts      # AI質問判定API (4.1, 4.2)
@@ -128,6 +138,7 @@ src/
 │   ├── attempt.ts                # saveAttempt内LB更新、listUserPlayHistory、review genreFilter (3.x, 9.x, 10.x, 3.7)
 │   ├── bookmark.ts               # ブックマークのアトミック管理 (5.3)
 │   ├── moderation.ts             # 通報・自動保留のみ (7.1–7.3)。ジャンルAPIスタブ削除 [Phase 6]
+│   ├── reputation.ts             # BAN/UNBANサービスと監査ログ記録 (12.1, 12.2)
 │   ├── tagMerge.ts               # マージ投票・ジャンル新設（単一経路）(7.4–7.8, 11.7)
 │   ├── quiz-list.ts              # リストの管理 (5.4)
 │   ├── quiz.ts                   # saveQuiz canonical化、getQuizzesByGenre/Tag、searchQuizzes (2.x, 11.x)
@@ -426,6 +437,9 @@ sequenceDiagram
 | 11.5 | 複合検索 | `QuizService` | `searchQuizzes` | - |
 | 11.6 | メタデータ Rules | `firestore.rules` | metadata_* / mergeRequests | - |
 | 11.7 | ガバナンス単一経路 | `TagMergeService` | `tagMerge.ts` のみ | - |
+| 12.1 | ユーザーのBANと監査ログ記録 | `ReputationService` / API Route | `/api/admin/users/ban` | - |
+| 12.2 | BAN解除と監査ログ記録 | `ReputationService` / API Route | `/api/admin/users/unban` | - |
+| 12.3 | BAN中の書き込み拒否と強制ログアウト | Security Rules / AuthContext | `isNotBanned()`, `quizeum_banned` Cookie | - |
 | 8.1 | 初期HTML読み込み速度0.5秒以内 | Performance | SSR Cache / Optimization | - |
 | 8.2 | 高負荷時エラー率0.1%未満 | Infrastructure | High Availability | - |
 | 8.3 | クローラー向け高速HTMLとOGPメタデータ | SSR Component | `getServerSideProps` / Metadata | - |
@@ -449,6 +463,9 @@ sequenceDiagram
 | `QuizListService` | Service | リストの作成、ドラッグ＆ドロップ、パッケージング | 5.4, 5.6 | Firestore (P0), QuizService (P1) | Service, State |
 | `ReviewService` | Service | 良問評価、間違い指摘、修正通知、リセットバッチ | 3.5, 6.1, 6.2, 6.3, 6.5 | Firestore (P0), CloudTasks (P1) | Service, State, Batch |
 | `ModerationService` | Service | 通報、自動保留、審査のみ | 7.1, 7.2, 7.3 | Firestore (P0) | Service, State |
+| `ReputationService` | Service | 信頼スコア、モデレータ資格、BAN/UNBAN、監査ログ記録 | 12.1, 12.2 | Firestore (P0) | Service, State, Tx |
+| `/api/admin/users/ban` | API Route | 管理者用ユーザーBAN API | 12.1 | AuthAdmin (P0), ReputationService (P0) | API |
+| `/api/admin/users/unban` | API Route | 管理者用ユーザーUNBAN API | 12.2 | AuthAdmin (P0), ReputationService (P0) | API |
 | `/api/user/delete-account` | API Route | 即時Auth物理削除とCloud Tasksジョブ登録 | 1.4 | AuthAdmin (P0), CloudTasks (P0) | API |
 | `/api/attempt/ask-ai` | API Route | 水平思考クイズのAI質問判定 (ターン制限・キャッシュ) | 4.1, 4.2, 4.3 | Gemini API (P0), Firestore (P0) | API |
 | `/api/attempt/verify-truth` | API Route | 水平思考クイズのAI真相自動判定とフィードバック | 4.5, 4.6, 4.7 | Gemini API (P0), Firestore (P0) | API |
@@ -661,6 +678,9 @@ export interface User {
   lastReputationCalculatedAt: Date | null;
   totalFailedQuestionsCount: number;
   deleteStatus: 'active' | 'delete_pending';
+  isBanned?: boolean;            // BAN状態フラグ (12.1)
+  bannedReason?: string;          // BAN理由 (12.1)
+  bannedAt?: Date;                // BAN実行日時 (12.1)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -907,6 +927,11 @@ flowchart LR
 - **getQuizzesByGenre**: マージ済み旧ジャンル `genre` のクイズが canonical クエリまたは fallback で返ること。
 - **voteGenreRequest**: 可決後 `listActiveGenres` に新ジャンルが含まれること。
 - **getFailedQuestions**: マージ子ジャンルの誤答が親ジャンルフィルタに含まれること。
+- **ユーザーBAN/UNBAN機能の検証**:
+  - `banUser` が `isBanned: true`, 理由, 日時を設定し、`adminLogs` に `action: 'ban'` を記録すること。
+  - `unbanUser` が BAN解除時に `isBanned: false` を設定し、`bannedReason` / `bannedAt` フィールドを削除し、`adminLogs` に `action: 'unban'` を記録すること。
+  - 管理者以外の権限（モデレータ等）によるBAN/UNBAN API呼び出しが `403 Forbidden` / `権限エラー` で拒否されること。
+  - `firestore.rules` の `isNotBanned()` チェックにより、`isBanned: true` のユーザーからの全書込が Firestore 上で拒否されること。
 
 ### E2E / UI Tests
 - **解答中断と自動復旧**: プレイ中にブラウザを強制リロードし、`localStorage` から解答進捗が100%正しく復元され、プレイが継続できるかをシミュレート。
@@ -917,6 +942,9 @@ flowchart LR
 - **Firestore Security Rules**:
   - ユーザーの `badges`, `reputationScore`, `totalPlayCount` などの重要パラメータは、クライアントからの更新（`update`）を Security Rules で完全に拒否し、サーバーサイド（Cloud Functions）およびトランザクションのみで更新を許可。
   - `deleteStatus == 'delete_pending'` である間、第三者からの読み取りをSecurity Rulesで拒否。
+  - **BANユーザーの書き込み拒否 (isNotBanned)**: 
+    - `isNotBanned()` ヘルパーを定義し、書き込みアクションを実行する全ルール（`create`, `update`, `delete`）に `&& isNotBanned()` を追加。
+    - `isNotBanned()` は、`/users/$(request.auth.uid)` ドキュメントの `isBanned` フィールドが `true` でないことを検証する。これにより、不正アカウントによるデータ改ざんを完全に防ぐ。
   - **Phase 6**: `metadata_tags` / `metadata_genres` は read 全公開。create は認証ユーザー（タグは `canonicalId==null` 初期化）。update は `canonicalId` セットまたは `merged*Ids` の `hasAll` 拡張のみ（`detailed_design.md` §6.5）。`mergeRequests` / `genreRequests` はモデレータ権限で create/update を制限（`isModeratorOrAbove()`）。
 - **APIキーの秘匿**:
   - Google Gemini API キーなどの認証情報はNext.jsのサーバー環境変数としてのみ管理し、クライアントへは一切露出させません。

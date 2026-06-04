@@ -38,6 +38,13 @@ service cloud.firestore {
       );
     }
 
+    // ユーザーがBANされていないか確認
+    function isNotBanned() {
+      return !isAuthenticated() || 
+        getUserData(request.auth.uid).isBanned == null || 
+        getUserData(request.auth.uid).isBanned == false;
+    }
+
     // -----------------------------------------------------------------
     // users コレクションルール
     // -----------------------------------------------------------------
@@ -53,13 +60,15 @@ service cloud.firestore {
         && request.resource.data.deleteStatus == 'active';
         
       // 更新時のルール
-      allow update: if isOwner(userId)
+      allow update: if isNotBanned() && (
+        isOwner(userId)
         // 一般ユーザーが自分の特権情報を書き換えるのを禁止
         && request.resource.data.moderationTier == resource.data.moderationTier
         && request.resource.data.reputationScore == resource.data.reputationScore
         && request.resource.data.deleteStatus == resource.data.deleteStatus
         // 管理者またはシニアモデレータによる特権書き換えは許可
-        || isSeniorModeratorOrAdmin();
+        || isSeniorModeratorOrAdmin()
+      );
         
       // ユーザーの完全削除は原則禁止（物理削除は管理者のみ、通常は deleteStatus を変更）
       allow delete: if isSeniorModeratorOrAdmin();
@@ -78,14 +87,14 @@ service cloud.firestore {
         
       // 作成ルール:
       // 認証済みユーザーのみ新規作成可能。初期の通報件数は0であり、ステータスは active であること。
-      allow create: if isAuthenticated()
+      allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.authorId == request.auth.uid
         && request.resource.data.flagsCount == 0
         && request.resource.data.status == 'active';
         
       // プレイ数・ブックマーク数・リーダーボードのみの更新（プレイ完了・ブックマーク操作）
       function isPublicQuizStatsUpdate() {
-        return isAuthenticated()
+        return isAuthenticated() && isNotBanned()
           && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['playCount', 'bookmarksCount', 'leaderboard', 'leaderboardFirstPlay', 'leaderboardReplay', 'updatedAt'])
           && request.resource.data.authorId == resource.data.authorId
@@ -97,15 +106,17 @@ service cloud.firestore {
       // 1. 作成者本人の場合は、タイトルや問題内容の変更のみ許可（ステータスや通報件数の不正操作を禁止）
       // 2. モデレータ・シニアモデレータ・管理者の場合は、通報対応やステータス変更のための更新を許可
       // 3. 認証済みユーザーによる playCount / bookmarksCount / リーダーボードの更新
-      allow update: if (
-        isOwner(resource.data.authorId)
-        && request.resource.data.authorId == resource.data.authorId
-        && request.resource.data.status == resource.data.status
-        && request.resource.data.flagsCount == resource.data.flagsCount
-      ) || isModeratorOrAbove() || isPublicQuizStatsUpdate();
+      allow update: if isNotBanned() && (
+        (
+          isOwner(resource.data.authorId)
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.flagsCount == resource.data.flagsCount
+        ) || isModeratorOrAbove() || isPublicQuizStatsUpdate()
+      );
       
       // 削除ルール: 作成者本人、またはモデレータ以上のみ許可
-      allow delete: if isOwner(resource.data.authorId) || isModeratorOrAbove();
+      allow delete: if isNotBanned() && (isOwner(resource.data.authorId) || isModeratorOrAbove());
     }
 
     // -----------------------------------------------------------------
@@ -113,11 +124,11 @@ service cloud.firestore {
     // -----------------------------------------------------------------
     match /metadata_tags/{tagId} {
       allow read: if true;
-      allow create: if isAuthenticated()
+      allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.id == tagId
         && request.resource.data.canonicalId == null
         && request.resource.data.mergedTagIds == [];
-      allow update: if isAuthenticated()
+      allow update: if isAuthenticated() && isNotBanned()
         && request.resource.data.id == resource.data.id
         && (
           (resource.data.canonicalId == null && request.resource.data.canonicalId != null)
@@ -127,23 +138,23 @@ service cloud.firestore {
 
     match /metadata_genres/{genreId} {
       allow read: if true;
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow create: if isAuthenticated() && isNotBanned();
+      allow update: if isAuthenticated() && isNotBanned();
     }
 
     match /mergeRequests/{requestId} {
       allow read: if true;
-      allow create: if isModeratorOrAbove()
+      allow create: if isModeratorOrAbove() && isNotBanned()
         && request.resource.data.status == 'pending';
-      allow update: if isModeratorOrAbove();
+      allow update: if isModeratorOrAbove() && isNotBanned();
       allow delete: if false;
     }
 
     match /genreRequests/{requestId} {
       allow read: if true;
-      allow create: if isAuthenticated()
+      allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.status == 'pending';
-      allow update: if isModeratorOrAbove();
+      allow update: if isModeratorOrAbove() && isNotBanned();
       allow delete: if false;
     }
 
@@ -153,13 +164,13 @@ service cloud.firestore {
     match /bookmarks/{bookmarkId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
 
-      allow create: if isAuthenticated()
+      allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.id == bookmarkId
         && bookmarkId == request.resource.data.userId + '_' + request.resource.data.targetId
         && request.resource.data.targetType in ['quiz', 'list', 'question'];
 
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && isNotBanned() && resource.data.userId == request.auth.uid;
 
       allow update: if false;
     }
@@ -170,14 +181,14 @@ service cloud.firestore {
     match /attempts/{attemptId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
 
-      allow create: if isAuthenticated()
+      allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.userId == request.auth.uid;
 
-      allow update: if isAuthenticated()
+      allow update: if isAuthenticated() && isNotBanned()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
 
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && isNotBanned() && resource.data.userId == request.auth.uid;
     }
 
     // -----------------------------------------------------------------
@@ -189,11 +200,11 @@ service cloud.firestore {
       
       // 通報の作成ルール:
       // 認証済みユーザーのみ新規作成可能。通報者IDは自身のUIDと一致すること。
-      allow create: if isAuthenticated()
+      allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.reporterId == request.auth.uid;
         
       // 通報データの変更・削除はモデレータ以上のみ許可
-      allow update, delete: if isModeratorOrAbove();
+      allow update, delete: if isModeratorOrAbove() && isNotBanned();
     }
 
     // -----------------------------------------------------------------

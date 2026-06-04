@@ -22,6 +22,9 @@ export interface User {
   lastReputationCalculatedAt: Date | null; // 変動バッチ計算日時
   totalFailedQuestionsCount: number; // 未復習の間違い問題の総数
   deleteStatus: 'active' | 'delete_pending'; // 退会状態
+  isBanned?: boolean;      // BANフラグ
+  bannedReason?: string;   // BAN理由
+  bannedAt?: Date;         // BAN日時
   createdAt: Date;
   updatedAt: Date;
 }
@@ -261,8 +264,8 @@ export interface AdminLog {
   id?: string;
   targetUid: string;
   executorId: string;
-  action: 'reputation_reset';
-  reason: string;
+  action: 'reputation_reset' | 'ban' | 'unban';
+  reason?: string;
   createdAt: Date;
 }
 

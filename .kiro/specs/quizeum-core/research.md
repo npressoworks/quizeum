@@ -110,6 +110,12 @@ Overall: L / Medium
 ### Decision: searchQuizzes in core
 - **Rationale**: Requirement 11.5; genre filter uses `resolveCanonicalGenreId` + expand
 
+### Decision: User Ban and Security Rules Access Control (12.x)
+- **Rationale**: BANされたユーザーによるシステムへの書き込みをリアルタイムで確実に遮断するため、JWT トークンの有効期限（最大1時間）に依存せず、Firestore Security Rules で `isNotBanned()` ヘルパーを適用して各コレクションへの書き込みを即座にブロックする。
+- **Auth Session**: クライアント側で `quizeum_banned` Cookie を付与し、BAN検知時に強制ログアウトおよび制限画面へのルーティングを行う。
+
 ## Risks
 - Missing firestore.rules blocks client tag create on save ? Phase 6 must ship rules with saveQuiz changes
 - Index deployment lag causes query failures until indexes propagated
+- BANされたユーザーのセッションキャッシュやトークン有効期間中のローカル処理による不整合 -> セキュリティルールでの直接チェックにより、Firestoreに対する不正なデータの永続化は即時エラーとなり防御される。
+
