@@ -60,10 +60,13 @@ export const Header: React.FC = () => {
     <header className={`${styles.header} glass-card`}>
       <div className={styles.container}>
         {/* Logo */}
-        <Link href="/" className={styles.logo}>
-          <span className="text-neon-primary">Quiz</span>
-          <span className="text-neon-accent">eum</span>
-        </Link>
+        <div className={styles.logoContainer}>
+          <Link href="/" className={styles.logo}>
+            <span className="text-neon-primary">Quiz</span>
+            <span className="text-neon-accent">eum</span>
+          </Link>
+          <span className={styles.tagline}>知的探求を、もっとクリエイティブに。</span>
+        </div>
 
         {/* Desktop Navigation */}
         <nav className={styles.desktopNav}>

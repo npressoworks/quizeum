@@ -241,11 +241,6 @@ export default function Home() {
         )}
       </section>
 
-      <section className={styles.heroMini}>
-        <h2>知的探求を、もっとクリエイティブに。</h2>
-        <p>クイズ投稿SNS「quizeum」で、知識と水平思考のウミガメスープに挑戦しよう。</p>
-      </section>
-
       <GenreNav
         genres={genres}
         loading={genresLoading}

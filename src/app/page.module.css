@@ -7,64 +7,6 @@
   gap: 32px;
 }
 
-/* ヒーローセクション (旧) */
-.hero {
-  text-align: center;
-  padding: 60px 20px;
-  background: linear-gradient(135deg, rgba(157, 78, 221, 0.1), rgba(0, 245, 212, 0.05));
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(8px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  animation: fadeIn 0.6s ease-out;
-}
-
-.hero h1 {
-  font-size: 2.8rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #fff, #b5179e);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.02em;
-}
-
-.hero p {
-  color: #a0aec0;
-  font-size: 1.1rem;
-  max-width: 600px;
-}
-
-/* 縮小版ヒーローセクション (新規) */
-.heroMini {
-  text-align: center;
-  padding: 24px 20px;
-  background: linear-gradient(135deg, rgba(0, 242, 254, 0.03), rgba(157, 78, 221, 0.03));
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(4px);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  animation: fadeIn 0.4s ease-out;
-}
-
-.heroMini h2 {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin: 0;
-  color: #fff;
-  letter-spacing: -0.01em;
-}
-
-.heroMini p {
-  margin: 0;
-  color: #a0aec0;
-  font-size: 0.9rem;
-}
-
 /* 検索・フィルタセクション */
 .searchSection {
   background: rgba(30, 30, 45, 0.4);
