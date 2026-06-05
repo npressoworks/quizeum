@@ -2,12 +2,15 @@
 
 import React, { useEffect, useState, use } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowLeft, Bookmark, Tag } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Tag } from 'lucide-react';
 import { getQuizzesByTag, type QuizListSort } from '@/services/quiz';
 import { toggleBookmark, isBookmarked } from '@/services/bookmark';
 import { useAuth } from '@/context/auth-context';
+import { useActiveGenres } from '@/hooks/useActiveGenres';
 import { ExploreSortTabs } from '@/components/explore/explore-sort-tabs';
+import { QuizCard } from '@/components/quiz/quiz-card';
+import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { Quiz } from '@/types';
 import styles from '../../page.module.css';
 
@@ -16,7 +19,9 @@ interface PageProps {
 }
 
 export default function TagExplorePage({ params }: PageProps) {
+  const router = useRouter();
   const { user } = useAuth();
+  const { genreLabelById } = useActiveGenres();
 
   const resolvedParams = use(params);
   const tagName = decodeURIComponent(resolvedParams.tagName);
@@ -60,10 +65,11 @@ export default function TagExplorePage({ params }: PageProps) {
     };
   }, [tagName, activeSort, user]);
 
-  const handleBookmarkToggle = async (e: React.MouseEvent, quizId: string) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!user) return;
+  const handleBookmarkToggle = async (quizId: string) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
     try {
       const isAdded = await toggleBookmark(user.id, quizId, 'quiz');
       const next = new Set(bookmarkedIds);
@@ -119,8 +125,10 @@ export default function TagExplorePage({ params }: PageProps) {
       <ExploreSortTabs activeSort={activeSort} onSortChange={setActiveSort} />
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-          読み込み中...
+        <div className={styles.grid}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       ) : quizzes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
@@ -129,44 +137,17 @@ export default function TagExplorePage({ params }: PageProps) {
       ) : (
         <div className={styles.grid}>
           {quizzes.map((quiz) => (
-            <Link key={quiz.id} href={`/quiz/${quiz.id}`} className={styles.card}>
-              <div className={styles.cardThumbnail}>
-                {quiz.thumbnailUrl ? (
-                  <Image src={quiz.thumbnailUrl} alt={quiz.title} fill sizes="300px" />
-                ) : (
-                  <span className={styles.thumbnailFallback}>💡</span>
-                )}
-              </div>
-              <div className={styles.cardContent}>
-                <span className={styles.cardGenre}>{quiz.genre}</span>
-                <h3 className={styles.cardTitle}>{quiz.title}</h3>
-                <div className={styles.cardDifficulty}>
-                  <span>難易度 {quiz.difficulty}</span>
-                  <div className={styles.difficultyBar}>
-                    <div
-                      className={styles.difficultyFill}
-                      style={{ width: `${quiz.difficulty * 10}%` }}
-                    />
-                  </div>
-                </div>
-                <div className={styles.cardStats}>
-                  <div className={styles.statsLeft}>
-                    <span>⏱️ {quiz.questionCount} 問</span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`${styles.bookmarkBtn} ${bookmarkedIds.has(quiz.id) ? styles.bookmarked : ''}`}
-                    onClick={(e) => handleBookmarkToggle(e, quiz.id)}
-                  >
-                    <Bookmark 
-                      size={18} 
-                      color={bookmarkedIds.has(quiz.id) ? '#00ff66' : 'currentColor'}
-                      fill={bookmarkedIds.has(quiz.id) ? '#00ff66' : 'none'} 
-                    />
-                  </button>
-                </div>
-              </div>
-            </Link>
+            <QuizCard
+              key={quiz.id}
+              quiz={quiz}
+              href={`/quiz/${quiz.id}`}
+              genreDisplayName={
+                genreLabelById.get(quiz.canonicalGenreId ?? quiz.genre) ?? quiz.genre
+              }
+              isBookmarked={bookmarkedIds.has(quiz.id)}
+              onBookmarkToggle={handleBookmarkToggle}
+              onPlayClick={(id) => router.push(`/quiz/${id}`)}
+            />
           ))}
         </div>
       )}

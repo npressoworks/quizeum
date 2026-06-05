@@ -317,3 +317,37 @@ Overall: L / Medium
 - `.kiro/specs/quizeum-core/design.md` — Phase 8 セクション
 - Gap analysis 本ファイル Phase 8 節
 
+---
+
+# Research & Design Decisions: quizeum-core（Phase 10 差分 — 2026-06-05）
+
+## Summary
+- **Feature**: `listActiveTags` + `searchQuizzes({ tags })` 複数タグ AND
+- **Discovery Scope**: Extension（`listActiveGenres` / `getQuizzesByTag` / Phase 9 `searchQuizzes` パターン踏襲）
+- **Key Findings**:
+  - `metadata_tags` に `isActive` は無く、存続判定は `canonicalId == null` が正本（`db_design.md`）。
+  - `SearchFilters` に `tags` 未実装。タグのみ検索時は `needle` 空で `getLatestQuizzes` に落ちる。
+  - `getQuizzesByTag` は既に `resolveCanonicalTagIds` + canonical/legacy 併用 — AND 照合は純関数抽出が妥当。
+
+## Design Decisions
+
+### Decision: 存続タグ = `canonicalId == null`
+- **Rationale**: ジャンルの `isActive` とは異なり、タグはマージで `canonicalId` が設定される。吸収済みタグをサジェストから除外できる。
+- **Trade-offs**: マスタに存在しないチップタグはサジェストに無いが、検索時は `normalizeTag` + legacy 照合でヒットしうる。
+
+### Decision: 複数タグ AND は getQuizzesByTag 積集合 + quizMatchesAllTags
+- **Alternatives**: (1) 常に latest 100 から後段フィルタ (2) タグごと intersect (3) Firestore 複合 array-contains（不可）
+- **Selected**: 2 + 後段 `quizMatchesAllTags` で legacy 漏れ防止。キーワードあり時は Phase 9 母集団の後段 AND。
+- **Rationale**: タグごとの既存クエリを再利用し、要件 11.3 と照合規則を一致させる。
+
+### Decision: quiz-tag-match を lib に分離
+- **Rationale**: `getQuizzesByTag`・`searchQuizzes`・将来の author 検索で共有。テスト容易。
+
+## Risks & Mitigations
+- **intersect 上限 100/タグ** — ホーム探索用途では十分。極端な件数は Phase 10 Out。
+- **play-flow 先行実装** — core タスクを先にマージし、`useHomeQuizFeed` は `tags` 配列を渡すのみ。
+
+## Document Status（Phase 10）
+- Discovery 種別: **Light（Extension）**
+- 外部調査: 不要
+

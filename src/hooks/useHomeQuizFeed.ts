@@ -39,6 +39,7 @@ export function useHomeQuizFeed(
         if (hasActiveHomeSearchFilters(filters)) {
           fetched = await searchQuizzes(filters.searchQuery, {
             genreId: filters.genreId.trim() || undefined,
+            tags: filters.tagChips.length > 0 ? filters.tagChips : undefined,
             difficultyMin: filters.difficultyMin,
             difficultyMax: filters.difficultyMax,
             minQuestions: filters.minQuestions,
@@ -75,6 +76,7 @@ export function useHomeQuizFeed(
     userId,
     filters.genreId,
     filters.searchQuery,
+    filters.tagChips.join(','),
     filters.difficultyMin,
     filters.difficultyMax,
     filters.minQuestions,

@@ -33,6 +33,16 @@ jest.mock('@/hooks/useActiveGenres', () => ({
   }),
 }));
 
+jest.mock('@/hooks/useActiveTags', () => ({
+  useActiveTags: () => ({
+    tags: [{ id: 'ウミガメのスープ', tagName: 'ウミガメのスープ', canonicalId: null, mergedTagIds: [] }],
+    loading: false,
+    error: null,
+    tagLabelById: new Map([['ウミガメのスープ', 'ウミガメのスープ']]),
+    refetch: jest.fn(),
+  }),
+}));
+
 const mockQuizzes = [
   {
     id: 'quiz-1',
@@ -49,6 +59,8 @@ const mockQuizzes = [
     playCount: 10,
     bookmarksCount: 3,
     reviewScore: 4.5,
+    questions: [],
+    questionIds: [],
   },
 ];
 
@@ -80,25 +92,23 @@ describe('Home Page UI', () => {
 
   it('検索バーに入力でき、消去ボタンでクリアされること', () => {
     render(<Home />);
-    
-    const input = screen.getByPlaceholderText(/クイズを検索.../);
+
+    const input = screen.getByPlaceholderText(/クイズを検索/);
     fireEvent.change(input, { target: { value: 'TypeScript' } });
     expect(input).toHaveValue('TypeScript');
 
-    // クリアボタンが表示され、クリックでクリアされること
-    const clearBtn = screen.getByLabelText('クリア');
+    const clearBtn = screen.getByTestId('search-clear-btn');
     fireEvent.click(clearBtn);
     expect(input).toHaveValue('');
   });
 
-  it('クイック検索チップをクリックすると検索欄に文字列がセットされること', () => {
+  it('クイック検索チップをクリックするとタグチップが追加されること', () => {
     render(<Home />);
-    
+
     const chip = screen.getByRole('button', { name: '#ウミガメのスープ' });
     fireEvent.click(chip);
 
-    const input = screen.getByPlaceholderText(/クイズを検索.../);
-    expect(input).toHaveValue('#ウミガメのスープ');
+    expect(screen.getAllByTestId('search-tag-chip').length).toBeGreaterThanOrEqual(1);
   });
 
   it('ロード中はスケルトンカードが表示されること', () => {
@@ -114,5 +124,6 @@ describe('Home Page UI', () => {
     render(<Home />);
 
     expect(screen.getByText('JavaScript 基礎クイズ')).toBeInTheDocument();
+    expect(screen.getByTestId('quiz-card-difficulty')).toBeInTheDocument();
   });
 });

@@ -1,0 +1,135 @@
+.wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: rgba(20, 20, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 6px 48px 6px 44px;
+  min-height: 48px;
+  transition: all 0.3s ease;
+}
+
+.fieldRow:focus-within {
+  border-color: #00f2fe;
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+}
+
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  color: #718096;
+  pointer-events: none;
+}
+
+.inputArea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(157, 78, 221, 0.15);
+  border: 1px solid rgba(157, 78, 221, 0.35);
+  color: #e9d5ff;
+  border-radius: 14px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+.chipRemove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 1rem;
+  outline: none;
+}
+
+.clearBtn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.clearBtn:hover {
+  color: #fff;
+}
+
+.list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(30, 30, 45, 0.98);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.option {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+}
+
+.option:hover,
+.optionActive {
+  background: rgba(0, 242, 254, 0.1);
+}
+
+.optionKind {
+  font-size: 0.7rem;
+  color: #718096;
+  margin-right: 6px;
+}
+
+.errorHint {
+  font-size: 0.75rem;
+  color: #f87171;
+  margin-top: 4px;
+}

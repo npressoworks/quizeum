@@ -19,4 +19,10 @@ describe('hasActiveHomeSearchFilters', () => {
       hasActiveHomeSearchFilters({ ...DEFAULT_HOME_FEED_FILTERS, searchQuery: 'react' })
     ).toBe(true);
   });
+
+  it('タグチップ指定で true', () => {
+    expect(
+      hasActiveHomeSearchFilters({ ...DEFAULT_HOME_FEED_FILTERS, tagChips: ['js'] })
+    ).toBe(true);
+  });
 });

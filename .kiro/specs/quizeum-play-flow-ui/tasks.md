@@ -286,6 +286,8 @@
 - Phase 6 実装（2026-06-03）: `GenreNav` は遷移専用。`GenreSearchField` + `useHomeQuizFeed`（300ms debounce）+ `applyPlayStatusFilter` / `GET /api/user/played-quiz-ids` で要件 1.3 完遂。Jest 296 件・build PASS。
 - **Phase 8**: ブックマークは `getBookmarkFeed` 一括取得 + 楽観的解除。設問リスト進行は `question-list-session`（sessionStorage）。attempt 永続化・`bookmarksCount` はコアのみ（要件 11.14）。クイズリスト連続プレイ（`mode=list`）は回帰維持。
 - Phase 8 実装（2026-06-05）: `components/bookmark/*`, `useBookmarkFeed`, `question-list-session`。Jest 354 件・build PASS。
+- **Phase 10**: 統合検索は `UnifiedSearchField` + `useActiveTags` + `filter-search-suggestions`。タグ AND 検索は `useHomeQuizFeed` → `searchQuizzes({ tags })`（core 10.x 完了後に実装）。カードは `★ N` + ジャンル + 出題形式、探索一覧は `QuizCard` + `href` 共通化。
+- Phase 10 実装（2026-06-06）: `UnifiedSearchField`, `useActiveTags`, `quiz-format-labels`, `QuizCard` 拡張、探索一覧共通化。Jest 430 件・build PASS。
 
 ---
 
@@ -325,4 +327,95 @@
   - _Requirements: 1.1, 1.3_
   - _Depends: 12.3_
   - _Boundary: Testing_
+
+---
+
+### 13. Phase 10 拡張 — タグチップ統合検索・サジェスト強化・クイズカード情報拡充（2026-06）
+
+> **前提**: `quizeum-core` Phase 10 完了（`listActiveTags`, `searchQuizzes` の `tags` 配列 AND 合成）。本スペックは UI・フィルタ状態・カード表示のみ。
+
+- [x] 13.1 (P) 出題形式ラベル共有ライブラリ
+  - クイズエディタ内のローカル形式ラベル解決を共有ライブラリへ抽出し、設問構成から推定した日本語ラベル（選択式、記述式、ウミガメのスープ等）をカードとエディタで同一規則で返す
+  - エディタは共有ライブラリを参照するよう委譲し、重複ロジックを除去する
+  - **完了状態**: 共有ライブラリの単体テストがグリーンであり、エディタとカードが同一ラベル文字列を表示すること
+  - _Requirements: 12.18_
+  - _Boundary: quiz-format-labels_
+
+- [x] 13.2 (P) タグ・統合検索サジェストフィルタ
+  - 有効タグマスタを ID 部分一致（表示は `tagName ?? id`）で絞り込む純関数を実装する
+  - タグ候補とジャンル候補をマージしランキングする統合サジェスト純関数を実装する（ジャンルは表示名および ID の双方にマッチ可）
+  - 空クエリ・大文字小文字無視・件数上限の単体テストを追加する
+  - **完了状態**: サジェストフィルタの Jest がグリーンであり、タグ照合キーが ID であること
+  - _Requirements: 12.7, 12.10_
+  - _Boundary: filter-tag-suggestions, filter-search-suggestions_
+
+- [x] 13.3 (P) 有効タグマスタ取得フック
+  - マウント時に `listActiveTags` を1回取得し、loading / error / 空配列を返すフックを実装する（`useActiveGenres` と対称）
+  - 存続タグ（マージ吸収済みを除外）のみを UI に渡し、ハードコード候補へフォールバックしない
+  - `tagLabelById` マップを構築しサジェスト表示ラベルに利用する
+  - **完了状態**: タグ取得失敗時にエラー状態が返り、成功時に安定したタグ一覧が描画に使えること
+  - _Requirements: 12.7, 12.10_
+  - _Depends: quizeum-core Phase 10_
+  - _Boundary: useActiveTags_
+
+- [x] 13.4 `QuizCard` の難易度星表記・ジャンル・出題形式拡張
+  - 難易度を数値併記の星表記（例: `★ 7`）へ変更し、プログレスバー形式の表示を除去する
+  - ジャンル表示名（任意 prop 優先、未指定時はクイズ保存値をフォールバック）と出題形式ラベル行を追加する
+  - 任意 `href` 指定時はカード全体をリンク化し、探索一覧でも `data-testid="play-btn"` を維持する
+  - 難易度・ジャンル・出題形式に設計どおりの `data-testid` を付与する
+  - **完了状態**: コンポーネントテストで `★ N` 表示・testid・プログレスバー非存在が確認できること
+  - _Requirements: 12.16, 12.17, 12.18, 12.19, 12.22_
+  - _Depends: 13.1_
+  - _Boundary: QuizCard_
+
+- [x] 13.5 統合検索フィールド（タグチップ＋サジェスト）
+  - 確定済みタグをチップ行に表示し、スペース（およびサジェスト非表示時の Enter）で `normalizeTag` 後にチップ追加、空トークン・重複は拒否する
+  - サジェスト open かつ候補ありの Enter はハイライト候補を選択する（既存ジャンルサジェストと同型）
+  - 自由入力1文字以上でタグ／ジャンル候補をドロップダウン表示し、タグ選択はチップ追加、ジャンル選択は `onGenreSelect` でフィルタ同期する
+  - 消去ボタンでキーワード・全チップ・ジャンル選択を一括クリアできるよう親と連携する
+  - チップ削除・キーボード操作・`data-testid`（`search-tag-chips`, `search-tag-chip`, `search-suggest-tag-*`, `search-suggest-genre-*`）を実装する
+  - **完了状態**: `UnifiedSearchField` のコンポーネントテストがグリーンであり、Space 確定・サジェスト選択・クリアが期待どおり動作すること
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 12.21, 12.22_
+  - _Depends: 13.2, 13.3_
+  - _Boundary: UnifiedSearchField_
+
+- [x] 13.6 ホームフィードへのタグチップ AND 検索連携
+  - 複合フィルタ状態にタグチップ配列を追加し、全フィルタ未指定判定にチップ有無を含める
+  - `searchQuizzes` 呼び出し時にキーワードと `tags` 配列を AND 合成で渡し、300ms デバウンスと依存配列にチップを含める
+  - タグのみ・複数タグ AND・キーワード併用時に検索モードへ切り替わり、全未指定時はタブ別取得を維持する
+  - **完了状態**: 複数タグチップ指定時に両タグを満たすクイズのみグリッドに表示されること
+  - _Requirements: 12.12, 12.13, 12.14, 12.15_
+  - _Depends: quizeum-core Phase 10_
+  - _Boundary: useHomeQuizFeed, home-feed-filters_
+
+- [x] 13.7 ホーム画面への統合検索・クイックチップ連携
+  - プレーン検索入力を統合検索フィールドへ置換し、`useActiveTags` とフィルタパネル内ジャンル選択の双方向同期を実装する
+  - クイックサーチチップクリック時はテキスト流し込みではなく対応タグチップを追加して即時検索する
+  - 拡張済み `QuizCard` と読み込み中 `SkeletonCard` をグリッドに適用し、検索中スケルトン表示を維持する
+  - **完了状態**: ホームでタグチップ追加・サジェスト・クリア後のタブ別復帰・クイックチップ→チップ追加が手動またはテストで確認できること
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.11, 12.12, 12.13, 12.14, 12.15, 12.20_
+  - _Depends: 13.4, 13.5, 13.6_
+  - _Boundary: HomePage_
+
+- [x] 13.8 (P) ジャンル／タグ一覧での `QuizCard` 共通化
+  - ジャンル別・タグ別一覧のインライン `Link` カードを共通 `QuizCard` グリッドへ置換する
+  - `useActiveGenres` で解決した `genreDisplayName` と `href={/quiz/[id]}` を各カードに渡し、ソート切替時もスケルトン表示を維持する
+  - **完了状態**: ジャンル／タグ一覧で `quiz-card-difficulty`・`quiz-card-genre`・`quiz-card-format` が表示され、カードクリックで詳細へ遷移すること
+  - _Requirements: 12.19, 12.20_
+  - _Depends: 13.4_
+  - _Boundary: GenreExplorePage, TagExplorePage_
+
+- [x] 13.9 Phase 10 統合検証
+  - タグチップ・サジェスト・複数タグ AND・クイックチップ・カードメタ表示・探索一覧共通化をコンポーネントテストおよび E2E で検証する
+  - Phase 9 ホームレイアウト・Phase 6 ジャンル探索・既存 `searchQuizzes` キーワード検索が破壊されていないことを確認する
+  - **完了状態**: Phase 10 関連 Jest / Playwright がグリーンであること
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 12.10, 12.11, 12.12, 12.13, 12.14, 12.15, 12.16, 12.17, 12.18, 12.19, 12.20, 12.21, 12.22_
+  - _Depends: 13.7, 13.8_
+  - _Boundary: Testing_
+
+- [x]* 13.10 Phase 10 E2E スモーク（任意）
+  - `e2e/quiz-search.spec.ts` でタグチップ確定、クイックチップ、複数タグ AND、カード `★ N` メタを検証する
+  - **完了状態**: E2E 記録またはチェックリストが残ること
+  - _Depends: 13.9_
+  - _Requirements: 12.11, 12.13, 12.16, 12.19_
 

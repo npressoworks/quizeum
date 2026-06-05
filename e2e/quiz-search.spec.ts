@@ -81,6 +81,25 @@ test.describe('クイズ検索・探索機能 E2Eテスト', () => {
     await allGenreBtn.click();
   });
 
+  test('クイックサーチチップでタグチップが追加されカードに ★ 難易度が表示されること', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+
+    const searchInput = page.locator('input[placeholder="タイトル、説明文、作成者、タグでクイズを検索..."]');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
+
+    const quickChip = page.getByRole('button', { name: '#ウミガメのスープ' });
+    await quickChip.click();
+    await page.waitForTimeout(400);
+
+    await expect(page.locator('[data-testid="search-tag-chip"]').first()).toBeVisible({ timeout: 5000 });
+
+    const difficulty = page.locator('[data-testid="quiz-card-difficulty"]').first();
+    if (await difficulty.count()) {
+      await expect(difficulty).toContainText('★');
+    }
+  });
+
   test('クイズ一覧の各公開クイズカードが詳細ページへ遷移できること', async ({ page }) => {
     // 1. ホームページにアクセス
     await page.goto('/');
@@ -94,7 +113,7 @@ test.describe('クイズ検索・探索機能 E2Eテスト', () => {
     expect(pageTitle.length).toBeGreaterThan(0);
     
     // 3. クイズカードが存在する場合、最初のカードをクリックして詳細ページへ遷移することを確認
-    const quizCard = page.locator('article').first();
+    const quizCard = page.locator('[data-testid="quiz-card"]').first();
     const hasCards = await quizCard.count();
     
     if (hasCards > 0) {

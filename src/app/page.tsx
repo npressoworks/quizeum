@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import styles from './page.module.css';
 import { toggleBookmark, getBookmarkedQuizIds } from '@/services/bookmark';
-import { SlidersHorizontal, Search, X } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { useActiveGenres } from '@/hooks/useActiveGenres';
+import { useActiveTags } from '@/hooks/useActiveTags';
+import { UnifiedSearchField } from '@/components/explore/unified-search-field';
+import { normalizeTag } from '@/services/quiz-validation';
 import { useHomeQuizFeed } from '@/hooks/useHomeQuizFeed';
 import { usePlayedQuizIds } from '@/hooks/usePlayedQuizIds';
 import { GenreNav } from '@/components/explore/genre-nav';
@@ -24,11 +27,18 @@ export default function Home() {
   const { user, firebaseUser, loading: authLoading } = useAuth();
   const { genres, loading: genresLoading, error: genresError, refetch } =
     useActiveGenres();
+  const {
+    tags: activeTags,
+    loading: tagsLoading,
+    error: tagsError,
+    tagLabelById,
+  } = useActiveTags();
 
   const [activeTab, setActiveTab] = useState<'latest' | 'popular' | 'trending' | 'timeline'>(
     'latest'
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [tagChips, setTagChips] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [filterGenreId, setFilterGenreId] = useState('');
@@ -42,6 +52,7 @@ export default function Home() {
     () => ({
       genreId: filterGenreId,
       searchQuery,
+      tagChips,
       difficultyMin,
       difficultyMax,
       minQuestions,
@@ -50,12 +61,25 @@ export default function Home() {
     [
       filterGenreId,
       searchQuery,
+      tagChips,
       difficultyMin,
       difficultyMax,
       minQuestions,
       maxQuestions,
     ]
   );
+
+  const handleSearchClearAll = () => {
+    setSearchQuery('');
+    setTagChips([]);
+    setFilterGenreId('');
+  };
+
+  const handleQuickChip = (label: string) => {
+    const normalized = normalizeTag(label.replace(/^#/, ''));
+    if (!normalized || tagChips.includes(normalized)) return;
+    setTagChips((prev) => [...prev, normalized]);
+  };
 
   const { quizzes, loading: feedLoading, error: feedError } = useHomeQuizFeed(
     activeTab,
@@ -117,24 +141,22 @@ export default function Home() {
       <section className={styles.searchSection}>
         <div className={styles.searchBar}>
           <div className={styles.searchFieldWrapper}>
-            <Search className={styles.searchIcon} size={18} />
-            <input
-              type="text"
-              placeholder="タイトル、説明文、作成者、タグでクイズを検索..."
-              className={styles.searchInput}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+            <UnifiedSearchField
+              tagChips={tagChips}
+              onTagChipsChange={setTagChips}
+              keyword={searchQuery}
+              onKeywordChange={setSearchQuery}
+              genres={genres}
+              tags={activeTags}
+              genresLoading={genresLoading}
+              tagsLoading={tagsLoading}
+              genresError={genresError}
+              tagsError={tagsError}
+              tagLabelById={tagLabelById}
+              selectedGenreId={filterGenreId}
+              onGenreSelect={setFilterGenreId}
+              onClearAll={handleSearchClearAll}
             />
-            {searchQuery && (
-              <button
-                type="button"
-                className={styles.clearBtn}
-                onClick={() => setSearchQuery('')}
-                aria-label="クリア"
-              >
-                <X size={18} />
-              </button>
-            )}
           </div>
           <button
             type="button"
@@ -153,7 +175,7 @@ export default function Home() {
               key={tag}
               type="button"
               className={styles.quickChip}
-              onClick={() => setSearchQuery(tag)}
+              onClick={() => handleQuickChip(tag)}
             >
               {tag}
             </button>
@@ -300,6 +322,10 @@ export default function Home() {
               <QuizCard
                 key={quiz.id}
                 quiz={quiz}
+                genreDisplayName={
+                  genres.find((g) => g.id === quiz.genre || g.id === quiz.canonicalGenreId)
+                    ?.displayName
+                }
                 isBookmarked={bookmarkedIds.has(quiz.id)}
                 onBookmarkToggle={handleBookmarkToggle}
                 onPlayClick={handleCardClick}

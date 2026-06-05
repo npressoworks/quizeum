@@ -34,16 +34,43 @@ import {
   sortQuizzesForList,
   type QuizListSort,
 } from '../lib/metadata-resolution';
-import type { GenreMetadata } from '../types';
+import type { GenreMetadata, TagMetadata } from '../types';
+import {
+  quizMatchesAllTags,
+  type TagMatchSpec,
+} from '../lib/quiz-tag-match';
 
 export type { QuizListSort } from '../lib/metadata-resolution';
 
 export interface SearchFilters {
   genreId?: string;
+  tags?: string[];
   difficultyMin?: number;
   difficultyMax?: number;
   minQuestions?: number;
   maxQuestions?: number;
+}
+
+async function buildTagMatchSpecs(tags?: string[]): Promise<TagMatchSpec[]> {
+  if (!tags?.length) return [];
+  const normalized = [...new Set(tags.map(normalizeTag).filter((t) => t.length > 0))];
+  const specs: TagMatchSpec[] = [];
+  for (const normalizedInput of normalized) {
+    const resolved = await resolveCanonicalTagIds([normalizedInput]);
+    specs.push({
+      normalizedInput,
+      canonicalId: resolved[0] ?? normalizedInput,
+    });
+  }
+  return specs;
+}
+
+function intersectQuizzesById(quizSets: Quiz[][]): Quiz[] {
+  if (quizSets.length === 0) return [];
+  const [first, ...rest] = quizSets;
+  return first.filter((quiz) =>
+    rest.every((set) => set.some((q) => q.id === quiz.id))
+  );
 }
 
 export async function listActiveGenres(): Promise<GenreMetadata[]> {
@@ -53,6 +80,23 @@ export async function listActiveGenres(): Promise<GenreMetadata[]> {
   return snap.docs.map((d) => {
     const data = d.data() as GenreMetadata;
     return { ...data, id: d.id };
+  });
+}
+
+/** 存続タグ（canonicalId 未設定）のみ。UI サジェスト用 */
+export async function listActiveTags(): Promise<TagMetadata[]> {
+  const tagsRef = firestoreCollection(db, 'metadata_tags');
+  const q = query(tagsRef, where('canonicalId', '==', null));
+  const snap = await getDocs(q);
+  const rows = snap.docs.map((d) => {
+    const data = d.data() as TagMetadata;
+    return { ...data, id: d.id };
+  });
+  return rows.sort((a, b) => {
+    const nameA = a.tagName ?? a.id;
+    const nameB = b.tagName ?? b.id;
+    const cmp = nameA.localeCompare(nameB, 'ja');
+    return cmp !== 0 ? cmp : a.id.localeCompare(b.id, 'ja');
   });
 }
 
@@ -692,6 +736,8 @@ export async function searchQuizzes(
   filters: SearchFilters = {}
 ): Promise<Quiz[]> {
   const needle = queryText.trim().toLowerCase();
+  const tagSpecs = await buildTagMatchSpecs(filters.tags);
+  const hasTags = tagSpecs.length > 0;
   let base: Quiz[];
 
   if (needle) {
@@ -723,6 +769,15 @@ export async function searchQuizzes(
     // 2. クライアントサイドでのマージ・重複排除
     const rawMerged = [...tagQuizzes, ...authorQuizzes, ...genreQuizzes, ...latestQuizzes];
     base = dedupeQuizzesById(rawMerged);
+  } else if (hasTags) {
+    if (tagSpecs.length === 1) {
+      base = await getQuizzesByTag(tagSpecs[0].normalizedInput, 100, 'latest');
+    } else {
+      const perTag = await Promise.all(
+        tagSpecs.map((spec) => getQuizzesByTag(spec.normalizedInput, 100, 'latest'))
+      );
+      base = intersectQuizzesById(perTag);
+    }
   } else {
     // queryText が空の場合は従来の単一ソース読み込み
     if (filters.genreId) {
@@ -754,6 +809,10 @@ export async function searchQuizzes(
   // 詳細フィルターとジャンルフィルターの適用
   // filters.genreId が指定されている場合、マージされたジャンルも含むため expandGenreIdsForQuery を用いて判定する
   let finalQuizzes = matchedQuizzes;
+
+  if (hasTags) {
+    finalQuizzes = finalQuizzes.filter((quiz) => quizMatchesAllTags(quiz, tagSpecs));
+  }
 
   if (filters.genreId) {
     const expandedGenreIds = new Set(await expandGenreIdsForQuery(filters.genreId));

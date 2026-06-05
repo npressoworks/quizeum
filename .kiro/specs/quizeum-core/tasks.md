@@ -404,6 +404,8 @@
 - **Phase 6**: canonical 解決は `src/lib/metadata-resolution.ts` に集約。読み取りは C2（canonical クエリ + `genre in` フォールバック + dedupe）。ホーム/エディタ UI は `quizeum-play-flow-ui` / `quizeum-creator-dash-ui` が `listActiveGenres` に依存。
 - **Phase 7 (BAN機能)**: 管理者権限によるAPI呼び出しの検証（Authorization ヘッダーでの `idToken` 解析）と、Firestore Rulesでの `isNotBanned()` チェック。Cookie `quizeum_banned` による即時遮断はミドルウェアおよび `AuthContext` と連携。
 - **Phase 8**: 検証は `question-list-validation`、参照リンクは `linked-question`、自作検索フィルタは `lib/author-quiz-search.ts` に集約。`getBookmarkFeed` / `exportQuestionList` / `searchAuthorQuizzes` をサービス層に追加。設問リストプレイは `mode: 'question-list'`（`satisfiesQuestionListAttemptContract`）。リスト作成 UI は暫定 `listType: 'quiz'`（`quizeum-creator-dash-ui` で設問リスト選択を実装予定）。
+- **Phase 10**: タグ照合は `quiz-tag-match`、存続タグ一覧は `listActiveTags`（`canonicalId == null`）、複数タグ AND は `searchQuizzes` の `filters.tags`。UI サジェストは `quizeum-play-flow-ui` が `listActiveTags` に依存（core 10.x 完了後に play-flow 実装）。
+- Phase 10 実装（2026-06-06）: `quiz-tag-match`, `listActiveTags`, `searchQuizzes` tags AND。Jest 415 件 PASS。
 
 ---
 
@@ -429,4 +431,54 @@
   - **完了状態**: 既存のクイズ・検索に関連するテストスイート（`tests/services/quiz-genre-query.test.ts` など）を実行した際に、テストがすべてパスすること。
   - _Requirements: 11.5_
   - _Depends: 9.2_
+  - _Boundary: Testing_
+
+---
+
+### 10. Phase 10 拡張 — タグマスタ一覧と複数タグ AND 複合検索（2026-06）
+
+- [x] 10.1 (P) クイズ×タグ照合の純関数（タグ AND 検索の共通ロジック）
+  - 単一クイズが指定タグ（canonical 解決済み）を満たすかを判定する純関数を実装し、`canonicalTagIds` 優先・legacy `tags` フォールバックの照合規則を `getQuizzesByTag` と一致させる
+  - 複数タグ指定時にすべてのタグ条件を満たすかを判定する AND 用ヘルパーを実装する
+  - 照合ロジックの単体テスト（canonical のみ一致、legacy のみ一致、マージ旧タグ文字列一致、不一致）を追加する
+  - **完了状態**: `quiz-tag-match` の単体テストがグリーンであり、要件 11.3 と同一規則でタグ一致が判定できること
+  - _Requirements: 16.7, 16.8_
+  - _Boundary: quiz-tag-match_
+
+- [x] 10.2 (P) 有効タグマスタ一覧 API（`listActiveTags`）
+  - `metadata_tags` から存続タグ（`canonicalId` が未設定）のみを読み取り、ドキュメント ID と `tagName` を含む一覧を返す API を実装する
+  - 返却一覧を一貫した並び順（`tagName` のロケール昇順、同順時は `id`）でソートし、0 件時は空配列を返す
+  - 読み取り失敗時は例外をそのまま伝播し、ハードコードフォールバックを行わない
+  - 存続タグフィルタ・ソート・空配列の単体テストを追加する
+  - **完了状態**: `listActiveTags()` がマージ吸収済みタグを含まず、安定ソートされた `TagMetadata[]` を返し、関連テストがグリーンであること
+  - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5_
+  - _Boundary: QuizService_
+
+- [x] 10.3 `searchQuizzes` への複数タグ AND フィルタ拡張
+  - 複合検索フィルタにタグ識別子配列を追加し、各要素を `normalizeTag` で正規化して重複を除去してから照合に用いる
+  - 複数タグ指定時は各タグ条件を AND で適用し、キーワード（自由テキスト）・ジャンル・難易度・問題数フィルタと AND 合成する
+  - キーワードが空でタグのみ（またはタグ＋詳細フィルタのみ）指定された場合も検索を実行し、単一タグ時は既存タグ一覧取得、複数タグ時はタグごとの候補集合の積集合を母集団とする
+  - タグ配列が空または未指定のときは従来の `searchQuizzes` 挙動を維持する
+  - **完了状態**: `searchQuizzes('', { tags: ['a','b'] })` が両タグを満たすクイズのみ返し、`searchQuizzes('kw', { tags: ['x'] })` がキーワード部分一致とタグ x を同時に満たすクイズのみ返すこと
+  - _Requirements: 16.6, 16.9, 16.10, 16.11, 16.12, 16.13, 16.14, 16.15_
+  - _Depends: 10.1_
+  - _Boundary: QuizService_
+
+- [x] 10.4 タグ AND 複合検索の単体・統合テスト
+  - 単一タグ・複数タグ AND、キーワード併用、タグのみ検索、重複タグ除去、legacy タグフォールバックを検証するテストスイートを追加する
+  - **完了状態**: 新規テストファイルを Jest で実行した際にすべてグリーンであること
+  - _Requirements: 16.6, 16.7, 16.8, 16.9, 16.10, 16.11, 16.12, 16.13_
+  - _Depends: 10.2, 10.3_
+  - _Boundary: Testing_
+
+- [x] 10.5 Phase 10 統合検証
+  - `listActiveTags` と拡張済み `searchQuizzes`（`tags` 配列）を統合テストで検証し、Phase 9 統合検索の既存パスが破壊されていないことを確認する
+  - **完了状態**: Phase 10 関連 Jest がグリーンであり、`quiz-search-universal` 等の既存検索テストもパスすること
+  - _Depends: 10.4_
+  - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7, 16.8, 16.9, 16.10, 16.11, 16.12, 16.13, 16.14, 16.15_
+
+- [x]* 10.6 Phase 10 回帰スモーク（任意）
+  - `getQuizzesByTag` および Phase 9 `searchQuizzes`（キーワードのみ）が Phase 10 変更後も期待どおり動作することを確認する
+  - **完了状態**: `quiz-genre-query`・`quiz-search-universal` 関連テストがグリーンであること
+  - _Depends: 10.5_
   - _Boundary: Testing_

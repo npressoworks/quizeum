@@ -16,7 +16,7 @@ function makeQuiz(overrides: Partial<Quiz> = {}): Quiz {
     title: 'JavaScript 基礎クイズ',
     description: 'JSの基礎知識を問います',
     thumbnailUrl: 'http://example.com/thumb.jpg',
-    difficulty: 5,
+    difficulty: 7,
     genre: 'programming',
     tags: ['js', 'frontend'],
     originalTags: [],
@@ -53,8 +53,8 @@ describe('QuizCard', () => {
     jest.clearAllMocks();
   });
 
-  it('クイズのタイトル、作成者名、難易度、評価スター、設問数が正しく表示されること', () => {
-    render(
+  it('難易度を ★ N 形式で表示しプログレスバーを持たない', () => {
+    const { container } = render(
       <QuizCard
         quiz={makeQuiz()}
         isBookmarked={false}
@@ -63,14 +63,27 @@ describe('QuizCard', () => {
       />
     );
 
-    expect(screen.getByText('JavaScript 基礎クイズ')).toBeInTheDocument();
-    expect(screen.getByText('テスト作者', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('難易度: 5 / 10', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('★ 4.5', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('問題数: 10問', { exact: false })).toBeInTheDocument();
+    expect(screen.getByTestId('quiz-card-difficulty')).toHaveTextContent('★ 7');
+    expect(container.querySelector('.progressBarBg')).toBeNull();
+    expect(container.querySelector('.progressBar')).toBeNull();
   });
 
-  it('プレイするボタンをクリックしたとき、onPlayClick が呼び出されること', () => {
+  it('ジャンル表示名と出題形式を表示する', () => {
+    render(
+      <QuizCard
+        quiz={makeQuiz({ format: 'multiple-choice' })}
+        genreDisplayName="コンピュータ・IT"
+        isBookmarked={false}
+        onBookmarkToggle={mockBookmarkToggle}
+        onPlayClick={mockPlayClick}
+      />
+    );
+
+    expect(screen.getByTestId('quiz-card-genre')).toHaveTextContent('コンピュータ・IT');
+    expect(screen.getByTestId('quiz-card-format')).toHaveTextContent('選択式');
+  });
+
+  it('プレイボタンに play-btn testid がある', () => {
     render(
       <QuizCard
         quiz={makeQuiz()}
@@ -80,13 +93,11 @@ describe('QuizCard', () => {
       />
     );
 
-    const playButton = screen.getByRole('button', { name: '挑戦する' });
-    fireEvent.click(playButton);
-
+    fireEvent.click(screen.getByTestId('play-btn'));
     expect(mockPlayClick).toHaveBeenCalledWith('quiz-1');
   });
 
-  it('ブックマークボタンをクリックしたとき、onBookmarkToggle が呼び出されイベントの伝播が防がれること', () => {
+  it('ブックマークボタンをクリックしたとき onBookmarkToggle が呼ばれる', () => {
     render(
       <QuizCard
         quiz={makeQuiz()}
@@ -96,9 +107,7 @@ describe('QuizCard', () => {
       />
     );
 
-    const bookmarkButton = screen.getByTestId('quiz-card-bookmark-btn');
-    fireEvent.click(bookmarkButton);
-
+    fireEvent.click(screen.getByTestId('quiz-card-bookmark-btn'));
     expect(mockBookmarkToggle).toHaveBeenCalledWith('quiz-1');
   });
 });

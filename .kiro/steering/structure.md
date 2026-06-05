@@ -12,10 +12,15 @@
 **Purpose**: 画面のルーティング定義およびAPIエンドポイント。  
 **Example**: `/src/app/admin/users/page.tsx` (管理者向けユーザー管理画面), `/src/app/api/verify-truth/route.ts` (ウミガメの合格判定API)。
 
+### 共通レイアウト (Shared Layout)
+**Location**: `/src/components/layout/`  
+**Purpose**: 全画面共通のレスポンシブナビゲーション。`LayoutWrapper` が `/play` パスを除き Sidebar（PC/タブレット）・Header（モバイルミニ）・BottomNav（モバイル）を組み立て、`layout.tsx` から `AuthProvider` 配下で利用する。  
+**Example**: `/src/components/layout/layout-wrapper.tsx`, `/src/components/layout/sidebar.tsx`, `/src/components/layout/bottom-nav.tsx`。
+
 ### UIコンポーネント (UI Components)
 **Location**: `/src/components/`  
-**Purpose**: アプリケーション全体で再利用されるUIコンポーネント。再利用可能なUI部品（`/src/components/ui/`）と機能特有のコンポーネントに分かれます。  
-**Example**: `/src/components/ui/Button.tsx`, `/src/components/quiz/LeaderboardTable.tsx`。
+**Purpose**: アプリケーション全体で再利用されるUIコンポーネント。再利用可能なUI部品（`/src/components/ui/`）と機能ドメイン別（`quiz/`, `bookmark/`, `profile/` 等）に分かれます。  
+**Example**: `/src/components/ui/skeleton-card.tsx`, `/src/components/quiz/quiz-dual-leaderboard.tsx`。
 
 ### サービス・ビジネスロジック (Services)
 **Location**: `/src/services/`  
@@ -29,8 +34,17 @@
 
 ### 純関数ライブラリ (Pure Logic Libraries)
 **Location**: `/src/lib/`  
-**Purpose**: UIに依存しない表示ヘルパー、セッション状態、検証・フィルタ等の純関数。サービス層のビジネスロジックとは分離し、コンポーネントやフックから呼び出す。  
-**Example**: `/src/lib/profile-list-display.ts`（リスト種別ラベル）、`/src/lib/question-list-session.ts`（設問リストプレイ進行）。
+**Purpose**: UIに依存しない表示ヘルパー、セッション状態、検証・フィルタ等の純関数。サービス層のビジネスロジックとは分離し、コンポーネントやフックから呼び出す。Firebase 初期化は `/src/lib/firebase/` に集約（クライアント `config.ts` / `auth.ts`、サーバー `admin.ts` / `auth-verify.ts`）。XSS サニタイズは `/src/lib/security/`。  
+**Example**: `/src/lib/profile-list-display.ts`（リスト種別ラベル）、`/src/lib/question-list-session.ts`（設問リストプレイ進行）、`/src/lib/firebase/firestore.ts`。
+
+### React コンテキスト (Context)
+**Location**: `/src/context/`  
+**Purpose**: 認証状態・ユーザープロファイル・BAN 検知などアプリ横断のクライアント状態。ミドルウェア Cookie 同期（`syncMiddlewareAuthCookies`）と組み合わせて二重防御を構成。  
+**Example**: `/src/context/auth-context.tsx`。
+
+### ルートガード (Middleware)
+**Location**: `/src/middleware.ts`  
+**Purpose**: 管理者・モデレーター向けルートの一次フィルタ（Cookie ベース）。BAN ユーザーは `quizeum_banned` Cookie により `/banned` へリダイレクト。実際の認可は API Route / Firestore Rules で再検証する。
 
 ### カスタムフック (Custom Hooks)
 **Location**: `/src/hooks/`  
@@ -42,17 +56,22 @@
 **Purpose**: グローバルスタイルとテーマの CSS 変数。コンポーネント固有スタイルは CSS Modules を各コンポーネント隣に配置。  
 **Example**: `/src/app/globals.css`, `/src/styles/variables.css`。
 
+### テスト (Tests)
+**Location**: `/tests/`（Jest）、`/e2e/`（Playwright）  
+**Purpose**: `tests/` は `src/` の構造をミラー（`tests/services/`, `tests/components/` 等）。Firebase は `tests/__mocks__/firebase/` でモック化。E2E は `e2e/*.spec.ts` に機能ドメイン別に配置。  
+**Example**: `/tests/services/reputation.test.ts`, `/e2e/layout.spec.ts`。
+
 ### 仕様と記憶 (Kiro Metadata)
 **Location**: `/.kiro/`  
 **Purpose**: 設計仕様（`specs/`）やプロジェクトメモリであるステアリング（`steering/`）を管理するディレクトリ。
 
 ## 命名規則 (Naming Conventions)
 
-- **React コンポーネントファイル**: PascalCase（例: `QuizCard.tsx`）
+- **React コンポーネントファイル**: kebab-case（例: `quiz-card.tsx`, `layout-wrapper.tsx`）
 - **ロジック・ヘルパー・サービスファイル**: kebab-case（例: `quiz-validation.ts`）
 - **コンポーネント関数**: PascalCase（例: `export function QuizCard() {}`）
 - **変数・通常の関数**: camelCase（例: `resetUserReputation`）
-- **CSS Modules ファイル**: `[ComponentName].module.css` (PascalCaseでコンポーネント名と一致させる)
+- **CSS Modules ファイル**: `[component-name].module.css`（対応コンポーネントと同じ kebab-case ベース名）
 
 ## インポート構成 (Import Organization)
 
@@ -67,7 +86,7 @@ import { db } from '@/lib/firebase';
 import { resetUserReputation } from '@/services/reputation';
 
 // コンポーネント (絶対パス)
-import { Button } from '@/components/ui/button';
+import { SkeletonCard } from '@/components/ui/skeleton-card';
 
 // 相対パスは同一ディレクトリ内または非常に近い階層でのみ使用
 import { LocalComponent } from './LocalComponent';
@@ -82,4 +101,6 @@ import { LocalComponent } from './LocalComponent';
 - **UIとの境界分離**: コンポーネント側はUI表現とユーザーインタラクションに徹し、ビジネスロジックやデータフェッチの詳細は `services` 側のAPIやフックを呼び出す形に疎結合化します。
 
 ---
+_updated_at: 2026-06-05 — layout/context/firebase/security/middleware/tests パターンを追加_
+
 _Document patterns, not file trees. New files following patterns shouldn't require updates_

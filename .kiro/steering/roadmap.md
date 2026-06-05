@@ -186,10 +186,10 @@
 - **Shared seam**: 各種管理者アクションを Core に集約し UI はそれを呼び出す。
 
 ## Existing Spec Updates（Phase 7）
-- [ ] quizeum-core -- `resetUserReputation`・`banUser`・`unbanUser` メソッド、`adminLogs` スキーマ・型定義、Firestore Security Rules（`adminLogs` 用およびBANユーザー遮断用）、認証ミドルウェア/AuthContext でのBAN検知。Dependencies: none
+- [x][impl] quizeum-core -- `banUser`・`unbanUser` メソッド、`adminLogs` スキーマ・型定義、Firestore Security Rules（`adminLogs` 用およびBANユーザー遮断用）、認証ミドルウェア/AuthContext でのBAN検知。Dependencies: none
 
 ## Specs (dependency order)
-- [ ] quizeum-admin-users-ui -- 管理者専用ユーザー検索・手動スコアリセット・BAN/UNBAN画面（`/admin/users`）の実装、ルートガード。Dependencies: quizeum-core
+- [x][impl] quizeum-admin-users-ui -- 管理者専用ユーザー検索・手動スコアリセット・BAN/UNBAN画面（`/admin/users`）の実装、ルートガード。Dependencies: quizeum-core
 
 ---
 
@@ -283,10 +283,60 @@ Quizeumの全体レイアウトを従来のヘッダー中心の構成から、P
 （本フェーズでは既存スペックへの直接の機能変更は行わないが、共通レイアウトの移行による干渉を調整）
 
 ## Direct Implementation Candidates（Phase 9）
-- [ ] layout-css-adjustments -- 各画面コンテンツ（ホーム、プロフィール等）のコンテナ幅やパディングの微調整
+- [x] layout-css-adjustments -- 各画面コンテンツ（ホーム、プロフィール等）のコンテナ幅やパディングの微調整
 
 ## Specs (dependency order)
-- [ ] quizeum-sidebar-layout -- X/Instagram風左サイドバーおよびボトムナビによる共通ナビゲーションレイアウトの実装。Dependencies: none
+- [x][impl] quizeum-sidebar-layout -- X/Instagram風左サイドバーおよびボトムナビによる共通ナビゲーションレイアウトの実装。Dependencies: none
 
+---
+
+## Phase 10: 探索検索のタグチップ化・サジェスト強化 & クイズカード情報拡充（2026-06-05 ディスカバリー）
+
+### Overview（本フェーズ）
+ホームの統合検索エリアで、タグ入力をスペース（または確定操作）でチップ化し、入力中にタグ名・ジャンル名のサジェストを表示する。あわせてクイズ一覧カードの難易度を☆表記に変更し、ジャンル名と出題形式をカード上に表示する。ジャンル／タグ一覧ページのインラインカードも `QuizCard` へ統一し表示項目を揃える。
+
+### Approach Decision（本フェーズ）
+- **Chosen**: チップ付き複合検索コンポーネント + クライアントサイドサジェスト + `QuizCard` 拡張・共通化
+- **Why**: ジャンルサジェストは `GenreSearchField` / `filter-genre-suggestions` の実装パターンが既にあり、タグも `metadata_tags` マスタ読み取り（新規 `listActiveTags`）で対称に実装できる。検索ロジックは既存 `searchQuizzes` のタグ・ジャンル・キーワード AND 合成をチップ状態から組み立てれば足り、新規 spec 境界は不要。
+- **Rejected alternatives**:
+  - チップなしでプレーンテキスト `#tag` のみ: 複数タグの AND 検索が曖昧で、サジェスト選択後の UX が弱い。
+  - サーバー専用サジェスト API 新設: マスタ件数規模ではクライアントフィルタで十分。Firestore 読み取りは `listActiveGenres` と同型の1回取得で済む。
+  - カード改修をホームのみに限定: ジャンル／タグ一覧が別実装のままだと表示不整合が残る。
+
+### Scope（本フェーズ）
+- **In**:
+  - ホーム検索バー: タグチップ（スペースで確定、×で削除）、入力中のタグ・ジャンルサジェストドロップダウン
+  - チップ・キーワード・フィルタパネル条件の統合と `searchQuizzes` 連携（デバウンス維持）
+  - `QuizCard`: 難易度を☆表示（1〜10）、ジャンル表示名、出題形式ラベル
+  - `/genres/[genreName]`・`/tags/[tagName]` のインラインカードを `QuizCard` に置換
+  - `quizeum-core`: `listActiveTags()`（`metadata_tags` 有効タグ一覧、`listActiveGenres` 対称）
+  - 共有ユーティリティ: `getFormatLabel` の `quiz-format.ts` 等への集約（エディタとカードで重複排除）
+- **Out**:
+  - ジャンル／タグ一覧ページへの検索バー新設（本フェーズはホーム検索エリアが正本）
+  - タグ新設申請・マージ UI の変更（`quizeum-moderation-governance-ui`）
+  - サーバー側ファジーサジェスト・全文検索エンジン導入
+  - クイズ詳細・プレイ画面の難易度表示変更
+
+### Constraints（本フェーズ）
+- タグチップ正規化は既存タグマスタ／`searchQuizzes` のタグ照合規則と一致させる（小文字化・記号除去等）
+- ジャンルサジェストは `metadata_genres.displayName` と `genreId` の両方にマッチ
+- 難易度☆は 1〜10 スケールを視覚化（例: 塗りつぶし☆×難易度 + 空☆×残り、または ★ N 表記 — 実装前に要件で確定）
+- 出題形式は `resolveQuizFormat` + 日本語ラベル（選択式・記述式・ウミガメのスープ等）
+- Vanilla CSS / CSS Modules、既存ネオンデザインシステムを踏襲
+
+### Boundary Strategy（本フェーズ）
+- **Core**: `listActiveTags`、必要なら `searchQuizzes` のチップ配列引数の明確化
+- **Play-flow UI**: `TagChipSearchField`（仮称）、サジェスト UI、`QuizCard` 拡張、ジャンル／タグ一覧のカード統一、`useHomeQuizFeed` フィルタ状態拡張
+- **Shared seam**: タグ正規化・形式ラベルは lib に1か所集約
+
+## Existing Spec Updates（Phase 10・依存順）
+- [ ] quizeum-core -- `listActiveTags()`、タグマスタ読み取り API、`searchQuizzes` フィルタ引数（タグチップ配列）の型・結合ロジック明確化。Dependencies: none
+- [ ] quizeum-play-flow-ui -- ホーム検索のタグチップ＋タグ／ジャンルサジェスト、`QuizCard` の☆難易度・ジャンル・出題形式、ジャンル／タグ一覧での `QuizCard` 共通化。Dependencies: quizeum-core
+
+## Direct Implementation Candidates（Phase 10）
+- [ ] format-label-shared -- `getFormatLabel` を `src/lib/quiz-format.ts` 等へ抽出しエディタ・カードで共有
+
+## Specs (dependency order)
+（Phase 10 では新規 spec なし — 上記 Existing Spec Updates のみ）
 
 

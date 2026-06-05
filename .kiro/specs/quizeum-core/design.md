@@ -14,6 +14,8 @@
 
 **Phase 9（2026-06）**: トップページの統合検索機能（ジャンル、タグ、クイズ名、作者名を単一検索バーで同時検索可能にするハイブリッド検索ロジック）をコア層の設計仕様として追加します。
 
+**Phase 10（2026-06）**: ホーム統合検索のタグチップ化を支える `listActiveTags`（存続タグマスタ一覧）と、`searchQuizzes` への複数タグ AND フィルタ（`SearchFilters.tags`）を追加する。タグ照合は `getQuizzesByTag` / 要件 11.3 と同一の canonical 優先＋legacy フォールバック規則を `quiz-tag-match` に集約する（UI サジェストは `quizeum-play-flow-ui` が担当）。
+
 ### Goals
 - ページの初期HTML読み込み時間を通常トラフィック下で平均0.5秒以内に維持する。
 - プレイ中の不意なリロードやオフライン切断時における解答データ損失をローカルで保護・復元する。
@@ -25,6 +27,7 @@
 - BANされたユーザーによるシステムへの不正書き込み（Firestore / API）を即座にブロックし、既存の認証セッションを強制的にログアウトさせる。
 - クイズ・リスト・設問の分類ブックマーク、設問リスト CRUD/プレイ、自作クイズ検索、参照リンク設問の保存整合をコア層で一貫提供する。
 - 統合検索機能（ユニバーサル検索）のため、タイトル・説明・作者・タグ・ジャンルの並行ハイブリッド検索とクライアントデデュプ・フィルタロジックを最適化する。
+- **Phase 10**: タグマスタ一覧 API（`listActiveTags`）と、タグチップ配列による複数タグ AND 複合検索の一貫実装。
 
 ### Non-Goals
 - 外部システムや外部ファイルからのクイズ・クイズリストの一括インポート機能の実装。
@@ -48,6 +51,7 @@
 - **Phase 8 — 設問リスト**: `listType` 付きリスト CRUD、公開設問追加検証、設問 ID 並び替え、設問リストエクスポート、`question-list` attempt 記録契約。
 - **Phase 8 — 参照リンク作問**: `searchAuthorQuizzes`、参照 ID のみの保存パス、Copy-on-Write 切り離し、共有設問の安全な参照解除。
 - **Phase 9 — 統合検索コアロジック**: `searchQuizzes` API 内における複数インデックス並行クエリ（タグ、作者名、ジャンル名等）、クライアント側マージ・重複排除、および大文字小文字を区別しない各種項目（タイトル、説明、作者名、タグ、ジャンル）の部分一致フィルタリング処理。
+- **Phase 10 — タグマスタ一覧とタグ AND 検索**: `listActiveTags`、`quiz-tag-match` 純関数、`searchQuizzes` の `filters.tags` 拡張。
 
 ### Out of Boundary
 - 外部APIへの直接のクライアント通信（AI呼び出しなど）はSecurity Rulesで拒否され、すべてNext.js API Routeを経由します。
@@ -74,6 +78,7 @@
 - `QuizList.listType` 追加および未設定リストのデフォルト解釈変更。
 - `Attempt.mode` に `question-list` 追加、参照リンク設問の Copy-on-Write 契約変更。
 - `BookmarkFeed` / `BookmarkedQuestionEntry` レスポンス形状の変更。
+- **Phase 10**: `SearchFilters.tags` の意味変更、`listActiveTags` の存続タグ定義（`canonicalId == null`）変更、`quiz-tag-match` 照合規則変更。
 
 ---
 
@@ -147,7 +152,8 @@ src/
 │               └── route.ts      # 本人プレイ履歴API (10.1–10.5)
 ├── lib/
 │   ├── leaderboard-ranking.ts    # 順位比較・マージ・top5抽出 (9.4–9.6)
-│   └── metadata-resolution.ts    # canonical 解決・マージ展開・クイズ保存用メタ適用 (2.x, 11.x) [Phase 6 新規]
+│   ├── metadata-resolution.ts    # canonical 解決・マージ展開・クイズ保存用メタ適用 (2.x, 11.x) [Phase 6 新規]
+│   └── quiz-tag-match.ts         # クイズ×タグ照合（AND 検索用）(16.x) [Phase 10 新規]
 ├── services/
 │   ├── attempt.ts                # saveAttempt内LB更新、listUserPlayHistory、review genreFilter (3.x, 9.x, 10.x, 3.7)
 │   ├── bookmark.ts               # ブックマークのアトミック管理 (5.3)
@@ -208,9 +214,59 @@ src/
 - `tests/services/quiz-linked-question.test.ts` — **新規**。
 - `tests/services/author-quiz-search.test.ts` — **新規**。
 
+**Phase 10 追加ファイル**:
+- `src/lib/quiz-tag-match.ts` — **新規**。クイズが指定タグ（canonical 解決済み）を満たすかの純関数（要件 16.7–16.8）。
+- `src/services/quiz.ts` — `listActiveTags()` 追加、`SearchFilters.tags` 拡張、`searchQuizzes` にタグ AND 合成ロジック。
+- `tests/lib/quiz-tag-match.test.ts` — **新規**。canonical / legacy / マージ旧タグの照合。
+- `tests/services/quiz-list-active-tags.test.ts` — **新規**。存続タグのみ・ソート・空配列。
+- `tests/services/quiz-search-tags-and.test.ts` — **新規**。単一/複数タグ AND、キーワード併用、タグのみ、重複除去。
+
 ---
 
 ## System Flows
+
+### タグ AND 複合検索フロー（Phase 10）
+
+```mermaid
+sequenceDiagram
+    participant UI as play-flow-ui
+    participant QS as searchQuizzes
+    participant MR as metadata-resolution
+    participant QTM as quiz-tag-match
+    participant DB as Firestore
+
+    UI->>QS: searchQuizzes(keyword, { tags, genreId, ... })
+    QS->>QS: normalizeTag + dedupe tags
+    QS->>MR: resolveCanonicalTagIds(tags)
+    MR-->>QS: canonicalIds[]
+    alt keyword 空 & 複数タグ
+        loop 各タグ
+            QS->>DB: getQuizzesByTag (canonical 優先)
+        end
+        QS->>QS: quizId で intersect
+    else keyword あり or 単一タグ
+        QS->>QS: Phase 9 母集団取得
+    end
+    QS->>QTM: quizMatchesAllTags(quiz, specs)
+    QTM-->>QS: AND 一致のみ
+    QS->>QS: genre / difficulty フィルタ
+    QS-->>UI: Quiz[]
+```
+
+### タグマスタ一覧フロー（Phase 10）
+
+```mermaid
+sequenceDiagram
+    participant UI as useActiveTags
+    participant QS as listActiveTags
+    participant DB as metadata_tags
+
+    UI->>QS: listActiveTags()
+    QS->>DB: where canonicalId == null
+    DB-->>QS: TagMetadata[]
+    QS->>QS: id 付与 + tagName ソート
+    QS-->>UI: TagMetadata[]
+```
 
 ### クイズリーダーボード更新フロー（`saveAttempt` / `verify-truth` 共通）
 
@@ -471,6 +527,9 @@ sequenceDiagram
 | 11.7 | ガバナンス単一経路 | `TagMergeService` | `tagMerge.ts` のみ | - |
 | 11.8 | クイズの統合検索 (ユニバーサル検索) | `QuizService` | `searchQuizzes` | - |
 | 11.9 | ハイブリッド・マルチクエリ検索 (並行クエリとデデュプ) | `QuizService` | `searchQuizzes` | - |
+| 16.1–16.5 | 有効タグマスタ一覧 | `QuizService` | `listActiveTags` | タグマスタ読み取りフロー |
+| 16.6–16.13 | 複数タグ AND 複合検索 | `QuizService`, `quiz-tag-match` | `searchQuizzes`, `resolveCanonicalTagIds` | タグ AND 検索フロー |
+| 16.14–16.15 | サジェスト API 非対象 | — | Out of boundary | - |
 | 12.1 | ユーザーのBANと監査ログ記録 | `ReputationService` / API Route | `/api/admin/users/ban` | - |
 | 12.2 | BAN解除と監査ログ記録 | `ReputationService` / API Route | `/api/admin/users/unban` | - |
 | 12.3 | BAN中の書き込み拒否と強制ログアウト | Security Rules / AuthContext | `isNotBanned()`, `quizeum_banned` Cookie | - |
@@ -488,7 +547,8 @@ sequenceDiagram
 |-----------|--------------|--------|--------------|--------------------------|-----------|
 | `UserService` | Service | ユーザープロフィール、称号、フォロー管理 | 1.2, 1.3, 5.1 | Firestore (P0) | Service, State |
 | `metadata-resolution` | Lib | canonical 解決・マージ ID 展開・タグマスタ ensure | 2.2, 2.4, 2.5, 11.x | Firestore (P0) | Pure functions + IO |
-| `QuizService` | Service | クイズ保存・一覧・検索・エクスポート | 2.1–2.9, 11.1–11.5 | metadata-resolution (P0), Firestore (P0) | Service |
+| `QuizService` | Service | クイズ保存・一覧・検索・エクスポート | 2.1–2.9, 11.1–11.5, 16.1–16.13 | metadata-resolution (P0), quiz-tag-match (P0), Firestore (P0) | Service |
+| `quiz-tag-match` | Lib | クイズ×タグの canonical/legacy 照合（AND 用） | 16.7, 16.8 | normalizeTag (P0) | Pure functions |
 | `TagMergeService` | Service | マージ投票・ジャンル新設（`tagMerge.ts`） | 7.4–7.8, 11.7 | Firestore (P0) | Service, State |
 | `leaderboard-ranking` | Lib | LB順位比較・マージ・top5 | 9.4, 9.5, 9.6 | - | Pure functions |
 | `AttemptService` | Service | 解答永続化、LB更新、本人プレイ履歴、オフライン同期 | 3.1, 3.2, 3.3, 3.4, 3.6, 5.5, 9.1–9.7, 10.1–10.3 | Firestore (P0), LocalStore (P1), leaderboard-ranking (P0) | Service, State, Batch |
@@ -564,13 +624,15 @@ export async function ensureTagMasters(
 
 #### `QuizService`
 - **Intent**: クイズの保存、編集、Zod検証、NGワード二重検証付き公開、ジャンル/タグ一覧・複合検索、エクスポート。
-- **Requirements**: `2.1–2.9, 11.1–11.5`
+- **Requirements**: `2.1–2.9, 11.1–11.5, 16.1–16.13`
 
 ```typescript
 export type QuizListSort = 'latest' | 'popular' | 'trending';
 
 export interface SearchFilters {
   genreId?: string;
+  /** 正規化済みタグ識別子の配列。複数指定時は AND（すべてを含むクイズのみ） */
+  tags?: string[];
   difficultyMin?: number;
   difficultyMax?: number;
   minQuestions?: number;
@@ -585,6 +647,8 @@ export interface QuizService {
   normalizeTag(input: string): string;
   getSimilarTagSuggest(tag: string): Promise<string | null>;
   listActiveGenres(): Promise<GenreMetadata[]>;
+  /** 存続タグ（canonicalId == null）のみ。UI サジェスト用 */
+  listActiveTags(): Promise<TagMetadata[]>;
   getQuizzesByGenre(genreId: string, sort: QuizListSort, limit: number): Promise<Quiz[]>;
   getQuizzesByTag(tagId: string, sort: QuizListSort, limit: number): Promise<Quiz[]>;
   searchQuizzes(
@@ -607,7 +671,53 @@ export interface QuizService {
     4. 新着クイズクエリ (全体母集団の担保): `getLatestQuizzes(100)`
   - 重複排除されたクイズ配列に対し、アプリ（サービス）層で `title`, `description`, `authorName`, `genre`, `tags` のいずれかが `queryText` (小文字化された needle) を含むかどうかの部分一致フィルタをかける。
   - さらに、詳細フィルター（`difficultyMin/Max`, `minQuestions/MaxQuestions`）を適用して最終結果を返す。
+- **`listActiveTags`（Phase 10）**:
+  - `metadata_tags` を `where('canonicalId', '==', null)` で読み取り（マージ吸収済みタグは除外）。
+  - 各 doc に `id: doc.id` を付与。`tagName` が無い場合も `id` で返す。
+  - `tagName` の `localeCompare('ja')` で昇順ソート（同順時は `id`）。
+  - 0 件は `[]`。失敗時は例外をそのまま throw（ハードコードフォールバック禁止）。
+- **`searchQuizzes` タグ AND 拡張（Phase 10）**:
+  1. `filters.tags` を受け取り、各要素を `normalizeTag` → `Set` で重複除去。
+  2. `resolveCanonicalTagIds` で canonical ID 配列を得る（入力と同順、1:1 対応の `TagMatchSpec[]` を構築）。
+  3. **母集団 `base` の決定**（既存 Phase 9 ロジックを維持）:
+     - `needle` あり → 既存の並行クエリ＋dedupe。
+     - `needle` なし・`tags` のみ（1 件）→ `getQuizzesByTag(tags[0], 100, 'latest')` を第一候補。
+     - `needle` なし・`tags` 複数 → 各タグで `getQuizzesByTag` を実行し、`quiz.id` で集合積（intersect）して母集団化（上限 100/タグ）。
+     - `needle` なし・タグなし → 既存どおり `genreId` または `getLatestQuizzes`。
+  4. **キーワード部分一致**（`needle` あり時）— 既存フィルタを適用。
+  5. **`quizMatchesAllTags(quiz, specs)`** で AND 絞り込み（`tags` 未指定時はスキップ）。
+  6. **ジャンル・数値フィルタ** — 既存どおり `expandGenreIdsForQuery` + difficulty/questionCount。
 - **Note**: リーダーボード更新は `AttemptService` / `verify-truth` に集約。
+
+#### `quiz-tag-match`（`src/lib/quiz-tag-match.ts`）
+
+| Field | Detail |
+|-------|--------|
+| Intent | 単一クイズが指定タグ（canonical 解決済み）を満たすかを判定。複数タグ AND の共通ロジック |
+| Requirements | 16.7, 16.8 |
+
+```typescript
+export interface TagMatchSpec {
+  /** resolveCanonicalTagIds の結果 */
+  canonicalId: string;
+  /** normalizeTag 済みの入力タグ */
+  normalizedInput: string;
+}
+
+/** 要件 11.3 と同型: canonicalTagIds 優先、legacy tags フォールバック */
+export function quizMatchesTag(
+  quiz: Pick<Quiz, 'tags' | 'canonicalTagIds'>,
+  spec: TagMatchSpec
+): boolean;
+
+export function quizMatchesAllTags(
+  quiz: Pick<Quiz, 'tags' | 'canonicalTagIds'>,
+  specs: TagMatchSpec[]
+): boolean;
+```
+
+- **照合順序**: (1) `quiz.canonicalTagIds` に `spec.canonicalId` が含まれる → 一致。(2) `quiz.tags` を `normalizeTag` した集合に `spec.normalizedInput` または `spec.canonicalId` が含まれる → 一致。(3) それ以外は不一致。
+- **Invariants**: `getQuizzesByTag` と同一規則。UI 層はチップ値として `normalizeTag` 済み `id` を渡す。
 
 #### `TagMergeService`（`src/services/tagMerge.ts`）
 - **Intent**: マージ提案・投票、ジャンル新設申請・可決の単一実装（`moderation.ts` のジャンルスタブは削除）。
@@ -1243,6 +1353,15 @@ function canDeleteQuestionDoc(
   - キーワード「作者名」「タグ名」「ジャンル名」「タイトルの一部」を入力して `searchQuizzes` を呼び出した際に、対象のクイズが漏れなく返ってくること。
   - 複数ソースから取得されたクイズがIDで適切に重複排除（dedupe）されていること。
   - 部分一致フィルタによって大文字小文字に関わらずキーワードがマッチすること。
+- **Phase 10 — タグマスタとタグ AND 検索**:
+  - `listActiveTags` が `canonicalId != null` のマージ済みタグを含まないこと。
+  - `searchQuizzes('', { tags: ['a','b'] })` がタグ a と b の両方を持つクイズのみ返すこと（legacy `tags` のみのクイズも canonical 解決で一致すれば含む）。
+  - `searchQuizzes('keyword', { tags: ['x'] })` がキーワード部分一致 **かつ** タグ x を満たすクイズのみ返すこと。
+  - `filters.tags` に重複指定しても結果が単一タグ指定と一致すること。
+
+### Unit Tests（Phase 10）
+- **`quiz-tag-match`**: `canonicalTagIds` のみ一致、legacy `tags` のみ一致、マージ旧タグ文字列一致、不一致。
+- **`listActiveTags`**: 空コレクション、ソート安定、`canonicalId` フィルタ。
 
 ### E2E / UI Tests
 - **解答中断と自動復旧**: プレイ中にブラウザを強制リロードし、`localStorage` から解答進捗が100%正しく復元され、プレイが継続できるかをシミュレート。

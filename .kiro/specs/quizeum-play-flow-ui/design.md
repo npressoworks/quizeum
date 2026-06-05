@@ -13,6 +13,8 @@
 
 **Phase 9（2026-06）**: トップページレイアウトのスタイリッシュ化、統合検索バーの上部配置、ピル形式の横スクロールカテゴリー、サムネイル・プレイボタン付きのクイズカード、検索中スケルトン、ネオン調インタラクションを UI スペックの要件として追加・更新します。
 
+**Phase 10（2026-06）**: ホーム統合検索のタグチップ化（スペース確定）とタグ・ジャンル名サジェスト、クイズカードの難易度を数値併記星表記（`★ N`）へ変更しジャンル・出題形式を表示、ジャンル／タグ一覧での `QuizCard` 共通化。タグマスタ読み取りおよび `searchQuizzes` の複数タグ AND 合成は `quizeum-core` Phase 10 に依存する。
+
 ### Goals
 - 複合検索フィルタ、タブ切替タイムラインを備えた軽快なホーム画面の構築。
 - プレイ中のブラウザ再読み込みや切断をカバーする、`localStorage` を用いた解答セッションのクライアントサイド一時保護と同期。
@@ -24,6 +26,7 @@
 - **Phase 6**: ホームの動的ジャンルナビ、`searchQuizzes` 連携、ジャンル／タグ一覧のソートタブ、弱点克服のマスタ駆動ジャンル選択。
 - **Phase 8**: `/bookmarks` の3分類タブ、`getBookmarkFeed` 駆動の一覧、プレイ／結果画面の設問ブックマークトグル、設問リスト詳細の連続プレイ（`question-list` セッション + 次設問遷移）。
 - **Phase 9**: ホーム画面のファーストビュー最適化、検索バー上部優先、1行横スクロールジャンルピル、主要ジャンル以外の「すべて見る」折りたたみ、サムネイル・評価スター・「プレイする」ボタン付きクイズカードグリッド表示、検索中スケルトンプレースホルダー、クリアボタン・ネオン発光エフェクト付き統合検索。
+- **Phase 10**: `UnifiedSearchField` によるタグチップ＋タグ／ジャンルサジェスト、クイックサーチチップからのタグチップ追加、`QuizCard` の `★ N` 難易度・ジャンル・出題形式表示、探索一覧ページでのカード統一。
 
 ### Non-Goals
 - クイズおよびクイズリストの作成・編集UIそのもの（ただし、詳細画面での作成者判定ボタン表示と、編集画面における他ユーザーによる直接アクセス時の認可保護ガード処理は本スペックで担当し、実際のエディタ処理自体は `quizeum-creator-dash-ui` に委ねます）。
@@ -31,6 +34,7 @@
 - **Phase 5**: `leaderboardFirstPlay` / `leaderboardReplay` の更新・マージ・順位判定（`quizeum-core`）。マイページのプレイ履歴UI（`quizeum-auth-profile-ui`）。プラットフォーム総合 `/leaderboard` の集計ロジック変更。
 - **Phase 6**: `metadata-resolution`・Firestore Rules・canonical 書き込み（`quizeum-core`）。クイズエディタのジャンルセレクト（`quizeum-creator-dash-ui`）。
 - **Phase 8**: リスト作成・`listType` 選択・設問のリストへの追加 UI（`quizeum-creator-dash-ui`）。`bookmarksCount` 更新・`attempts` 書き込みロジック（`quizeum-core`）。プロフィールのリストタイプ表示（`quizeum-auth-profile-ui`）。
+- **Phase 10**: `listActiveTags`（存続タグのみ・`quizeum-core` 要件 16）・`searchQuizzes.tags` AND 合成（`quizeum-core` 要件 16）。ジャンル／タグ一覧ページへの検索バー新設。クイズ詳細・プレイ画面の難易度表示変更。タグ新設申請・マージ UI（`quizeum-moderation-governance-ui`）。
 
 ---
 
@@ -48,6 +52,7 @@
 - **設問ブックマーク操作（Phase 8）**: プレイ画面・結果画面の設問行トグル（`toggleBookmark` `targetType: 'question'`）。
 - **設問リストプレイ導線（Phase 8）**: リスト詳細の `listType` 分岐、設問リスト開始ボタン、`question-list` セッション保持、結果画面からの次設問遷移。
 - **ホーム画面・クイズ探索 UI の最適化（Phase 9）**: 検索バー上部配置、1行横スクロールジャンルナビ（ピル形式）、主要以外の折りたたみ（すべて見る）、サムネイル・評価スター・「プレイ」ボタン付き `QuizCard` コンポーネント、ローディング時の `SkeletonCard`、統合検索入力・クリア・フォーカス時のネオンエフェクトおよびクイックサーチチップ。
+- **統合検索のタグチップ化とサジェスト（Phase 10）**: `UnifiedSearchField`、タグチップ状態管理、`useActiveTags`、探索一覧での `QuizCard` 共通化とメタ表示拡張。
 
 ### Out of Boundary
 - Gemini APIとの対話やプロンプト生成のバックエンドロジック本体。
@@ -56,7 +61,7 @@
 
 ### Allowed Dependencies
 - **`quizeum-auth-profile-ui`**: `Header`, `useAuth`
-- **`quizeum-core`**: `AttemptService`, `BookmarkService`, `ReviewService`, **`getLeaderboardFirstPlay` / `getLeaderboardReplay`（読み取りのみ）**, **`listActiveGenres`, `getQuizzesByGenre`, `getQuizzesByTag`, `searchQuizzes`（Phase 6）**, **`getBookmarkFeed`, `toggleBookmark`, `getQuestionsInList`, `saveAttempt`（`mode: 'question-list'`）（Phase 8）**
+- **`quizeum-core`**: `AttemptService`, `BookmarkService`, `ReviewService`, **`getLeaderboardFirstPlay` / `getLeaderboardReplay`（読み取りのみ）**, **`listActiveGenres`, `getQuizzesByGenre`, `getQuizzesByTag`, `searchQuizzes`（Phase 6）**, **`getBookmarkFeed`, `toggleBookmark`, `getQuestionsInList`, `saveAttempt`（`mode: 'question-list'`）（Phase 8）**, **`listActiveTags`（Phase 10）**, **`searchQuizzes` の `tags?: string[]` AND フィルタ（Phase 10）**
 - **サーバーAPIプロキシ**: `/api/attempt/ask-ai`, `/api/attempt/verify-truth`
 
 ### Revalidation Triggers
@@ -65,6 +70,7 @@
 - `LeaderboardRecord` のフィールド追加・意味変更、または `leaderboard` レガシーフォールバック廃止。
 - **Phase 6**: `GenreMetadata` フィールド変更、`getQuizzesByGenre` の C2 契約変更、`listActiveGenres` のフィルタ条件変更。
 - **Phase 8**: `BookmarkFeed` / `BookmarkedQuestionEntry` 形状変更、`QuestionInListEntry` 契約変更、`question-list` attempt フィールド追加、設問リストセッションキー仕様変更。
+- **Phase 10**: `TagMetadata` フィールド変更、`listActiveTags` フィルタ条件変更、`searchQuizzes` の `tags` AND 契約変更、`normalizeTag` 規則変更。
 
 ---
 
@@ -161,10 +167,18 @@ components/
     └── genre-nav.module.css
 hooks/
 ├── useActiveGenres.ts             # listActiveGenres キャッシュ (10.x)
+├── useActiveTags.ts               # listActiveTags キャッシュ (12.x) 【Phase 10 新規】
 ├── useHomeQuizFeed.ts             # タブ取得 vs searchQuizzes（フィルタ変更・デバウンス）
 └── usePlayedQuizIds.ts            # 認証ユーザーのプレイ済み quizId 集合（1.3 playStatus）
 lib/
-└── question-list-session.ts       # 設問リスト連続プレイ sessionStorage (11.8–11.13)
+├── question-list-session.ts       # 設問リスト連続プレイ sessionStorage (11.8–11.13)
+├── filter-tag-suggestions.ts      # タグサジェスト (12.x) 【Phase 10 新規】
+├── filter-search-suggestions.ts   # 統合検索サジェスト (12.x) 【Phase 10 新規】
+└── quiz-format-labels.ts          # 出題形式ラベル共有 (12.18) 【Phase 10 新規】
+components/
+└── explore/
+    ├── unified-search-field.tsx   # タグチップ＋サジェスト統合検索 (12.x) 【Phase 10 新規】
+    └── unified-search-field.module.css
 hooks/
 └── useBookmarkFeed.ts               # getBookmarkFeed ラッパー + 楽観更新 (11.1–11.5)
 ```
@@ -182,6 +196,29 @@ hooks/
 - `src/app/page.tsx` — 巨大バナーの廃止・縮小。検索バーの最上部移動。`GenreNav` を1行横スクロールピル形状に修正、および「すべて見る」トグル追加。クイズ一覧を `QuizCard` と `SkeletonCard` に置き換え。クイックサーチチップの追加、フォーカス時・ホバー時のネオン調スタイルの統合。
 - `src/app/page.module.css` — 検索バー上部レイアウト、ピルスクロールスタイル、クイックサーチチップ、バナー縮小スタイル。
 - `src/components/explore/genre-nav.tsx` — 1行横スクロール対応、「すべて見る」展開表示。
+
+### New Files（Phase 10）
+- `src/components/explore/unified-search-field.tsx` — タグチップ＋自由入力＋タグ／ジャンルサジェスト（要件 12.1–12.11, 12.21–12.22）
+- `src/components/explore/unified-search-field.module.css` — チップ行・サジェストドロップダウン・ネオン枠のスタイル
+- `src/hooks/useActiveTags.ts` — `listActiveTags` のマウント時取得とエラー状態（`useActiveGenres` 対称）
+- `src/lib/filter-tag-suggestions.ts` — タグマスタの部分一致フィルタ（`id` マッチ正本、表示は `tagName ?? id`。`filter-genre-suggestions` 対称）
+- `src/lib/filter-search-suggestions.ts` — 統合検索用のタグ＋ジャンル候補マージとランキング
+- `src/lib/quiz-format-labels.ts` — `getFormatLabel` の共有エクスポート（エディタ・カード共通）
+- `tests/components/unified-search-field.test.tsx` — チップ確定・サジェスト選択・クリア・testid
+- `tests/lib/filter-tag-suggestions.test.ts` — タグ候補フィルタの単体テスト
+- `tests/lib/filter-search-suggestions.test.ts` — タグ／ジャンル混在サジェストの単体テスト
+
+### Modified Files（Phase 10）
+- `src/app/page.tsx` — プレーン `<input>` を `UnifiedSearchField` に置換。`tagChips` 状態、`useActiveTags`、クイックチップ→タグチップ追加、ジャンル ID と `GenreSearchField` の双方向同期、クリア時のチップリセット。
+- `src/lib/home-feed-filters.ts` — `tagChips: string[]` 追加、`hasActiveHomeSearchFilters` にチップ有無を含める。
+- `src/hooks/useHomeQuizFeed.ts` — `searchQuizzes(keyword, { tags, genreId, ... })` へチップ配列を渡す。依存配列に `tagChips` を追加。
+- `src/components/quiz/quiz-card.tsx` / `quiz-card.module.css` — 難易度を `★ N` 表示へ変更（プログレスバー削除）、ジャンル・出題形式行追加、`data-testid` 付与。任意 prop `genreDisplayName`。
+- `src/components/quiz/quiz-editor.tsx` — ローカル `getFormatLabel` を `quiz-format-labels` へ委譲（重複排除）。
+- `src/app/genres/[genreName]/page.tsx` — インライン `Link` カードを `QuizCard` グリッドに置換。各カードに `href={/quiz/${id}}` を渡しカード全体を詳細へ遷移。`useActiveGenres` で `genreDisplayName` 解決、ローディング時 `SkeletonCard`。
+- `src/app/tags/[tagName]/page.tsx` — 同上（`href` + `genreDisplayName` パターンでホームと統一）。
+- `tests/components/quiz-card.test.tsx` — `★ N`、ジャンル、出題形式、testid の検証追加。
+- `tests/components/home-page.test.tsx` — タグチップ・サジェスト・クイックチップ連携の更新。
+- `e2e/quiz-search.spec.ts` — Phase 10 検索チップ・カードメタの E2E 追加。
 
 ### Modified Files（Phase 6）
 - `src/app/page.tsx` — `GENRES` 定数削除、`GenreNav`（遷移専用）+ `GenreSearchField` + `useHomeQuizFeed` + `usePlayedQuizIds`。
@@ -306,6 +343,38 @@ sequenceDiagram
     end
 ```
 
+### ホーム統合検索・タグチップフロー（Phase 10）
+
+**UX 方針（確定）**
+- **チップ確定**: スペースで直前トークンを `normalizeTag` 後にチップ追加。空トークン・重複は拒否。
+- **Enter 優先順位（確定）**: サジェストが open かつ候補が 1 件以上 → Enter はハイライト候補を選択（`GenreSearchField` 同型）。それ以外 → Enter はスペースと同一規則でタグチップ確定。
+- **サジェスト**: 自由入力 1 文字以上でタグ候補（`listActiveTags`：core 要件 16 の存続タグのみ）とジャンル候補（`useActiveGenres`）をセクション分けまたはラベル付きで表示。タグ候補の**照合キーは `id`**、**表示ラベルは `tagName ?? id`**（`filter-tag-suggestions`）。
+- **ジャンル選択**: サジェストからジャンル選択時は `filters.genreId` を更新し、フィルタパネル内 `GenreSearchField` と同期。
+- **検索合成**: `searchQuizzes(keyword, { tags: tagChips, genreId, ... })` でキーワード・タグ AND・ジャンル・数値フィルタを AND 適用。全未指定時はタブ別 API。
+- **難易度表示**: カード上は `★ {difficulty}`（1〜10 整数）。プログレスバーは使用しない。
+
+```mermaid
+sequenceDiagram
+    participant User as ユーザー
+    participant USF as UnifiedSearchField
+    participant Home as HomePage
+    participant Feed as useHomeQuizFeed
+    participant Core as searchQuizzes
+
+    User->>USF: タグ入力 + Space
+    USF->>USF: normalizeTag(token) → tagChips 追加
+    USF->>Home: onTagChipsChange(chips)
+    Home->>Feed: filters 更新
+    Feed->>Core: searchQuizzes(keyword, { tags, genreId, ... })
+    Core-->>Feed: Quiz[]
+    Feed-->>Home: グリッド更新
+
+    User->>USF: サジェストでジャンル選択
+    USF->>Home: onGenreSelect(genreId)
+    Home->>Home: filterGenreId 同期（GenreSearchField）
+    Home->>Feed: デバウンス後再検索
+```
+
 ### ブックマーク3タブ読み込みフロー（Phase 8）
 
 ```mermaid
@@ -395,6 +464,14 @@ sequenceDiagram
 | 11.12 | 結果後の次設問遷移／完了 | `QuizResultPage` | `advanceQuestionListSession` | 設問リスト連続プレイフロー |
 | 11.13 | クイズリストは従来のリストプレイ | `ListDetailPage` | `getQuizzesInList`, `mode=list` | — |
 | 11.14 | BM カウント・attempt 永続化なし | 全 Phase 8 UI | コアサービス呼び出しのみ | Out of boundary |
+| 12.1–12.6 | タグチップ入力・確定・削除・クリア | `UnifiedSearchField`, `HomePage` | `normalizeTag` | ホーム統合検索フロー |
+| 12.7–12.10 | タグ／ジャンルサジェスト・エラー | `UnifiedSearchField`, `useActiveTags`, `useActiveGenres` | `filter-search-suggestions` | ホーム統合検索フロー |
+| 12.11 | クイックサーチ→タグチップ | `HomePage`, `UnifiedSearchField` | — | — |
+| 12.12–12.15 | チップ＋キーワード＋フィルタ AND 検索 | `useHomeQuizFeed`, `home-feed-filters` | `searchQuizzes` | ホーム統合検索フロー |
+| 12.16–12.18 | カード難易度★N・ジャンル・出題形式 | `QuizCard`, `quiz-format-labels` | `resolveQuizFormat`, `useActiveGenres` | — |
+| 12.19 | 探索一覧で QuizCard 統一 | `GenreExplorePage`, `TagExplorePage` | `QuizCard` | — |
+| 12.20 | 読み込み中スケルトン | `SkeletonCard` | — | — |
+| 12.21–12.22 | a11y・data-testid | `UnifiedSearchField`, `QuizCard` | — | — |
 
 ---
 
@@ -404,11 +481,13 @@ sequenceDiagram
 
 | Component | Domain/Layer | Intent | Req Coverage | Key Dependencies | Contracts |
 |-----------|--------------|--------|--------------|------------------|-----------|
-| `HomePage` | UI / Page | クイズ探索・複合検索・タブ切替 | 1.1–1.5, 10.2–10.4 | `useHomeQuizFeed`, `usePlayedQuizIds`, `useAuth`, `QuizCard`, `SkeletonCard` | State |
-| `GenreSearchField` | UI / Component | マスタ駆動ジャンルサジェスト（複合検索） | 1.4, 10.4 | `useActiveGenres` | State |
-| `QuizCard` | UI / Component | サムネイル・プレイボタン・スター表示を持つクイズカード | 1.5 | `useAuth`, `toggleBookmark` | State |
+| `HomePage` | UI / Page | クイズ探索・複合検索・タブ切替 | 1.1–1.5, 10.2–10.4, 12.1–12.15 | `UnifiedSearchField`, `useHomeQuizFeed`, `useActiveTags`, `usePlayedQuizIds`, `useAuth`, `QuizCard`, `SkeletonCard` | State |
+| `UnifiedSearchField` | UI / Component | タグチップ＋キーワード＋タグ／ジャンルサジェスト | 12.1–12.11, 12.21–12.22 | `useActiveTags`, `useActiveGenres`, `filter-search-suggestions` | State |
+| `GenreSearchField` | UI / Component | マスタ駆動ジャンルサジェスト（フィルタパネル用、検索バーと genreId 同期） | 1.4, 10.4, 12.9 | `useActiveGenres` | State |
+| `QuizCard` | UI / Component | サムネイル・★N 難易度・ジャンル・出題形式・プレイ導線 | 1.5, 7.2, 12.16–12.19, 12.22 | `quiz-format-labels`, `toggleBookmark` | State |
+| `useActiveTags` | Hook | `listActiveTags` 取得とエラー | 12.7, 12.10 | `listActiveTags` (P0) | State |
 | `SkeletonCard` | UI / Component | 検索ロード中の骨組みアニメーション | 1.4 | — | State |
-| `useHomeQuizFeed` | Hook | タブ取得 / `searchQuizzes` 切替・デバウンス | 1.3, 10.4 | `searchQuizzes`, tab APIs | State |
+| `useHomeQuizFeed` | Hook | タブ取得 / `searchQuizzes` 切替・デバウンス（tags AND 含む） | 1.3, 10.4, 12.12–12.15 | `searchQuizzes`, tab APIs | State |
 | `usePlayedQuizIds` | Hook | プレイ済み quizId 集合 | 1.3 | `/api/user/played-quiz-ids` | State |
 | `QuizDetailPage` | UI / Page | クイズのメタデータおよび良問評価、プレイモード選択、作成者編集動線 | 2.1–2.6 | `QuizService`, `ReviewService`, `useAuth` | State |
 | `QuizDualLeaderboard` | UI / Component | 初回／リプレイLBのタブ表示（読み取り専用） | 9.1–9.8 | `getLeaderboardFirstPlay`, `getLeaderboardReplay` (P0) | State |
@@ -427,22 +506,25 @@ sequenceDiagram
 | `question-list-session` | Lib | 設問リスト連続プレイの sessionStorage | 11.11, 11.12 | — | Service |
 | `useBookmarkFeed` | Hook | `getBookmarkFeed` 取得と楽観更新 | 11.1–11.6 | `BookmarkService` | State |
 
-#### `QuizCard`（Phase 9）
+#### `QuizCard`（Phase 9 + Phase 10）
 
 | Field | Detail |
 |-------|--------|
-| Intent | サムネイル画像、プレイボタン、評価（星）、ブックマークボタンを持つクイズカードUIの描画 |
-| Requirements | 1.5 |
+| Intent | 探索一覧共通のクイズカード（サムネイル・★N 難易度・ジャンル・出題形式・評価・プレイ導線） |
+| Requirements | 1.5, 7.2, 12.16–12.19, 12.22 |
 
 **Responsibilities & Constraints**
-- クイズ固有の `thumbnailUrl` がある場合は Next.js `Image` でアスペクト比を保って表示、ない場合はジャンル名やテーマに基づくスタイリッシュなプレースホルダー画像（またはグラデーション背景＋アイコン）を表示。
-- タイトル、作成者名、難易度（プログレスバー表示）、星（評価レート `reviewScore`）、および明示的な「プレイする」または「挑戦する」ボタンを整理して表示。
-- ホバー時にカード全体が浮き上がり、境界線がネオン発光するスムーズなトランジション（CSS Modules）を実装。
-- カード内部のブックマークボタンをクリックしたときはイベント伝播を抑止（`stopPropagation`）して `toggleBookmark` を実行、未認証時は `/login` 遷移。
+- クイズ固有の `thumbnailUrl` がある場合はアスペクト比を保って表示、ない場合はジャンルに基づくグラデーションプレースホルダーを表示。
+- タイトル、作成者名、**難易度（`★ {difficulty}`、1〜10 整数。プログレスバー禁止）**、**ジャンル表示名**、**出題形式ラベル**（`getFormatLabel(resolveQuizFormat(quiz))`）、評価（`reviewScore`）、「プレイする」ボタンを整理して表示。
+- `genreDisplayName` prop が渡された場合はそれを優先。未指定時は `quiz.genre` をフォールバック表示。
+- ホバー時のネオン発光トランジション（Phase 9）を維持。
+- **ナビゲーション（確定）**: 任意 prop `href` が渡されたとき、カードルートを Next.js `Link` でラップしカード全体クリックでクイズ詳細へ遷移する。`href` 未指定時（ホーム）は従来どおり `div` + `onPlayClick`。いずれも「挑戦する」ボタンに `data-testid="play-btn"` を付与。
+- ブックマーク操作は `stopPropagation`（`href` あり時は `preventDefault` も）+ `toggleBookmark`。未認証時は `/login`。
+- ジャンル／タグ探索ページでは親が `useActiveGenres` で解決した `genreDisplayName` と `href={`/quiz/${quiz.id}`}` を渡す。
 
 **Dependencies**
-- Inbound: `HomePage`, `BookmarkQuizGrid` 等 — `quiz: Quiz` prop
-- Outbound: `BookmarkService` — `toggleBookmark`
+- Inbound: `HomePage`, `GenreExplorePage`, `TagExplorePage`, `BookmarkQuizGrid` — `quiz` prop
+- Outbound: `@/lib/quiz-format-labels` — `getFormatLabel`; `@/lib/quiz-format` — `resolveQuizFormat`
 
 **Contracts**: State [x]
 
@@ -450,11 +532,104 @@ sequenceDiagram
 ```typescript
 interface QuizCardProps {
   quiz: Quiz;
+  /** 指定時はカード全体を Link 化（探索一覧ページ用） */
+  href?: string;
+  /** ジャンルマスタ解決済み表示名。未指定時は quiz.genre を表示 */
+  genreDisplayName?: string;
   isBookmarked: boolean;
   onBookmarkToggle: (quizId: string) => Promise<void>;
   onPlayClick: (quizId: string) => void;
 }
 ```
+
+##### `data-testid` 契約（Phase 10）
+| 要素 | test id |
+|------|---------|
+| カード根 | `quiz-card`（既存） |
+| 難易度 | `quiz-card-difficulty`（テキスト `★ N` を含む） |
+| ジャンル | `quiz-card-genre` |
+| 出題形式 | `quiz-card-format` |
+| プレイ | `play-btn`（既存） |
+
+#### `UnifiedSearchField`（Phase 10）
+
+| Field | Detail |
+|-------|--------|
+| Intent | ホーム統合検索バー：タグチップ行、自由入力、タグ／ジャンルサジェスト、クリア連携 |
+| Requirements | 12.1–12.11, 12.21–12.22 |
+
+**Responsibilities & Constraints**
+- チップ行（`data-testid="search-tag-chips"`）に確定タグを表示。各チップに `data-testid="search-tag-chip"` と削除用 `aria-label`。
+- 自由入力欄で Space により `normalizeTag` したタグをチップ追加。`#` プレフィックスは除去。
+- **Enter**: サジェスト open かつ候補あり → ハイライト候補を選択。それ以外 → Space と同規則でチップ確定（要件 12.2–12.3）。
+- 入力 1 文字以上で `filterSearchSuggestions(tags, genres, query)` を呼び出し、タグ候補（`search-suggest-tag-{id}`、ラベル `tagName ?? id`）とジャンル候補（`search-suggest-genre-{id}`）を listbox 表示。タグ候補のフィルタは `filter-tag-suggestions`（`id` 部分一致優先、`tagName` 部分一致は副次）。
+- タグ候補選択 → チップ追加＋入力クリア。ジャンル候補選択 → `onGenreSelect(genreId)`＋入力クリア。
+- 親から渡された `onClear` と連携し、消去ボタンでチップ・キーワード・ジャンル状態を一括クリア可能にする。
+- マスタ取得失敗時はサジェストを空またはエラーメッセージ表示（ハードコード候補禁止）。
+
+**Dependencies**
+- Inbound: `HomePage` — tags/genres データ、filter 状態（P0）
+- Outbound: `@/services/quiz-validation` — `normalizeTag`（P0）
+
+**Contracts**: State [x]
+
+##### Props
+```typescript
+interface UnifiedSearchFieldProps {
+  tagChips: string[];
+  onTagChipsChange: (chips: string[]) => void;
+  keyword: string;
+  onKeywordChange: (value: string) => void;
+  genres: GenreMetadata[];
+  tags: TagMetadata[];
+  genresLoading: boolean;
+  tagsLoading: boolean;
+  genresError: string | null;
+  tagsError: string | null;
+  selectedGenreId: string;
+  onGenreSelect: (genreId: string) => void;
+  onClearAll: () => void;
+  disabled?: boolean;
+}
+```
+
+##### State helpers（`home-feed-filters.ts` 拡張）
+```typescript
+export interface HomeFeedFilters {
+  genreId: string;
+  searchQuery: string;
+  tagChips: string[];
+  difficultyMin: number;
+  difficultyMax: number;
+  minQuestions: number;
+  maxQuestions: number;
+}
+
+// searchQuizzes 呼び出し契約（quizeum-core 要件 16）
+export interface SearchFilters {
+  genreId?: string;
+  tags?: string[]; // normalizeTag 済み、AND 一致（core が canonical 解決）
+  difficultyMin?: number;
+  difficultyMax?: number;
+  minQuestions?: number;
+  maxQuestions?: number;
+}
+```
+
+##### `filter-tag-suggestions` 契約
+```typescript
+/** listActiveTags 結果を id / tagName で部分一致。表示・チップ値は id（正規化済み） */
+export function filterTagSuggestions(
+  tags: Pick<TagMetadata, 'id' | 'tagName'>[],
+  query: string,
+  maxResults?: number
+): Pick<TagMetadata, 'id' | 'tagName'>[];
+```
+
+##### `useActiveTags` 契約
+- `listActiveTags()` をマウント時に 1 回取得（`useActiveGenres` 対称）。
+- 返却タグは core 要件 16.1 の存続タグ（`canonicalId == null`）のみ。UI は追加フィルタしない。
+- `tagLabelById: Map<string, string>` を `tagName ?? id` で構築しサジェスト表示に利用。
 
 #### `SkeletonCard`（Phase 9）
 
@@ -674,6 +849,25 @@ function buildQuestionListPlayUrl(session: QuestionListSession, index: number): 
   - 最終設問完了後にリスト完了メッセージが表示されること。
 - **設問ブックマークトグル（Phase 8）**:
   - 結果画面の設問行でトグル操作後、`/bookmarks` の設問タブに反映されること（再読み込み後）。
+
+- **統合検索タグチップ・サジェスト（Phase 10）**:
+  - 検索欄で `JavaScript` + Space 後、`[data-testid="search-tag-chip"]` にチップが表示されること。
+  - クイックサーチ `#ウミガメのスープ` クリックで入力欄ではなくチップが追加されること。
+  - サジェストからジャンル選択後、フィルタパネルのジャンル表示と同期すること。
+  - 消去ボタンでチップとキーワードがクリアされ、タブ別一覧に復帰すること。
+  - 複数タグチップ時、両方のタグを含むクイズのみ表示されること（AND）。
+- **クイズカードメタ拡充（Phase 10）**:
+  - `[data-testid="quiz-card-difficulty"]` が `★ 7` 形式（例）を含み、プログレスバー要素が存在しないこと。
+  - `[data-testid="quiz-card-genre"]` と `[data-testid="quiz-card-format"]` がホーム・ジャンル一覧・タグ一覧のいずれでも表示されること。
+  - ジャンル／タグ一覧で `QuizCard` の `href` によりカードクリックで `/quiz/[id]` へ遷移すること。`[data-testid="play-btn"]` が存在すること。
+
+### Unit Tests（Phase 10）
+- **`filter-tag-suggestions` / `filter-search-suggestions`**:
+  - 部分一致、大文字小文字無視、空クエリ時の挙動、タグ／ジャンルの混在ランキング。
+- **`UnifiedSearchField`**:
+  - Space 確定、重複拒否、空トークン拒否、サジェスト選択、キーボード Enter 選択、`normalizeTag` 連携。
+- **`QuizCard`**:
+  - `★ N` 表示、genreDisplayName 優先、format ラベル、testid 存在。
 
 ### Unit Tests（Phase 8）
 - **`question-list-session`**:

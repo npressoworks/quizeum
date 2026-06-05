@@ -1,6 +1,7 @@
 export interface HomeFeedFilters {
   genreId: string;
   searchQuery: string;
+  tagChips: string[];
   difficultyMin: number;
   difficultyMax: number;
   minQuestions: number;
@@ -10,6 +11,7 @@ export interface HomeFeedFilters {
 export const DEFAULT_HOME_FEED_FILTERS: HomeFeedFilters = {
   genreId: '',
   searchQuery: '',
+  tagChips: [],
   difficultyMin: 1,
   difficultyMax: 10,
   minQuestions: 1,
@@ -20,6 +22,7 @@ export const DEFAULT_HOME_FEED_FILTERS: HomeFeedFilters = {
 export function hasActiveHomeSearchFilters(filters: HomeFeedFilters): boolean {
   if (filters.genreId.trim()) return true;
   if (filters.searchQuery.trim()) return true;
+  if (filters.tagChips.length > 0) return true;
   if (filters.difficultyMin !== DEFAULT_HOME_FEED_FILTERS.difficultyMin) return true;
   if (filters.difficultyMax !== DEFAULT_HOME_FEED_FILTERS.difficultyMax) return true;
   if (filters.minQuestions !== DEFAULT_HOME_FEED_FILTERS.minQuestions) return true;

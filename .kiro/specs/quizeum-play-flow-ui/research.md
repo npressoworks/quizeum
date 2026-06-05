@@ -270,3 +270,74 @@
 - 分析: Grep/Read（`bookmarks/page.tsx`, `list/[id]/page.tsx`, `play/page.tsx`, `result/page.tsx`, `bookmark.ts`）
 - Discovery 種別: **Light（Extension）**
 - 外部調査: 不要
+
+---
+
+# Research & Design Decisions: quizeum-play-flow-ui（Phase 10 差分 — 2026-06-05）
+
+## Summary
+- **Feature**: ホーム統合検索のタグチップ化・タグ／ジャンルサジェスト、クイズカードの★N難易度・ジャンル・出題形式、探索一覧の `QuizCard` 統一
+- **Discovery Scope**: Extension（`GenreSearchField` / `filter-genre-suggestions` / `QuizCard` 既存パターンの拡張）
+- **Key Findings**:
+  - ホーム検索はプレーン `<input>` + `searchQuery` のみ。タグチップ・タグサジェスト未実装。
+  - `searchQuizzes` は単一 `queryText` のみ。複数タグ AND は `SearchFilters.tags` 拡張が必要（`quizeum-core` Phase 10）。
+  - `listActiveTags` は未実装。`TagMetadata` 型と `metadata-resolution` は存在。
+  - ジャンル／タグ一覧はインライン `Link` カードで `QuizCard` と表示不整合（難易度バー、ジャンル／形式なし）。
+  - `getFormatLabel` は `quiz-editor.tsx` 内ローカル関数。共有 lib へ抽出が妥当。
+
+## Research Log
+
+### 既存ジャンルサジェストパターン
+- **Sources**: `genre-search-field.tsx`, `filter-genre-suggestions.ts`, `useActiveGenres.ts`
+- **Findings**: listbox + 矢印キー + `data-testid="genre-suggest-{id}"` が確立済み。タグ／統合検索も同型で実装可能。
+- **Implications**: `UnifiedSearchField` は `GenreSearchField` のキーボード契約を踏襲。フィルタパネル用 `GenreSearchField` は存続し `genreId` を双方向同期。
+
+### searchQuizzes とタグチップ
+- **Sources**: `quiz.ts` `searchQuizzes`, `home-feed-filters.ts`, `useHomeQuizFeed.ts`
+- **Findings**: `hasActiveHomeSearchFilters` は `tagChips` 未対応。`needle` 空時は genre または latest のみ。複数タグ AND はクライアント後段フィルタまたはコア拡張が必要。
+- **Implications**: `HomeFeedFilters.tagChips` 追加。コアに `tags?: string[]` を渡し、各タグを `normalizeTag` 後に `canonicalTagIds` / `tags` 配列へ AND マッチ（設計契約）。
+
+### クイズカード表示
+- **Sources**: `quiz-card.tsx`, `genres/[genreName]/page.tsx`, `success-client.tsx`（`★ {difficulty}` 先例）
+- **Findings**: 結果画面は `★ N` 形式の先例あり。`QuizCard` は `難易度: N / 10` + プログレスバー。形式ラベルはエディタ内 7 種。
+- **Implications**: 難易度は `★ {quiz.difficulty}` に統一。`quiz-format-labels.ts` + `resolveQuizFormat` でカード表示。
+
+## Architecture Pattern Evaluation
+
+| Option | Description | Strengths | Risks | Selected |
+|--------|-------------|-----------|-------|----------|
+| A: UnifiedSearchField 新設 | チップ＋サジェスト一体 | 責務明確、テスト容易 | HomePage 状態増 | **Yes** |
+| B: page.tsx インライン | 差分最小 | 短期速い | 保守性悪化 | No |
+| C: サーバー suggest API | 専用エンドポイント | 将来拡張 | 過剰、Phase 10 範囲外 | No |
+
+## Design Decisions
+
+### Decision: 難易度は数値併記 `★ N`
+- **Context**: ユーザー確定（アプローチ1）。
+- **Selected**: 星アイコン + 1〜10 整数。10段階塗りつぶしやプログレスバーは採用しない。
+- **Rationale**: 結果画面と一貫。カード面積を節約。
+
+### Decision: クイックサーチはタグチップ追加
+- **Context**: 要件 12.11。
+- **Selected**: `#tag` クリック → `normalizeTag` → チップ追加 → 即 `searchQuizzes`。
+- **Rationale**: 複数タグ AND の意図が明確。
+
+### Decision: 探索一覧は QuizCard に統一
+- **Context**: 要件 12.19。ジャンル／タグページは別インライン実装。
+- **Selected**: `QuizCard` + `genreDisplayName` prop + 親側ブックマーク状態管理。
+- **Rationale**: 表示項目の単一正本。
+
+## Risks & Mitigations
+- **コア未実装ブロック** — `listActiveTags` / `searchQuizzes.tags` は `quizeum-core` Phase 10 を先に実装。UI はモックまたは feature flag なしで直列依存。
+- **genreId 二重管理** — `UnifiedSearchField` と `GenreSearchField` で `filterGenreId` を HomePage が単一 state として保持。
+- **旧クイズ format 欠落** — `resolveQuizFormat` で推定しラベル表示。テストで `format` 無しフィクスチャを検証。
+
+## Document Status（Phase 10）
+- 分析: Grep/Read（`page.tsx`, `quiz-card.tsx`, `genre-search-field.tsx`, `useHomeQuizFeed.ts`, `quiz.ts`）
+- Discovery 種別: **Light（Extension）**
+- 外部調査: 不要
+
+### validate-design 反映（2026-06-05 再設計）
+- **QuizCard ナビゲーション**: 探索一覧は `href` prop でルートを `Link` 化。ホームは `onPlayClick` 維持。`play-btn` testid を全画面で付与。
+- **Enter 優先順位**: サジェスト open + 候補あり → 選択。それ以外 → チップ確定（`GenreSearchField` 同型）。
+- **タグサジェスト**: 照合キー `id`、表示 `tagName ?? id`。`listActiveTags` は core 要件 16（存続タグのみ）に依存。

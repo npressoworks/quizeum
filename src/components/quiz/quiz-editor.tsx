@@ -27,6 +27,7 @@ import {
   TEST_PLAY_RESTORE_QUERY,
 } from '@/lib/test-play';
 import { resolveQuizFormat } from '@/lib/quiz-format';
+import { getFormatLabel } from '@/lib/quiz-format-labels';
 import { useActiveGenres } from '@/hooks/useActiveGenres';
 import { GenreEditorSelect } from '@/components/quiz/genre-editor-select';
 import { AuthorQuizReferencePanel } from '@/components/quiz/author-quiz-reference-panel';
@@ -379,19 +380,6 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({ quizId }) => {
     });
 
     setQuestions(nextQuestions);
-  };
-
-  const getFormatLabel = (fmt: string) => {
-    switch (fmt) {
-      case 'mixed': return '複合';
-      case 'multiple-choice': return '選択式';
-      case 'text-input': return '記述式';
-      case 'quick-press': return '早押し';
-      case 'sorting': return '並び替え';
-      case 'association': return '連想';
-      case 'lateral-thinking': return 'ウミガメのスープ';
-      default: return fmt;
-    }
   };
 
   // 設問の削除
