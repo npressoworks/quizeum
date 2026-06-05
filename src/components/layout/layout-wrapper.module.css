@@ -3,6 +3,8 @@
   min-height: 100vh;
   position: relative;
   background-color: var(--bg-main);
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .mainWrapper {
@@ -10,6 +12,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0; /* flexの子要素がはみ出さないようにする */
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .content {

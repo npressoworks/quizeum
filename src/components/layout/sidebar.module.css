@@ -5,6 +5,7 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   border-top: none;
   border-left: none;
   border-bottom: none;
@@ -42,6 +43,13 @@
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.navMenu::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
 }
 
 .navLink {
