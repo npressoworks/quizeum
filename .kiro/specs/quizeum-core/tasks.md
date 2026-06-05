@@ -405,3 +405,28 @@
 - **Phase 7 (BAN機能)**: 管理者権限によるAPI呼び出しの検証（Authorization ヘッダーでの `idToken` 解析）と、Firestore Rulesでの `isNotBanned()` チェック。Cookie `quizeum_banned` による即時遮断はミドルウェアおよび `AuthContext` と連携。
 - **Phase 8**: 検証は `question-list-validation`、参照リンクは `linked-question`、自作検索フィルタは `lib/author-quiz-search.ts` に集約。`getBookmarkFeed` / `exportQuestionList` / `searchAuthorQuizzes` をサービス層に追加。設問リストプレイは `mode: 'question-list'`（`satisfiesQuestionListAttemptContract`）。リスト作成 UI は暫定 `listType: 'quiz'`（`quizeum-creator-dash-ui` で設問リスト選択を実装予定）。
 
+---
+
+### 9. Phase 9 拡張 — 統合検索（ユニバーサル検索）APIの実装（2026-06）
+
+- [x] 9.1 統合検索サービスAPI（`searchQuizzes`）の拡張
+  - `src/services/quiz.ts` の `searchQuizzes` において、`queryText` を受け取った際の並行クエリ処理（タグ一致、作者名完全一致、ジャンル一致、新着クイズ取得）を実装し、取得したクイズの一覧を `id` で重複排除する。
+  - 重複排除されたクイズ一覧に対して、タイトル（`title`）、説明（`description`）、作者名（`authorName`）、ジャンル（`genre`）、タグ（`tags`）に小文字化した `queryText` が含まれるかどうかの部分一致フィルタリング処理をメモリ上で実行する。
+  - クイズ難易度および設問数の詳細フィルター（`difficultyMin/Max`, `minQuestions/MaxQuestions`）が指定されている場合は、それらも適用した結果を返すようにする。
+  - **完了状態**: 検索条件として `queryText` が与えられたとき、Firestore から関連データを並行クエリで取得し、タイトル・説明・作者・ジャンル・タグのいずれかに部分一致するクイズのみが、詳細フィルターの条件を満たした上で重複なく返されること。
+  - _Requirements: 11.8, 11.9_
+  - _Boundary: QuizService_
+
+- [x] 9.2 統合検索の単体・統合テストの追加
+  - `tests/services/quiz-search-universal.test.ts` を新規作成し、統合検索（ハイブリッド検索）における並行クエリ発行、IDによる重複排除、大文字小文字を区別しない部分一致フィルタリング、詳細条件フィルタ（難易度、問題数）の適用が期待通り動作することを検証するテストスイートを記述する。
+  - **完了状態**: 新規作成したテストファイル `tests/services/quiz-search-universal.test.ts` を Jest で実行した際に、すべてのテストケースがグリーンであること。
+  - _Requirements: 11.8, 11.9_
+  - _Depends: 9.1_
+  - _Boundary: Testing_
+
+- [x]* 9.3 統合検索の回帰スモークテスト（任意）
+  - 統合検索機能の拡張後も、既存の `searchQuizzes` （`queryText` なしで詳細フィルターのみを指定するパターンなど）が正常に動作し、既存のクイズ検索・一覧のテストスイートが破壊されていないことを確認する。
+  - **完了状態**: 既存のクイズ・検索に関連するテストスイート（`tests/services/quiz-genre-query.test.ts` など）を実行した際に、テストがすべてパスすること。
+  - _Requirements: 11.5_
+  - _Depends: 9.2_
+  - _Boundary: Testing_

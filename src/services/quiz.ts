@@ -691,24 +691,85 @@ export async function searchQuizzes(
   queryText: string,
   filters: SearchFilters = {}
 ): Promise<Quiz[]> {
+  const needle = queryText.trim().toLowerCase();
   let base: Quiz[];
 
-  if (filters.genreId) {
-    base = await getQuizzesByGenre(filters.genreId, 100, 'latest');
+  if (needle) {
+    // 1. 各種条件に応じた Firestore クエリの並行実行
+    const normalizedQuery = normalizeTag(queryText);
+
+    const tagQuery = query(
+      quizzesRef,
+      where('status', '==', 'published'),
+      where('tags', 'array-contains', normalizedQuery)
+    );
+
+    const authorQuery = query(
+      quizzesRef,
+      where('status', '==', 'published'),
+      where('authorName', '==', queryText)
+    );
+
+    const [tagSnap, authorSnap, genreQuizzes, latestQuizzes] = await Promise.all([
+      getDocs(tagQuery),
+      getDocs(authorQuery),
+      getQuizzesByGenre(queryText, 100).catch(() => []), // ジャンル名が存在しない場合に例外がスローされる可能性があるため catch する
+      getLatestQuizzes(100),
+    ]);
+
+    const tagQuizzes = tagSnap.docs.map((d) => d.data());
+    const authorQuizzes = authorSnap.docs.map((d) => d.data());
+
+    // 2. クライアントサイドでのマージ・重複排除
+    const rawMerged = [...tagQuizzes, ...authorQuizzes, ...genreQuizzes, ...latestQuizzes];
+    base = dedupeQuizzesById(rawMerged);
   } else {
-    base = await getLatestQuizzes(100);
+    // queryText が空の場合は従来の単一ソース読み込み
+    if (filters.genreId) {
+      base = await getQuizzesByGenre(filters.genreId, 100, 'latest');
+    } else {
+      base = await getLatestQuizzes(100);
+    }
   }
 
-  const needle = queryText.trim().toLowerCase();
+  // 3. アプリ（サービス）層での大文字小文字を区別しない部分一致フィルタおよび詳細条件フィルターの適用
+  const matchedQuizzes = needle
+    ? base.filter((quiz) => {
+        const title = (quiz.title || '').toLowerCase();
+        const description = (quiz.description || '').toLowerCase();
+        const authorName = (quiz.authorName || '').toLowerCase();
+        const genre = (quiz.genre || '').toLowerCase();
+        const tags = (quiz.tags || []).map((t) => t.toLowerCase());
 
-  return base.filter((quiz) => {
+        return (
+          title.includes(needle) ||
+          description.includes(needle) ||
+          authorName.includes(needle) ||
+          genre.includes(needle) ||
+          tags.some((t) => t.includes(needle))
+        );
+      })
+    : base;
+
+  // 詳細フィルターとジャンルフィルターの適用
+  // filters.genreId が指定されている場合、マージされたジャンルも含むため expandGenreIdsForQuery を用いて判定する
+  let finalQuizzes = matchedQuizzes;
+
+  if (filters.genreId) {
+    const expandedGenreIds = new Set(await expandGenreIdsForQuery(filters.genreId));
+    finalQuizzes = finalQuizzes.filter((quiz) => {
+      if (expandedGenreIds.has(quiz.genre)) return true;
+      if (quiz.canonicalGenreId && expandedGenreIds.has(quiz.canonicalGenreId)) return true;
+      return false;
+    });
+  }
+
+  return finalQuizzes.filter((quiz) => {
     if (filters.difficultyMin != null && quiz.difficulty < filters.difficultyMin) return false;
     if (filters.difficultyMax != null && quiz.difficulty > filters.difficultyMax) return false;
     if (filters.minQuestions != null && quiz.questionCount < filters.minQuestions) return false;
     if (filters.maxQuestions != null && quiz.questionCount > filters.maxQuestions) return false;
-    if (!needle) return true;
-    const haystack = `${quiz.title} ${quiz.description}`.toLowerCase();
-    return haystack.includes(needle);
+    return true;
   });
 }
 
