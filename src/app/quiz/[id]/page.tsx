@@ -74,9 +74,9 @@ export default function QuizDetailPage({ params }: PageProps) {
     if (!quiz) return;
     
     // ウミガメスープ問題（lateral-thinking）が含まれているかを判定
-    const isLateral = quiz.questions.some((q) => q.type === 'lateral-thinking');
+    const isLateral = quiz.questions?.some((q) => q.type === 'lateral-thinking') ?? false;
     // 早押し問題が含まれているかを判定
-    const isQuick = quiz.format === 'quick-press' || quiz.questions.some((q) => q.type === 'quick-press');
+    const isQuick = quiz.format === 'quick-press' || (quiz.questions?.some((q) => q.type === 'quick-press') ?? false);
     
     if (isLateral) {
       // ウミガメスープ問題は専用のプレイ遷移（モードは lateral となる）
@@ -118,9 +118,9 @@ export default function QuizDetailPage({ params }: PageProps) {
   }
 
   // ウミガメスープ判定
-  const isLateralThinkingQuiz = quiz.questions.some((q) => q.type === 'lateral-thinking');
+  const isLateralThinkingQuiz = quiz.questions?.some((q) => q.type === 'lateral-thinking') ?? false;
   // 早押しクイズ判定
-  const isQuickPressQuiz = quiz.format === 'quick-press' || quiz.questions.some((q) => q.type === 'quick-press');
+  const isQuickPressQuiz = quiz.format === 'quick-press' || (quiz.questions?.some((q) => q.type === 'quick-press') ?? false);
 
   return (
     <div className={styles.container}>
