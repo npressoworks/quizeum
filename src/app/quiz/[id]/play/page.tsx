@@ -40,7 +40,7 @@ interface ContentProps {
 function QuizPlayPageContent({ quizId }: ContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const rawMode = searchParams.get('mode') || 'normal';
   const questionListMode = rawMode === 'question-list';
@@ -166,11 +166,22 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
     questions: playQuestions,
   });
 
+  const [associationHintIndices, setAssociationHintIndices] = useState<{ [questionId: string]: number }>({});
+  const [completing, setCompleting] = useState<boolean>(false);
+
   useEffect(() => {
     if (!quiz || questionListMode || !startAtQuestionId) return;
     const idx = (quiz.questions ?? []).findIndex((q) => q.id === startAtQuestionId);
     if (idx >= 0) setCurrentIdx(idx);
   }, [quiz, startAtQuestionId, questionListMode, setCurrentIdx]);
+
+  // isFinished が true になったときに自動的に完了処理を走らせる
+  useEffect(() => {
+    if (isFinished && !completing && playQuestions.length > 0 && !loading) {
+      setCompleting(true);
+      handlePlayComplete();
+    }
+  }, [isFinished, completing, playQuestions.length, loading]);
 
   // 3. 通常・試験・フラッシュカード完了時の処理
   const handlePlayComplete = async (finalScore = score, finalFailed = failedIds) => {
@@ -218,6 +229,24 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
           localStorage.setItem(`quizeum_qp_times_${attemptId}`, JSON.stringify(quickPressTimes));
         }
 
+        // 連想クイズの表示ヒント情報を localStorage に保存
+        const revealedHintsData = (quiz.questions ?? []).map((q) => {
+          if (q.type === 'association') {
+            const maxIdx = associationHintIndices[q.id] ?? 0;
+            const hints = q.associationHints?.slice(0, maxIdx + 1) || [];
+            return {
+              questionId: q.id,
+              revealedHints: hints,
+              revealedCount: hints.length
+            };
+          }
+          return null;
+        }).filter(Boolean);
+
+        if (revealedHintsData.length > 0) {
+          localStorage.setItem(`quizeum_attempt_hints_${attemptId}`, JSON.stringify(revealedHintsData));
+        }
+
         const listQuery = listId ? `&listId=${listId}` : '';
         router.push(`/quiz/${quiz.id}/result?attemptId=${attemptId}${listQuery}`);
       } catch (error) {
@@ -243,6 +272,24 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
     // オフライン時も localStorage に早押しタイムを保存
     if (Object.keys(quickPressTimes).length > 0) {
       localStorage.setItem(`quizeum_qp_times_${localId}`, JSON.stringify(quickPressTimes));
+    }
+
+    // オフライン時も localStorage に連想クイズの表示ヒント情報を保存
+    const revealedHintsData = (quiz.questions ?? []).map((q) => {
+      if (q.type === 'association') {
+        const maxIdx = associationHintIndices[q.id] ?? 0;
+        const hints = q.associationHints?.slice(0, maxIdx + 1) || [];
+        return {
+          questionId: q.id,
+          revealedHints: hints,
+          revealedCount: hints.length
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    if (revealedHintsData.length > 0) {
+      localStorage.setItem(`quizeum_attempt_hints_${localId}`, JSON.stringify(revealedHintsData));
     }
 
     const listId = searchParams.get('listId');
@@ -432,7 +479,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
   // 4. ヒント表示モーダル制御
   const [showHint, setShowHint] = useState<boolean>(false);
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className={styles.container} style={{ textAlign: 'center', padding: '100px 0' }}>
         <p style={{ color: 'var(--text-muted)' }}>プレイ環境を準備中...</p>
@@ -594,14 +641,11 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
   const currentQuestion = quiz.questions[currentIdx];
   const progressPercent = playQuestions.length > 0 ? (answeredIds.length / playQuestions.length) * 100 : 0;
 
-  // すべて解答完了時のリダイレクト・完了トリガー
-  if (isFinished && currentIdx >= playQuestions.length) {
+  // すべて解答完了時のリダイレクト・完了トリガー（自動遷移）
+  if (isFinished || completing || (isFinished && currentIdx >= playQuestions.length)) {
     return (
       <div className={styles.container} style={{ textAlign: 'center', padding: '100px 0' }}>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>全問終了しました！</p>
-        <button className="btn btn-primary" onClick={() => handlePlayComplete()}>
-          結果を確認する
-        </button>
+        <p style={{ color: 'var(--text-muted)' }}>解答データを送信中...</p>
       </div>
     );
   }
@@ -946,7 +990,16 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
               <button
                 className="btn btn-secondary"
                 style={{ width: '100%', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)' }}
-                onClick={() => setActiveHintIdx((prev) => prev + 1)}
+                onClick={() => {
+                  setActiveHintIdx((prev) => {
+                    const next = prev + 1;
+                    setAssociationHintIndices((prevIndices) => ({
+                      ...prevIndices,
+                      [currentQuestion.id]: next
+                    }));
+                    return next;
+                  });
+                }}
               >
                 次のヒントを表示する (残り {currentQuestion.associationHints.length - 1 - activeHintIdx} 件)
               </button>

@@ -3,11 +3,12 @@
 import React, { useEffect, useState, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Check, X, ShieldAlert, Award, Heart, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, ArrowLeft, Trophy, CheckCircle, ChevronRight } from 'lucide-react';
+import { Check, X, ShieldAlert, Award, Heart, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, ArrowLeft, Trophy, CheckCircle, ChevronRight, Bookmark } from 'lucide-react';
 import { parseMarkdownToHtml } from '@/lib/security/sanitize';
 import { MarkdownContent } from '@/components/markdown/markdown-content';
 import { useAuth } from '@/context/auth-context';
-import { getQuiz } from '@/services/quiz';
+import { getDifficultyColor } from '@/lib/difficulty-color';
+import { getQuiz, getQuizzesByAuthor } from '@/services/quiz';
 import { getQuizList } from '@/services/quiz-list';
 import { submitReview, submitFeedbackReport } from '@/services/review';
 import { sendReaction } from '@/services/reaction';
@@ -16,8 +17,11 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getPendingSyncAttempts } from '@/services/attempt-session';
 import { formatCorrectAnswer, formatUserAnswer, getUserAnswerRaw } from '@/services/attempt-answer-display';
 import { Quiz, Attempt, FeedbackReport, Question } from '@/types';
-import { getBookmarkFeed } from '@/services/bookmark';
+import { getBookmarkFeed, toggleBookmark } from '@/services/bookmark';
 import { QuestionBookmarkToggle } from '@/components/bookmark/question-bookmark-toggle';
+import { QuizCard } from '@/components/quiz/quiz-card';
+import { SkeletonCard } from '@/components/ui/skeleton-card';
+import { ReportModal } from '@/components/quiz/report-modal';
 import {
   readQuestionListSession,
   advanceQuestionListSession,
@@ -35,7 +39,7 @@ interface ContentProps {
   quizId: string;
 }
 
-function QuizResultPageContent({ quizId }: ContentProps) {
+export function QuizResultPageContent({ quizId }: ContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -69,6 +73,18 @@ function QuizResultPageContent({ quizId }: ContentProps) {
   const [isLastInQuestionList, setIsLastInQuestionList] = useState(false);
   const [questionListSessionMissing, setQuestionListSessionMissing] = useState(false);
   const [bookmarkedQuestionIds, setBookmarkedQuestionIds] = useState<Set<string>>(new Set());
+  const [bookmarkedQuizIds, setBookmarkedQuizIds] = useState<Set<string>>(new Set());
+
+  // 連想クイズの表示ヒント履歴用
+  const [revealedHints, setRevealedHints] = useState<{ questionId: string; revealedHints: string[]; revealedCount: number }[]>([]);
+
+  // 同一作者のおすすめクイズ用
+  const [recommendQuizzes, setRecommendQuizzes] = useState<Quiz[]>([]);
+  const [recommendLoading, setRecommendLoading] = useState<boolean>(true);
+  const [recommendError, setRecommendError] = useState<string | null>(null);
+
+  // 通報モーダル表示用
+  const [showReportModal, setShowReportModal] = useState<boolean>(false);
 
   // 特定の問題に対する間違い指摘用
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
@@ -136,6 +152,19 @@ function QuizResultPageContent({ quizId }: ContentProps) {
             setQuickPressTimes(JSON.parse(savedTimes));
             localStorage.removeItem(`quizeum_qp_times_${key}`);
           }
+
+          // 連想クイズのヒント履歴をロード
+          const savedHints = localStorage.getItem(`quizeum_attempt_hints_${key}`);
+          if (savedHints) {
+            try {
+              setRevealedHints(JSON.parse(savedHints));
+            } catch (err) {
+              console.error('[QuizResult] ヒント履歴のパース失敗:', err);
+            }
+          }
+
+          // ヒント履歴キャッシュのクレンジング処理を実行
+          cleanOldHintsCache(key);
         }
       } catch (e) {
         console.error('[QuizResult] ロード失敗:', e);
@@ -146,17 +175,79 @@ function QuizResultPageContent({ quizId }: ContentProps) {
     loadData();
   }, [quizId, attemptId, localId]);
 
+  // ヒント履歴キャッシュのクレンジング処理
+  const cleanOldHintsCache = (currentAttemptId: string) => {
+    const indexKey = 'quizeum_hints_cache_index';
+    let index: { attemptId: string; timestamp: number }[] = [];
+    try {
+      const rawIndex = localStorage.getItem(indexKey);
+      if (rawIndex) {
+        index = JSON.parse(rawIndex);
+      }
+    } catch (e) {
+      console.error('[QuizResult] キャッシュインデックスのロード失敗:', e);
+    }
+
+    const existingIdx = index.findIndex((item) => item.attemptId === currentAttemptId);
+    if (existingIdx !== -1) {
+      index[existingIdx].timestamp = Date.now();
+    } else {
+      index.push({ attemptId: currentAttemptId, timestamp: Date.now() });
+    }
+
+    // タイムスタンプ降順ソート
+    index.sort((a, b) => b.timestamp - a.timestamp);
+
+    // 20件を超える古いキャッシュを削除
+    if (index.length > 20) {
+      const keep = index.slice(0, 20);
+      const remove = index.slice(20);
+      remove.forEach((item) => {
+        localStorage.removeItem(`quizeum_attempt_hints_${item.attemptId}`);
+      });
+      index = keep;
+    }
+
+    localStorage.setItem(indexKey, JSON.stringify(index));
+  };
+
   useEffect(() => {
     if (!user) {
       setBookmarkedQuestionIds(new Set());
+      setBookmarkedQuizIds(new Set());
       return;
     }
     getBookmarkFeed(user.id)
       .then((feed) => {
         setBookmarkedQuestionIds(new Set(feed.questions.map((e) => e.question.id)));
+        setBookmarkedQuizIds(new Set(feed.quizzes.map((e) => e.quiz.id)));
       })
-      .catch(() => setBookmarkedQuestionIds(new Set()));
+      .catch(() => {
+        setBookmarkedQuestionIds(new Set());
+        setBookmarkedQuizIds(new Set());
+      });
   }, [user]);
+
+  // 同じ作者のおすすめクイズを取得
+  useEffect(() => {
+    if (!quiz?.authorId) return;
+    async function loadRecommend() {
+      try {
+        setRecommendLoading(true);
+        const quizzes = await getQuizzesByAuthor(quiz.authorId);
+        // 自分（今プレイしたクイズ）を除外して最大3件
+        const filtered = quizzes.filter((q) => q.id !== quiz.id).slice(0, 3);
+        setRecommendQuizzes(filtered);
+        setRecommendError(null);
+      } catch (e) {
+        console.error('[QuizResult] おすすめクイズのロード失敗:', e);
+        setRecommendError('おすすめクイズの読み込みに失敗しました。');
+      } finally {
+        setRecommendLoading(false);
+      }
+    }
+    loadRecommend();
+  }, [quiz?.authorId, quiz?.id]);
 
   // 2.5 リスト内の次設問／次クイズ判定（設問リストを優先）
   useEffect(() => {
@@ -294,8 +385,8 @@ function QuizResultPageContent({ quizId }: ContentProps) {
       const report: Omit<FeedbackReport, 'id' | 'status' | 'createdAt'> = {
         quizId: quiz.id,
         quizTitle: quiz.title,
-        questionId: selectedQuestion?.id || 'unknown',
-        questionText: selectedQuestion?.questionText || '全体',
+        questionId: selectedQuestion ? selectedQuestion.id : 'unknown',
+        questionText: selectedQuestion ? selectedQuestion.questionText : '全体',
         reporterId: user.id,
         creatorId: quiz.authorId,
         category: feedbackCategory,
@@ -314,6 +405,66 @@ function QuizResultPageContent({ quizId }: ContentProps) {
     } finally {
       setFeedbackLoading(false);
     }
+  };
+
+  // 現クイズのブックマークトグル
+  const handleCurrentQuizBookmarkToggle = async () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    try {
+      const isCurrentlyBookmarked = bookmarkedQuizIds.has(quiz.id);
+      await toggleBookmark(user.id, quiz.id, 'quiz');
+      setBookmarkedQuizIds((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyBookmarked) {
+          next.delete(quiz.id);
+        } else {
+          next.add(quiz.id);
+        }
+        return next;
+      });
+    } catch (e) {
+      console.error('[QuizResult] クイズブックマークトグル失敗:', e);
+    }
+  };
+
+  // おすすめクイズのブックマークトグル
+  const handleRecommendBookmarkToggle = async (targetQuizId: string) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    try {
+      const isCurrentlyBookmarked = bookmarkedQuizIds.has(targetQuizId);
+      await toggleBookmark(user.id, targetQuizId, 'quiz');
+      setBookmarkedQuizIds((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyBookmarked) {
+          next.delete(targetQuizId);
+        } else {
+          next.add(targetQuizId);
+        }
+        return next;
+      });
+    } catch (e) {
+      console.error('[QuizResult] おすすめクイズブックマークトグル失敗:', e);
+    }
+  };
+
+  // おすすめクイズのプレイクリック
+  const handleRecommendPlayClick = (targetQuizId: string) => {
+    router.push(`/quiz/${targetQuizId}`);
+  };
+
+  // 通報ボタンクリック
+  const handleReportClick = () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    setShowReportModal(true);
   };
 
   if (loading) {
@@ -374,6 +525,22 @@ function QuizResultPageContent({ quizId }: ContentProps) {
 
       {/* スコア結果サマリー */}
       <div className={styles.summaryCard}>
+        <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+          <button
+            className={`${styles.summaryBookmarkBtn} ${bookmarkedQuizIds.has(quiz.id) ? styles.summaryBookmarkBtnActive : ''}`}
+            onClick={handleCurrentQuizBookmarkToggle}
+            data-testid="quiz-result-bookmark-btn"
+            aria-label="クイズをブックマーク"
+            type="button"
+          >
+            <Bookmark
+              size={24}
+              color={bookmarkedQuizIds.has(quiz.id) ? '#00ff66' : 'currentColor'}
+              fill={bookmarkedQuizIds.has(quiz.id) ? '#00ff66' : 'none'}
+            />
+          </button>
+        </div>
+
         <div className={styles.scoreCircle}>
           <span className={styles.scoreVal}>{attempt.score}</span>
           <span className={styles.scoreLabel}>/ {attempt.totalQuestions} 問 正解</span>
@@ -385,6 +552,10 @@ function QuizResultPageContent({ quizId }: ContentProps) {
             : '👍 お疲れ様でした！ナイスプレイ！'}
         </h1>
 
+        <p style={{ margin: '-12px 0 0 0', fontSize: '0.95rem', color: 'var(--text-muted)' }}>
+          作者: <Link href={`/profile/${quiz.authorId}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>{quiz.authorName || '作成者'}</Link>
+        </p>
+
         <div className={styles.metaStats}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             ⏱️ 経過秒数: <strong>{attempt.elapsedSeconds}</strong> 秒
@@ -392,6 +563,37 @@ function QuizResultPageContent({ quizId }: ContentProps) {
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             🎯 クリア率: <strong>{Math.round((attempt.score / attempt.totalQuestions) * 100)}</strong>%
           </span>
+          {quiz.type === 'lateral-thinking' && attempt.aiTurnCount !== undefined && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              💬 質問回数: <strong>{attempt.aiTurnCount}</strong> 回
+            </span>
+          )}
+          {(() => {
+            const diffVal = typeof quiz.difficulty === 'number' ? quiz.difficulty : parseInt(quiz.difficulty as any || '0', 10);
+            const diffNum = isNaN(diffVal) ? 0 : diffVal;
+            return (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}>
+                難易度: 
+                <span style={{ color: getDifficultyColor(diffNum) }}>
+                  {'★'.repeat(diffNum)}
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {'☆'.repeat(Math.max(0, 10 - diffNum))}
+                </span>
+              </span>
+            );
+          })()}
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '300px', marginTop: '8px' }}>
+          <Link
+            href={`/quiz/${quiz.id}`}
+            className="btn btn-primary"
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            data-testid="quiz-replay-btn"
+          >
+            もう一度プレイする
+          </Link>
         </div>
       </div>
 
@@ -467,11 +669,33 @@ function QuizResultPageContent({ quizId }: ContentProps) {
         {/* 2. 難易度投票 (1 - 10) */}
         <div className={styles.difficultyVoteSection}>
           <span className={styles.voteLabel}>あなたが感じた体感難易度を投票してください (1: 簡単 〜 10: 激難)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>あなたの投票: </span>
+            {difficultyVote !== null ? (
+              <span>
+                <span style={{ color: getDifficultyColor(difficultyVote) }}>
+                  {'★'.repeat(difficultyVote)}
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {'☆'.repeat(Math.max(0, 10 - difficultyVote))}
+                </span>
+                <span style={{ marginLeft: '8px', fontWeight: 'bold', color: 'var(--text-main)' }}>({difficultyVote})</span>
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>未投票</span>
+            )}
+          </div>
           <div className={styles.difficultyBar}>
             {Array.from({ length: 10 }, (_, i) => i + 1).map((level) => (
               <button
                 key={level}
                 className={`${styles.diffCell} ${difficultyVote === level ? styles.diffCellSelected : ''}`}
+                style={{
+                  borderColor: difficultyVote === level ? getDifficultyColor(level) : 'var(--border-light)',
+                  boxShadow: difficultyVote === level ? `0 0 8px ${getDifficultyColor(level)}` : 'none',
+                  color: difficultyVote === level ? '#fff' : getDifficultyColor(level),
+                  background: difficultyVote === level ? getDifficultyColor(level) : 'rgba(255, 255, 255, 0.02)'
+                }}
                 onClick={() => handleDifficultyVote(level)}
                 disabled={!online}
               >
@@ -481,15 +705,28 @@ function QuizResultPageContent({ quizId }: ContentProps) {
           </div>
         </div>
 
-        {/* 3. 指摘・お礼リアクションバー */}
+        {/* 3. 指摘・お礼・通報リアクションバー */}
         <div className={styles.actionBtnRow}>
           <button
             className="btn btn-secondary"
             style={{ flex: 1 }}
-            onClick={() => openFeedbackModal(quiz.questions?.[0] || { id: 'unknown', questionText: '全体' } as any)}
+            onClick={() => {
+              setSelectedQuestion(null);
+              setFeedbackCategory('typo');
+              setShowFeedbackModal(true);
+            }}
             disabled={!online}
           >
             <MessageSquare size={16} /> クイズ全体の指摘
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ flex: 1, borderColor: 'rgba(255, 0, 127, 0.3)', color: '#ff007f' }}
+            onClick={handleReportClick}
+            disabled={!online}
+            data-testid="quiz-report-btn"
+          >
+            <AlertTriangle size={16} /> クイズを通報
           </button>
           <button
             className="btn btn-accent"
@@ -670,9 +907,62 @@ function QuizResultPageContent({ quizId }: ContentProps) {
                   />
                 </div>
               )}
+
+              {/* 連想クイズのヒント履歴表示 */}
+              {q.type === 'association' && (() => {
+                const questionHintData = revealedHints.find((h) => h.questionId === q.id);
+                const hintsToShow = questionHintData?.revealedHints || [];
+                return (
+                  <div className={styles.hintHistoryBox}>
+                    <div className={styles.hintHistoryTitle}>🔍 開示したヒント ({hintsToShow.length}件)</div>
+                    {hintsToShow.length > 0 ? (
+                      <ul className={styles.hintHistoryList}>
+                        {hintsToShow.map((hint, hIdx) => (
+                          <li key={hIdx} className={styles.hintHistoryItem}>
+                            ヒント {hIdx + 1}: {hint}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className={styles.hintHistoryEmpty}>ヒントは表示されませんでした。</p>
+                    )}
+                  </div>
+                );
+              })()}
             </article>
           );
         })}
+      </section>
+
+      {/* 同じ作者の他のおすすめクイズ表示 */}
+      <section className={styles.recommendSection} data-testid="author-quizzes-section">
+        <h2 style={{ fontSize: '1.3rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '16px' }}>
+          この作者の他のクイズ
+        </h2>
+        {recommendLoading ? (
+          <div className={styles.recommendGrid}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonCard key={i} data-testid="skeleton-card" />
+            ))}
+          </div>
+        ) : recommendError ? (
+          <p style={{ color: 'var(--text-muted)' }}>{recommendError}</p>
+        ) : recommendQuizzes.length > 0 ? (
+          <div className={styles.recommendGrid}>
+            {recommendQuizzes.map((q) => (
+              <QuizCard
+                key={q.id}
+                quiz={q}
+                href={`/quiz/${q.id}`}
+                isBookmarked={bookmarkedQuizIds.has(q.id)}
+                onBookmarkToggle={handleRecommendBookmarkToggle}
+                onPlayClick={handleRecommendPlayClick}
+              />
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: 'var(--text-muted)' }}>他におすすめのクイズはありません。</p>
+        )}
       </section>
 
       {/* 間違い指摘モーダルダイアログ (Task 5.3) */}
@@ -700,7 +990,9 @@ function QuizResultPageContent({ quizId }: ContentProps) {
                   >
                     <option value="typo">誤字脱字・表現の修正</option>
                     <option value="fact">事実誤認・解答の間違い</option>
-                    <option value="alternative">別解の追加要望</option>
+                    {selectedQuestion !== null && (
+                      <option value="alternative">別解の追加要望</option>
+                    )}
                   </select>
                 </div>
 
@@ -737,6 +1029,16 @@ function QuizResultPageContent({ quizId }: ContentProps) {
             )}
           </div>
         </div>
+      )}
+
+      {/* 通報モーダル */}
+      {user && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          quizId={quiz.id}
+          reporterId={user.id}
+        />
       )}
     </div>
   );

@@ -17,6 +17,8 @@
 
 **Phase 11（2026-06）**: ホーム検索バー直下のアコーディオン（「ジャンルで絞り込む」「出題形式で絞り込む」）と横スクロールカードカルーセルによる**ホーム内フィルタ型**探索、`GenreNav` ピルナビの置換、ジャンル別一覧（`/genres/[genreName]`）への scoped 検索 UI 追加。出題形式フィルタは `quizeum-core` Phase 11（`SearchFilters.format`）に依存する。
 
+**Phase 12（2026-06-06）**: クイズプレイ画面から結果画面への自動遷移、難易度（★）の等幅ゲージのグラデーションカラー表示（詳細・結果共通）、結果画面でのヒント・質問回数表示、もう一度プレイするボタン、作者プロフィールリンク、同じ作者の他のクイズ推薦、お疲れ様でしたカード上のクイズブックマークボタン、指摘カテゴリの「別解の追加要望」のクイズ全体指摘時の除外、指摘ボタン横の通報ボタン表示と通報モーダル連携。
+
 ### Goals
 - 複合検索フィルタ、タブ切替タイムラインを備えた軽快なホーム画面の構築。
 - プレイ中のブラウザ再読み込みや切断をカバーする、`localStorage` を用いた解答セッションのクライアントサイド一時保護と同期。
@@ -30,6 +32,8 @@
 - **Phase 9**: ホーム画面のファーストビュー最適化、検索バー上部優先、1行横スクロールジャンルピル、主要ジャンル以外の「すべて見る」折りたたみ、サムネイル・評価スター・「プレイする」ボタン付きクイズカードグリッド表示、検索中スケルトンプレースホルダー、クリアボタン・ネオン発光エフェクト付き統合検索。
 - **Phase 10**: `UnifiedSearchField` によるタグチップ＋タグ／ジャンルサジェスト、クイックサーチチップからのタグチップ追加、`QuizCard` の `★ N` 難易度・ジャンル・出題形式表示、探索一覧ページでのカード統一。
 - **Phase 11**: ホームのアコーディオン＋ジャンル／形式カルーセル（ホーム内フィルタ）、`GenreNav` ホーム参照の除去、探索フィルタ状態の一元管理（`format` 含む）、ジャンルページ scoped 検索（`ExploreSearchSection` 再利用）。
+- **Phase 12**: プレイ終了画面の削除と最後の設問解答時の自動遷移、難易度（★）の等幅ゲージのグラデーションカラー表示（詳細・結果）、結果画面でのヒント・質問回数表示、もう一度プレイするボタン、作者へのリンクと他のクイズおすすめ表示、結果ヘッダーでのクイズブックマーク、指摘カテゴリ別解除外、指摘ボタン横の通報ボタン表示と送信機能。
+
 
 ### Non-Goals
 - クイズおよびクイズリストの作成・編集UIそのもの（ただし、詳細画面での作成者判定ボタン表示と、編集画面における他ユーザーによる直接アクセス時の認可保護ガード処理は本スペックで担当し、実際のエディタ処理自体は `quizeum-creator-dash-ui` に委ねます）。
@@ -39,6 +43,8 @@
 - **Phase 8**: リスト作成・`listType` 選択・設問のリストへの追加 UI（`quizeum-creator-dash-ui`）。`bookmarksCount` 更新・`attempts` 書き込みロジック（`quizeum-core`）。プロフィールのリストタイプ表示（`quizeum-auth-profile-ui`）。
 - **Phase 10**: `listActiveTags`（存続タグのみ・`quizeum-core` 要件 16）・`searchQuizzes.tags` AND 合成（`quizeum-core` 要件 16）。ジャンル／タグ一覧ページへの検索バー新設。クイズ詳細・プレイ画面の難易度表示変更。タグ新設申請・マージ UI（`quizeum-moderation-governance-ui`）。
 - **Phase 11**: 出題形式専用一覧ルート（`/formats/[format]`）、URL クエリによるフィルタ共有可能化、タグ別一覧への検索バー追加、カルーセル自動スライド・外部 carousel ライブラリ導入。`searchQuizzes` の形式照合ロジック（`quizeum-core`）。
+- **Phase 12**: 指摘フィードバック・通報・ブックマークのFirestoreへの物理的な保存・カウントアップ・自動審査（`quizeum-core` が担当）。
+
 
 ---
 
@@ -59,6 +65,12 @@
 - **統合検索のタグチップ化とサジェスト（Phase 10）**: `UnifiedSearchField`、タグチップ状態管理、`useActiveTags`、探索一覧での `QuizCard` 共通化とメタ表示拡張。
 - **探索アコーディオン・カルーセル（Phase 11）**: `ExploreAccordionsPanel`、`GenreCarousel`、`FormatCarousel`、ホーム内フィルタ型ジャンル／形式選択、`GenreNav` ホームからの除去。
 - **ジャンルページ scoped 検索 UI（Phase 11）**: `ExploreSearchSection`（`lockedGenreId` 付き）、`useExploreQuizFeed`、ソートタブと scoped 検索の分岐。
+- **自動結果遷移 (Phase 12)**: プレイ画面（`/play`）での最後の設問解答時、全問終了待ち画面を挟まずに `handlePlayComplete` に自動リダイレクト。
+- **難易度★グラデーションカラー表示 (Phase 12)**: クイズ詳細画面および結果画面（難易度表示、難易度投票）の★ゲージの色を難易度の値に応じて動的変更。
+- **結果詳細情報の拡充 (Phase 12)**: 連想クイズのヒント一覧（開示数）、ウミガメスープの質問回数の表示。
+- **結果画面の各種ナビゲーション・おすすめ (Phase 12)**: もう一度プレイするボタン、作者のプロフィールリンク、作者の他の公開クイズを取得して `QuizCard` で最大3件表示するおすすめセクション。
+- **結果画面のアクション強化 (Phase 12)**: 結果サマリーカード上のクイズ全体のブックマークトグル、指摘モーダルの全体指摘時「別解の追加」カテゴリ非表示、指摘ボタン横の通報ボタン表示と通報モーダル連携。
+
 
 ### Out of Boundary
 - Gemini APIとの対話やプロンプト生成のバックエンドロジック本体。
@@ -256,6 +268,15 @@ hooks/
 - `src/lib/quiz-format-labels.ts` — 各形式に対応する絵文字アイコンを返却する `getFormatIcon` を追加。
 - `tests/components/home-page.test.tsx` — `GenreNav` 非表示、カルーセルフィルタ、クリア連動。
 - `e2e/quiz-search.spec.ts` — ジャンルカルーセルが `/genres` に遷移しないこと、形式カルーセル絞り込み。
+
+### New Files（Phase 12）
+- [difficulty-color.ts](file:///d:/quizeum/src/lib/difficulty-color.ts) — 難易度(1〜10)に応じた HSL カラーを算出する共通ヘルパー。 (2.1b-1)
+- [report-modal.tsx](file:///d:/quizeum/src/components/quiz/report-modal.tsx) / [report-modal.module.css](file:///d:/quizeum/src/components/quiz/report-modal.module.css) — 通報理由を入力・送信でき、`quizeum-core` の `flagContent`（または同等 API）を呼び出す通報モーダル。 (5.11a)
+
+### Modified Files（Phase 12）
+- [play/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/play/page.tsx) — 全問終了時の自動結果画面遷移。連想クイズ解答完了時に表示したヒント一覧を `localStorage`（例：`quizeum_attempt_hints_{attemptId}`）へ保存。 (3.6, 5.6)
+- [page.tsx](file:///d:/quizeum/src/app/quiz/[id]/page.tsx) — クイズ詳細の難易度（★）の等幅ゲージグラデーションカラー適用。 (2.1b-1)
+- [result/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/result/page.tsx) / [result.module.css](file:///d:/quizeum/src/app/quiz/[id]/result/result.module.css) — 難易度表示・難易度投票のグラデーションカラー適用、連想クイズのヒント一覧・ウミガメスープ質問回数表示、もう一度プレイするボタン、作者へのリンクと他のクイズおすすめ表示、結果サマリーカード上のクイズブックマークトグル、全体指摘時の「別解の追加」カテゴリ非表示、通報ボタン表示と通報モーダル連携。 (5.2a, 5.3a, 5.6, 5.7, 5.7a, 5.8, 5.9, 5.10, 5.11)
 
 ### Modified Files（Phase 6）
 - `src/app/page.tsx` — `GENRES` 定数削除、`GenreNav`（遷移専用）+ `GenreSearchField` + `useHomeQuizFeed` + `usePlayedQuizIds`。
@@ -489,6 +510,38 @@ sequenceDiagram
     Page->>Page: BookmarksTabs でタブ切替（再フェッチなし）
 ```
 
+### 連想クイズヒント履歴永続化バイパスフロー（Phase 12）
+```mermaid
+sequenceDiagram
+    participant Play as QuizPlayPage (/play)
+    participant Local as LocalStorage
+    participant Result as QuizResultPage (/result)
+
+    Play->>Play: 解答進行（ヒント表示）
+    Note over Play: 表示したヒントのインデックスを状態保持
+    Play->>Local: saveAttempt 完了時、表示ヒント履歴を保存<br/>(quizeum_attempt_hints_{attemptId})
+    Play->>Result: router.push (/result?attemptId={attemptId})
+    Result->>Local: getRecentRevealedHints(attemptId)
+    Local-->>Result: ヒント履歴データ
+    Result->>Result: 結果詳細情報にヒント一覧を表示
+    Result->>Local: 表示後に履歴データをクリア (任意)
+```
+
+### コンテンツ通報フロー（Phase 12）
+```mermaid
+sequenceDiagram
+    participant Result as QuizResultPage
+    participant Modal as ReportModal
+    participant Core as ModerationService (core)
+
+    Result->>Result: 通報ボタン表示 (指摘ボタン横)
+    Result->>Modal: ボタンクリック (isOpen = true)
+    Modal->>Modal: 通報理由入力 (reason)
+    Modal->>Core: 送信 (flagContent(quizId, reporterId, reason))
+    Core-->>Modal: 送信完了
+    Modal-->>Result: モーダルを閉じる (onClose)
+```
+
 ---
 
 ## Requirements Traceability
@@ -579,6 +632,16 @@ sequenceDiagram
 | 13.19–13.23 | ジャンルページ scoped 検索 UI                                                                   | `GenreExplorePage`, `ExploreSearchSection`                                          | `lockedGenreId`, `hasActiveScopedExploreFilters` | ジャンルページ scoped 検索フロー           |
 | 13.24–13.25 | Out of boundary（形式専用ルート・サーバー照合なし）                                             | —                                                                                   | `quizeum-core`                                   | —                                          |
 | 13.26–13.27 | testid 契約                                                                                     | `ExploreAccordionsPanel`, `GenreCarousel`, `FormatCarousel`, `ExploreSearchSection` | —                                                | —                                          |
+| 2.1b-1      | 難易度に応じた星（★）の等幅ゲージグラデーションカラー表示                                       | `QuizDetailPage`                                                                    | `getDifficultyColor`                             | —                                          |
+| 3.6         | 解答完了時の自動結果画面遷移                                                                    | `QuizPlayPage`                                                                      | `handlePlayComplete`                             | —                                          |
+| 5.2a        | 結果画面難易度表示・投票星（★）のグラデーションカラー表示                                       | `QuizResultPage`                                                                    | `getDifficultyColor`                             | —                                          |
+| 5.3a        | クイズ全体指摘時の「別解の追加」カテゴリ非表示                                                   | `QuizResultPage`, 指摘ダイアログ                                                    | category filter                                  | —                                          |
+| 5.6         | 結果画面のヒント一覧表示（連想）および質問回数表示（ウミガメ）                                  | `QuizResultPage`                                                                    | `localStorage` 連携, `attempt.aiTurnCount`       | 連想クイズヒント履歴永続化バイパスフロー   |
+| 5.7 / 5.7a  | 結果画面「もう一度プレイする」ボタン (詳細画面遷移)                                              | `QuizResultPage`                                                                    | `useRouter`                                      | —                                          |
+| 5.8         | 結果画面作者プロフィールリンク表示                                                             | `QuizResultPage`                                                                    | `Link`                                           | —                                          |
+| 5.9         | 同じ作者の他クイズおすすめ表示                                                                  | `QuizResultPage`, `QuizCard`                                                        | `getQuizzesByAuthor`                             | —                                          |
+| 5.10        | 結果「お疲れ様でした」カードのクイズブックマークボタン                                           | `QuizResultPage`                                                                    | `toggleBookmark`                                 | —                                          |
+| 5.11 / 5.11a | 指摘横の通報ボタン表示と通報モーダル連携                                                         | `QuizResultPage`, `ReportModal`                                                     | `flagContent`                                    | コンテンツ通報フロー                       |
 
 ---
 
@@ -1096,6 +1159,22 @@ function buildQuestionListPlayUrl(session: QuestionListSession, index: number): 
   - `[data-testid="genre-explore-search"]` が表示され、キーワード入力で当該ジャンル内のみ結果が変わること。
   - フィルタ未指定時はソートタブ切替で `getQuizzesByGenre` 相当の一覧が維持されること。
 
+- **プレイ・結果画面および難易度UI改善（Phase 12）**:
+  - `[data-testid="quiz-card-difficulty"]` 等の星（★）ゲージに、難易度に応じたグラデーションカラー（`getDifficultyColor` 算出値）が適用されていること。
+  - 最後の設問解答時に「全問終了しました！」待機画面を挟まずに自動で結果画面（`/result`）へ遷移すること。
+  - 結果画面で連想クイズのヒント一覧（開示されたもの）、またはウミガメスープの質問回数が正しく表示されていること。
+  - 「もう一度プレイする」ボタンを押したときに `/quiz/[id]` に遷移すること。
+  - 作者のプロフィールページへのリンクおよびおすすめクイズ（最大3件）が正しく表示されること。
+  - 結果画面の「お疲れ様でした」カード領域に `data-testid="quiz-result-bookmark-btn"` を持つブックマークボタンが表示され、登録・解除ができること。
+  - クイズ全体指摘時に「指摘カテゴリ」から「別解の追加要望」が除外されていること。
+  - 指摘ボタンの隣に `data-testid="quiz-report-btn"` が表示され、クリックで通報モーダルが表示されること。通報モーダルから `flagContent` が正しく呼び出せること。
+
+### Unit Tests（Phase 12）
+- **`difficulty-color`**:
+  - 難易度1（緑）から難易度10（赤）まで、期待される HSL カラーコードが正しく算出されることを検証。
+- **`report-modal`**:
+  - モーダル表示、通報理由入力、送信時の `flagContent` 呼び出しおよび引数を検証。
+
 ### Unit Tests（Phase 11）
 - **`explore-filter-active`**: format 指定で active、scoped で locked genre のみでは false。
 - **`GenreCarousel` / `FormatCarousel`**: 選択・再選択トグル、testid、選択スタイル class。
@@ -1208,5 +1287,63 @@ export function filterGenreSuggestions<T extends Pick<GenreMetadata, 'id' | 'dis
   - 手動入力によるタグチップ化（Enterキーまたはスペースによるチップ追加確定タイミング、`tryAddChip`）
   - チップ化できないが、フリーワードとして Enter キーで検索を確定したタイミング (`input` の `onKeyDown` ハンドラにて)
   以上のタイミングで `addRecentKeyword` を呼び出し、確実に `localStorage` に履歴を記録します。
+
+---
+
+## Phase 12 クイズプレイ・結果画面および難易度UI改善設計（2026-06-06）
+
+### 概要
+プレイから結果画面への自動遷移、難易度（★）の等幅ゲージのグラデーションカラー表示（詳細・結果共通）、結果詳細でのヒント・質問回数表示、もう一度プレイするボタン、作者へのリンクと他のクイズおすすめ表示、結果ヘッダーでのクイズブックマーク、指摘カテゴリ別解除外、指摘ボタン横の通報ボタン表示と送信機能の実装を行います。
+
+### 1. 難易度星ゲージ（★）のグラデーションカラー
+難易度（1〜10）の値に応じて HSL カラースペースを用いて算出したカラーを `color` スタイルプロパティに適用します。
+* 算出ロジック:
+  [difficulty-color.ts](file:///d:/quizeum/src/lib/difficulty-color.ts) に `getDifficultyColor(difficulty: number): string` を定義します。
+  ```typescript
+  export function getDifficultyColor(difficulty: number): string {
+    // 難易度1のとき Hue=120(緑), 難易度10のとき Hue=3(赤)
+    const hue = Math.max(0, 120 - (difficulty - 1) * 13);
+    return `hsl(${hue}, 100%, 45%)`;
+  }
+  ```
+* 適用箇所:
+  * クイズ詳細画面 ([page.tsx](file:///d:/quizeum/src/app/quiz/[id]/page.tsx)) の10段階等幅星ゲージ
+  * クイズ結果画面 ([result/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/result/page.tsx)) の難易度投票セクション内の星UI
+  * クイズカード ([quiz-card.tsx](file:///d:/quizeum/src/components/quiz/quiz-card.tsx)) 内の難易度星アイコン (任意で適用)
+
+### 2. クイズプレイ画面から結果への自動遷移
+通常プレイ ([play/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/play/page.tsx)) において、最後の設問解答を送信したタイミングで、「全問終了しました！」といった待機用の中間画面をレンダリングせず、自動的に結果の保存処理を実行して結果画面 (`/quiz/[id]/result?attemptId={attemptId}`) へ遷移させます。
+* 状態管理:
+  `usePlayState` の完了ハンドラ `handlePlayComplete` が発火した際、即座に保存APIのレスポンス完了（またはクライアント側完了処理）を待って `router.replace` で結果画面へリダイレクトします。
+
+### 3. 結果画面での詳細情報表示 (ヒント履歴・質問回数)
+連想クイズ (association) および水平思考 (lateral-thinking) にて、プレイヤーの解答プロセス詳細を表示します。
+* **連想クイズのヒント履歴**:
+  Firestore へのスキーマ追加を回避するため、プレイ中のヒント表示情報 (`activeHintIdx` または表示済みの `revealedHints`) を解答完了時に `localStorage` に保存します。
+  * キー: `quizeum_attempt_hints_{attemptId}`
+  * 保存データ: `revealedHintTexts: string[]`（またはインデックスの配列）
+  * 結果画面ロード時、クエリパラメータの `attemptId` から対応するローカルデータを取得して表示します。
+* **ウミガメスープの質問回数**:
+  `attempt` オブジェクトに保持されている質問回数 (`aiTurnCount`) をそのまま流用し、結果画面のサマリー情報に「質問回数: {count} 回」として表示します。
+
+### 4. 結果画面のナビゲーション・おすすめ表示
+* **もう一度プレイする**:
+  詳細画面へ遷移するボタンを配置します (`router.push('/quiz/[id]')`)。
+* **作者リンク**:
+  作成者 ID に基づき、作者プロフィールページへのリンクを表示します。
+* **おすすめクイズ**:
+  `getQuizzesByAuthor(authorId)` を呼び出して、同じ作者の他の公開クイズを最大3件取得します。
+  * 取得したクイズのうち、現在プレイしたクイズを除外し、上位3件を `QuizCard` グリッドで描画します。
+  * 取得中やエラー時にはローディングまたは代替UIを表示し、クラッシュを防ぎます。
+
+### 5. 結果画面でのアクション強化 (ブックマーク・指摘・通報)
+* **お疲れ様でしたカードのブックマーク**:
+  結果サマリーカード領域に、クイズ全体のブックマークトグルボタンを配置します。`toggleBookmark` (コアAPI) を利用して、登録/解除を切り替えます。
+* **指摘カテゴリ制限**:
+  間違い指摘モーダルを開く際、対象が「クイズ全体への指摘」の場合のみ、カテゴリから「別解の追加要望」を除外または非表示にします (設問個別への指摘時のみ表示)。
+* **通報ボタンと通報モーダル**:
+  指摘ボタンの横に通報用のボタン (`data-testid="quiz-report-btn"`) を新設します。
+  * ボタン押下で `ReportModal` ([report-modal.tsx](file:///d:/quizeum/src/components/quiz/report-modal.tsx)) を開きます。
+  * `ReportModal` は通報理由 (reason) テキスト入力を提供し、送信時に `quizeum-core` の `flagContent(quizId, reporterId, reason)` を呼び出します。
 
 

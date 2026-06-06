@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft, Bookmark, Play, Award, Timer, Layers, HelpCircle, Edit } from 'lucide-react';
 import { QuizDualLeaderboard } from '@/components/quiz/quiz-dual-leaderboard';
 import { useAuth } from '@/context/auth-context';
+import { getDifficultyColor } from '@/lib/difficulty-color';
 import { getQuiz } from '@/services/quiz';
 import { toggleBookmark, isBookmarked } from '@/services/bookmark';
 import { Quiz } from '@/types';
@@ -125,7 +126,6 @@ export default function QuizDetailPage({ params }: PageProps) {
   
   const diffVal = typeof quiz.difficulty === 'number' ? quiz.difficulty : parseInt(quiz.difficulty as any || '0', 10);
   const diffNum = isNaN(diffVal) ? 0 : diffVal;
-  const stars = '★'.repeat(diffNum) + '☆'.repeat(Math.max(0, 10 - diffNum));
 
   // ウミガメスープ判定
   const isLateralThinkingQuiz = quiz.questions?.some((q) => q.type === 'lateral-thinking') ?? false;
@@ -185,7 +185,7 @@ export default function QuizDetailPage({ params }: PageProps) {
               )
             )}
             <div className={styles.difficultyBadge} style={{ fontFamily: 'monospace' }}>
-              難易度: {stars}
+              難易度: <span style={{ color: getDifficultyColor(diffNum) }}>{'★'.repeat(diffNum)}</span><span style={{ color: 'var(--text-muted)' }}>{'☆'.repeat(Math.max(0, 10 - diffNum))}</span>
             </div>
             <div className={styles.difficultyBadge}>
               形式: {getFormatIcon(resolveQuizFormat({ format: quiz.format, questions: quiz.questions ?? [] }))} {getFormatLabel(resolveQuizFormat({ format: quiz.format, questions: quiz.questions ?? [] }))}

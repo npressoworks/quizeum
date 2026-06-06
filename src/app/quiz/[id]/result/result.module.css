@@ -387,3 +387,89 @@
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* 追加: クイズ全体お気に入りボタン */
+.summaryCard {
+  position: relative;
+}
+
+.summaryBookmarkBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summaryBookmarkBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #00ff66;
+  transform: scale(1.1);
+}
+
+.summaryBookmarkBtnActive {
+  color: #00ff66;
+}
+
+/* おすすめクイズセクション */
+.recommendSection {
+  margin-top: 24px;
+}
+
+.recommendGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+
+/* 連想クイズヒント履歴表示 */
+.hintHistoryBox {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.hintHistoryTitle {
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.hintHistoryList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hintHistoryItem {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  padding-left: 12px;
+  position: relative;
+}
+
+.hintHistoryItem::before {
+  content: '•';
+  color: var(--color-primary);
+  position: absolute;
+  left: 0;
+}
+
+.hintHistoryEmpty {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
+}

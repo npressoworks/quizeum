@@ -26,13 +26,16 @@ test.describe('クイズプレイ・結果評価フロー E2Eテスト', () => {
     const uniqueTitle = `[TEST] E2Eプレイ_${Date.now().toString().slice(-4)}`;
     await page.locator('input[placeholder="例: React Hooksの基礎知識クイズ"]').fill(uniqueTitle);
     await page.locator('textarea[placeholder="クイズの概要や対象読者などを入力してください。"]').fill('E2Eテストプレイ検証用の自動生成クイズです。');
+    
+    // ジャンルの選択
+    await page.locator('select').first().selectOption({ label: 'ノンジャンル・総合' });
 
     // 第1問目の問題入力
-    const qTextarea = page.locator('textarea[placeholder="例: Reactにおいて、コンポーネントのステートを管理するためのフックは？"]').first();
+    const qTextarea = page.locator('textarea[placeholder="例: Reactにおいて、**useState** で管理するのは？"]').first();
     await qTextarea.fill('Reactのフックでステート管理を行うのは？');
 
     // 選択肢の入力
-    const choiceInputs = page.locator('.choiceRow input[type="text"]');
+    const choiceInputs = page.locator('[class*="choiceRow"] input[type="text"]');
     await choiceInputs.nth(0).fill('useState'); // 正解
     await choiceInputs.nth(1).fill('useEffect');
     await choiceInputs.nth(2).fill('useContext');
@@ -43,13 +46,12 @@ test.describe('クイズプレイ・結果評価フロー E2Eテスト', () => {
     await expTextarea.fill('正解は useState です。');
 
     // 公開
-    const publishBtn = page.locator('text=公開');
+    const publishBtn = page.getByRole('button', { name: '公開', exact: true });
     await expect(publishBtn).toBeVisible();
     await publishBtn.click();
 
-    // 公開完了アラートを閉じる
-    await expect.poll(() => dialogMessages).toContain('クイズを公開しました！');
-    await expect(page).toHaveURL(/\/creator\/dashboard/);
+    // 公開完了画面への遷移を待つ
+    await expect(page).toHaveURL(/\/quiz\/[a-zA-Z0-9_-]+\/success/);
 
     // 3. ホームに戻って公開したクイズを検索する
     await page.goto('/');
@@ -72,15 +74,17 @@ test.describe('クイズプレイ・結果評価フロー E2Eテスト', () => {
 
     // 5. クイズプレイ画面での解答操作
     await expect(page).toHaveURL(/\/play/);
-    // 正解の選択肢「useState」のボタン要素をクリック（strict mode 回避のためbuttonに厳密化）
-    const correctOptionBtn = page.locator('button.optionBtn, button').filter({ hasText: 'useState' }).first();
-    await expect(correctOptionBtn).toBeVisible({ timeout: 5000 });
-    await correctOptionBtn.click();
+    // 正解の選択肢「useState」を選択する
+    const optionLabel = page.locator('label').filter({ hasText: 'useState' }).first();
+    await expect(optionLabel).toBeVisible({ timeout: 5000 });
+    await optionLabel.click();
 
-    // 6. 全問終了（今回は1問）後のリザルト遷移
-    const viewResultBtn = page.locator('text=結果を確認する');
-    await expect(viewResultBtn).toBeVisible();
-    await viewResultBtn.click();
+    // 解答を確定する
+    const confirmBtn = page.getByRole('button', { name: '解答を確定する' });
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+
+    // 6. 全問終了（今回は1問）後のリザルト自動遷移の待機
 
     // 7. 結果画面の表示検証
     await expect(page).toHaveURL(/\/result/);
@@ -93,7 +97,7 @@ test.describe('クイズプレイ・結果評価フロー E2Eテスト', () => {
     await expect(scoreCircle).toContainText('問 正解');
     
     // 8. 良問評価👍を送信
-    const thumbsUpBtn = page.locator('text=良問 (👍)');
+    const thumbsUpBtn = page.getByRole('button', { name: '良問', exact: true });
     await expect(thumbsUpBtn).toBeVisible();
     
     // 自身が作成したクイズは評価できない仕様（disabled）になっているかを確認
@@ -116,7 +120,7 @@ test.describe('クイズプレイ・結果評価フロー E2Eテスト', () => {
     await expect(difficultyVoteBtn).toHaveClass(/.*diffCellSelected.*/);
 
     // 10. 作家感謝リアクションの送信
-    const reactionBtn = page.locator('text=お礼リアクションを送る');
+    const reactionBtn = page.locator('button').filter({ hasText: 'お礼リアクションを送る' }).first();
     if (await reactionBtn.isVisible()) {
       if (authorIsMe) {
         await expect(reactionBtn).toBeDisabled();
