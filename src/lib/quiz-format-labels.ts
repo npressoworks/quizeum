@@ -26,7 +26,7 @@ export function getFormatIcon(fmt: string): string {
     case 'mixed':
       return '🌀';
     case 'multiple-choice':
-      return '📝';
+      return '☑️';
     case 'text-input':
       return '✍️';
     case 'quick-press':

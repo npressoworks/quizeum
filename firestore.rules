@@ -249,9 +249,9 @@ service cloud.firestore {
         || resource.data.userId == request.auth.uid
       );
 
+      // id はドキュメントパス (bookmarkId) に格納。createConverter が本文から id を除去するため data.id は検証しない
       allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.id == bookmarkId
         && bookmarkId == request.resource.data.userId + '_' + request.resource.data.targetId
         && request.resource.data.targetType in ['quiz', 'list', 'question'];
 
