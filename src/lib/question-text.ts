@@ -1,5 +1,5 @@
 /**
- * プレイ画面で quick-press 設問の questionText が Base64 難読化されている場合に復号する。
+ * プレイ画面で quick-press 問題の questionText が Base64 難読化されている場合に復号する。
  */
 export function decodeStoredQuestionText(
   questionText: string,

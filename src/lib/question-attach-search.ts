@@ -31,7 +31,7 @@ export function mergeQuestionCandidates(
 }
 
 /**
- * 設問文・親タイトルに対するキーワード部分一致フィルタ
+ * 問題文・親タイトルに対するキーワード部分一致フィルタ
  */
 export function filterQuestionCandidatesByKeyword(
   candidates: QuestionAttachCandidate[],

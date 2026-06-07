@@ -10,7 +10,7 @@
 **Phase 6（2026-06）**: ジャンル・タグメタデータを `docs/` 正本に整合する。公開保存時に `canonicalGenreId` / `canonicalTagIds` を解決・非正規化し、一覧・検索は正規識別子クエリを優先しつつ legacy クイズ向けに `genre in` フォールバックを併用する（C2 方式）。`metadata-resolution` ライブラリに解決ロジックを集約し、`tagMerge.ts` をガバナンスの単一経路とする。
 また、悪質ユーザーのBAN（アカウント停止）機能を追加し、Firestore Security Rulesによるデータ書き込みの即時遮断、監査ログ記録、認証セッションの強制無効化（Cookie連携）を設計する。
 
-**Phase 8（2026-06）**: ブックマークをクイズ・クイズリスト・設問の3分類で取得し、設問ブックマークは親クイズ公開時のみ許可する。リストに `listType`（`quiz` | `question`）を追加し、設問リストには他者の公開設問も追加可能とする。設問リスト連続プレイは既存クイズリストと同様に**設問ごとに1 attempt**（`mode: 'question-list'`）を記録する。作問時は自作クイズを検索し、設問を参照リンク（ドキュメント複製なし）で再利用する。参照設問の編集は **Copy-on-Write 切り離し** とする（内容変更時のみ新規 `questions` ドキュメントを作成し、未変更 of 参照は既存 ID を維持）。
+**Phase 8（2026-06）**: ブックマークをクイズ・クイズリスト・問題の3分類で取得し、問題ブックマークは親クイズ公開時のみ許可する。リストに `listType`（`quiz` | `question`）を追加し、問題リストには他者の公開問題も追加可能とする。問題リスト連続プレイは既存クイズリストと同様に**問題ごとに1 attempt**（`mode: 'question-list'`）を記録する。作問時は自作クイズを検索し、問題を参照リンク（ドキュメント複製なし）で再利用する。参照問題の編集は **Copy-on-Write 切り離し** とする（内容変更時のみ新規 `questions` ドキュメントを作成し、未変更 of 参照は既存 ID を維持）。
 
 **Phase 9（2026-06）**: トップページの統合検索機能（ジャンル、タグ、クイズ名、作者名を単一検索バーで同時検索可能にするハイブリッド検索ロジック）をコア層の設計仕様として追加します。
 
@@ -29,7 +29,7 @@
 - 本人プレイ履歴をページング付きで安全に返却する（他ユーザーからの取得は拒否）。
 - ジャンル・タグの仮想統合を保存・一覧・弱点克服フィルタまで一貫適用し、canonical 単一クエリで探索性能を確保する（legacy フォールバック併用）。
 - BANされたユーザーによるシステムへの不正書き込み（Firestore / API）を即座にブロックし、既存の認証セッションを強制的にログアウトさせる。
-- クイズ・リスト・設問の分類ブックマーク、設問リスト CRUD/プレイ、自作クイズ検索、参照リンク設問の保存整合をコア層で一貫提供する。
+- クイズ・リスト・問題の分類ブックマーク、問題リスト CRUD/プレイ、自作クイズ検索、参照リンク問題の保存整合をコア層で一貫提供する。
 - 統合検索機能（ユニバーサル検索）のため、タイトル・説明・作者・タグ・ジャンルの並行ハイブリッド検索とクライアントデデュプ・フィルタロジックを最適化する。
 - **Phase 10**: タグマスタ一覧 API（`listActiveTags`）と、タグチップ配列による複数タグ AND 複合検索の一貫実装。
 - **Phase 11**: 出題形式（`format`）フィルタ付き複合検索。ジャンル固定 scoped 検索（`genreId` + 他条件 AND）の一貫実装。形式判定は `quiz-format-match` + `resolveQuizFormat` に集約。
@@ -54,9 +54,9 @@
 - **オフライン/セッション保護**: クライアントローカル永続ストレージでの進捗永続化およびオンライン復帰時の自動バッチ同期。
 - **クイズリーダーボード（初回／リプレイ）**: `quizzes.leaderboardFirstPlay` / `quizzes.leaderboardReplay` の更新ロジック、順位比較、トランザクション内の attempt 回数判定。
 - **プレイ履歴クエリ**: 認証済み本人向け `attempts` 一覧 of ページング取得（クイズタイトル非正規化の解決を含む）。
-- **Phase 8 — 分類ブックマーク**: 3種 `toggleBookmark`、公開親クイズ検証、分類一覧取得、設問ブックマーク通知。
-- **Phase 8 — 設問リスト**: `listType` 付きリスト CRUD、公開設問追加検証、設問 ID 並び替え、設問リストエクスポート、`question-list` attempt 記録契約。
-- **Phase 8 — 参照リンク作問**: `searchAuthorQuizzes`、参照 ID のみの保存パス、Copy-on-Write 切り離し、共有設問の安全な参照解除。
+- **Phase 8 — 分類ブックマーク**: 3種 `toggleBookmark`、公開親クイズ検証、分類一覧取得、問題ブックマーク通知。
+- **Phase 8 — 問題リスト**: `listType` 付きリスト CRUD、公開問題追加検証、問題 ID 並び替え、問題リストエクスポート、`question-list` attempt 記録契約。
+- **Phase 8 — 参照リンク作問**: `searchAuthorQuizzes`、参照 ID のみの保存パス、Copy-on-Write 切り離し、共有問題の安全な参照解除。
 - **Phase 9 — 統合検索コアロジック**: `searchQuizzes` API 内における複数インデックス並行クエリ（タグ、作者名、ジャンル名等）、クライアント側マージ・重複排除、および大文字小文字を区別しない各種項目（タイトル、説明、作者名、タグ、ジャンル）の部分一致フィルタリング処理。
 - **Phase 10 — タグマスタ一覧とタグ AND 検索**: `listActiveTags`、`quiz-tag-match` 純関数、`searchQuizzes` の `filters.tags` 拡張。
 - **Phase 11 — 出題形式フィルタと scoped 検索**: `SearchFilters.format`、`quiz-format-match` 純関数、`searchQuizzes` 後段形式フィルタ（`resolveQuizFormat` 一致）。ジャンル固定 scoped 検索は既存 `genreId` + `expandGenreIdsForQuery` を維持。
@@ -88,7 +88,7 @@
 - プレイ履歴APIのレスポンス形状またはページングカーソル形式の変更。
 - `metadata_genres` / `metadata_tags` スキーマ変更、canonical 解決アルゴリズム変更、ジャンル一覧クエリのフォールバック廃止。
 - `QuizList.listType` 追加および未設定リストのデフォルト解釈変更。
-- `Attempt.mode` に `question-list` 追加、参照リンク設問の Copy-on-Write 契約変更。
+- `Attempt.mode` に `question-list` 追加、参照リンク問題の Copy-on-Write 契約変更。
 - `BookmarkFeed` / `BookmarkedQuestionEntry` レスポンス形状の変更。
 - **Phase 10**: `SearchFilters.tags` の意味変更、`listActiveTags` の存続タグ定義（`canonicalId == null`）変更、`quiz-tag-match` 照合規則変更。
 - **Phase 11**: `SearchFilters.format` の許容値集合変更、`quiz-format-match` / `resolveQuizFormat` 推定規則変更（`quizeum-play-flow-ui` のカード・カルーセル表示と連動再検証）。
@@ -132,13 +132,13 @@ graph TB
 
 ### Technology Stack
 
-| Layer | Choice / Version | Role in Feature | Notes |
-|-------|------------------|-----------------|-------|
-| Frontend / CLI | Next.js v16.2.6 (App Router) | ユーザーUIの提供、ローカルセッション永続化 | React v19.2.4、TypeScript |
-| Backend / Services | Next.js API Routes | セキュアなAI判定プロキシ、即時退会Auth削除、Cloud Tasks登録 | Firebase Admin SDK |
-| Data / Storage | Cloud Firestore | 全データの永続化とアトミックカウント更新 | `firestore.indexes.json` で複合インデックスを管理 |
-| Messaging / Events | Cloud Tasks | 退会時非同期分割匿名化ジョブの遅延実行 | Cloud Functions と連携 |
-| Infrastructure / Runtime | Firebase Storage | アバターやカバー画像の保存（上限2MB） | Storage Security Rules による認証保護 |
+| Layer                    | Choice / Version             | Role in Feature                                             | Notes                                             |
+| ------------------------ | ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------- |
+| Frontend / CLI           | Next.js v16.2.6 (App Router) | ユーザーUIの提供、ローカルセッション永続化                  | React v19.2.4、TypeScript                         |
+| Backend / Services       | Next.js API Routes           | セキュアなAI判定プロキシ、即時退会Auth削除、Cloud Tasks登録 | Firebase Admin SDK                                |
+| Data / Storage           | Cloud Firestore              | 全データの永続化とアトミックカウント更新                    | `firestore.indexes.json` で複合インデックスを管理 |
+| Messaging / Events       | Cloud Tasks                  | 退会時非同期分割匿名化ジョブの遅延実行                      | Cloud Functions と連携                            |
+| Infrastructure / Runtime | Firebase Storage             | アバターやカバー画像の保存（上限2MB）                       | Storage Security Rules による認証保護             |
 
 ---
 
@@ -215,11 +215,11 @@ src/
 
 **Phase 8 追加ファイル**:
 - `src/lib/question-list-validation.ts` — **新規**。`listType` ガード、親クイズ `published` 検証、タイプ不一致操作拒否。
-- `src/lib/linked-question.ts` — **新規**。参照リンク判定、Copy-on-Write 切り離し、共有設問削除ガード。
+- `src/lib/linked-question.ts` — **新規**。参照リンク判定、Copy-on-Write 切り離し、共有問題削除ガード。
 - `src/services/author-quiz-search.ts` — **新規**。`searchAuthorQuizzes`（自作・下書き含むキーワード/タグ検索）。
-- `src/services/bookmark.ts` — 設問登録時検証、分類フィード取得、設問 BM 通知（13.x）。
-- `src/services/question.ts` — 設問一覧 enrich、リスト追加を validation 経由に（14.x）。
-- `src/services/quiz-list.ts` — `listType`、設問並び替え、タイプ別一覧、設問リストエクスポート（14.x）。
+- `src/services/bookmark.ts` — 問題登録時検証、分類フィード取得、問題 BM 通知（13.x）。
+- `src/services/question.ts` — 問題一覧 enrich、リスト追加を validation 経由に（14.x）。
+- `src/services/quiz-list.ts` — `listType`、問題並び替え、タイプ別一覧、問題リストエクスポート（14.x）。
 - `src/services/quiz.ts` — 参照リンク保存パス統合（15.x）。また、`searchQuizzes` API を拡張してタグ、作者名、ジャンル名、タイトルを網羅する並行クエリとクライアント側ハイブリッド部分一致フィルタを実装（Phase 9）。
 - `src/services/quiz-list-utils.ts` — `buildQuestionListExportPackage`、`reorderQuestionIds`。
 - `src/types/index.ts` — `QuizListType`, `listType`, `Attempt.mode` 拡張、`BookmarkFeed` 型。
@@ -241,7 +241,7 @@ src/
 **Phase 11 追加ファイル**:
 - `src/lib/quiz-format-match.ts` — **新規**。`resolveQuizFormat` を用いたクイズ×指定形式の一致判定（要件 17.1, 17.6）。
 - `src/services/quiz.ts` — `SearchFilters.format` 追加、`searchQuizzes` 後段に形式フィルタを挿入。
-- `tests/lib/quiz-format-match.test.ts` — **新規**。`format` フィールドあり／設問から推定／不一致。
+- `tests/lib/quiz-format-match.test.ts` — **新規**。`format` フィールドあり／問題から推定／不一致。
 - `tests/services/quiz-search-format-filter.test.ts` — **新規**。形式のみ、genreId+format、tags+format+keyword、format 未指定 regression、scoped genre 漏れなし。
 
 ---
@@ -566,98 +566,98 @@ sequenceDiagram
 
 ## Requirements Traceability
 
-| Requirement | Summary | Components | Interfaces | Flows |
-|-------------|---------|------------|------------|-------|
-| 1.1 | ユーザー登録および認証 | User Authentication | Firebase Auth | - |
-| 1.2 | プロフィール編集 | `UserService` | `updateProfile` | - |
-| 1.3 | 称号バッジ自動付与 | `UserService` | `checkAndAwardBadges` | - |
-| 1.4 | 退会時即時Auth削除 | `DeleteAccountAPI` | `/api/user/delete-account` | 退会フロー |
-| 1.5 | 大規模関連データの非同期匿名化 | `onDeleteUserJob` | Cloud Functions Trigger | 退会フロー |
-| 1.6 | 退会保留中のアクセス遮断 | Security Rules | `deleteStatus != 'delete_pending'` | - |
-| 2.1 | 下書き（タイトル・ジャンル・問題文必須） | `QuizService` | `saveQuiz('draft')` | メタデータ解決フロー |
-| 2.2 | ジャンルマスタ存在検証 | `metadata-resolution` | `assertActiveGenre` | メタデータ解決フロー |
-| 2.3 | 公開時バリデーション & NGチェック | `QuizService` | `saveQuiz('published')` | メタデータ解決フロー |
-| 2.4 | 保存時 canonical 非正規化 | `metadata-resolution` | `resolveCanonical*` | メタデータ解決フロー |
-| 2.5 | 未登録タグのマスタ自動 create | `metadata-resolution` | `ensureTagMasters` | メタデータ解決フロー |
-| 2.6 | タグ名寄せ & 類似サジェスト | `QuizService` | `normalizeTag`, `getSimilarTag` | - |
-| 2.7 | クイズタイトル更新時の非正規化同期 | `QuizService` | `updateQuiz` | - |
-| 2.8 | クイズ削除時のカスケードクリーンアップ | `QuizService` | `deleteQuiz` | - |
-| 2.9 | 作成クイズ一括エクスポート | `QuizService` | `exportQuizzes` | - |
-| 2.10 | 必須キーワード(エッセンス)のタグ風UI入力 | `QuizCreator` / UI | `truthKeywords` | - |
-| 2.11 | 公開時必須キーワードバリデーション | `QuizService` | `validateQuizForPublish` | - |
-| 2.12 | テストプレイは canonical 不要 | `test-play` | sessionStorage 経路 | - |
-| 3.1 | 通常モードプレイ | `AttemptService` | `saveAttempt` | - |
-| 3.2 | 解答セッションローカル永続化 | `LocalAttemptSession` | `saveToLocalStorage` | - |
-| 3.3 | オフラインプレイ結果と自動同期 | `LocalAttemptSession` | `syncPendingAttempts` | - |
-| 3.4 | オフラインリストプレイの進行ブロック | `LocalAttemptSession` | `checkConnectivity` | - |
-| 3.5 | プレイ結果画面（良問評価・難易度投票）| `ReviewService` | `submitReview` | - |
-| 3.6 | 永続化試行保存とLB更新委譲 | `AttemptService` | `saveAttempt` | リーダーボード更新フロー |
-| 3.7 | 弱点克服ジャンルフィルタ（マージ展開） | `AttemptService` | `getFailedQuestions` | - |
-| 9.1 | 永続化完了時のLB評価 | `AttemptService` | `saveAttempt` | リーダーボード更新フロー |
-| 9.2 | 初回完了は firstPlay のみ | `AttemptService` | `saveAttempt` (tx) | リーダーボード更新フロー |
-| 9.3 | 2回目以降は replay のみ | `AttemptService` | `saveAttempt` (tx) | リーダーボード更新フロー |
-| 9.4 | 正解数優先・同点タイム順 | `leaderboard-ranking.ts` | `compareLeaderboard` | - |
-| 9.5 | ユーザー1枠・厳密優位時のみ差し替え | `leaderboard-ranking.ts` | `mergeUserEntryAndTakeTop5` | - |
-| 9.6 | 上位5件保持 | `leaderboard-ranking.ts` | `mergeUserEntryAndTakeTop5` | - |
-| 9.7 | 全問正解不要 | `AttemptService` | `saveAttempt` | - |
-| 9.8 | ウミガメ合格時の同一LB規則 | `VerifyTruthAPI` | `/api/attempt/verify-truth` | 真相判定フロー |
-| 10.1 | 本人履歴・完了日時降順 | `AttemptService` / PlayHistoryAPI | `listUserPlayHistory` | - |
-| 10.2 | test-play 除外 | `AttemptService` | `listUserPlayHistory` | - |
-| 10.3 | 表示用メタデータ | `AttemptService` | `listUserPlayHistory` | - |
-| 10.4 | 初回20件+カーソル | `PlayHistoryAPI` | `GET /api/user/play-history` | - |
-| 10.5 | 他人の履歴拒否 | `PlayHistoryAPI` | `GET /api/user/play-history` | - |
-| 4.1 | 最大20回分の会話履歴を参照したステートフルAI質問 | `AskAiQuestionAPI` | `/api/attempt/ask-ai` | 質問対話フロー |
-| 4.2 | 無料ユーザーの1日20回制限 | `AskAiQuestionAPI` | `/api/attempt/ask-ai` | 質問対話フロー |
-| 4.3 | 同一質問キャッシュ | `AskAiQuestionAPI` | `/api/attempt/ask-ai` | 質問対話フロー |
-| 4.4 | プレイ画面2カラムレイアウト | UI Component | `LateralThinkingPlayView` | - |
-| 4.5 | 必須キーワード一致による即合格(AIバイパス) | `VerifyTruthAPI` | `/api/attempt/verify-truth` | 真相判定フロー |
-| 4.6 | キーワード不足時のAIフォールバック真相判定 | `VerifyTruthAPI` | `/api/attempt/verify-truth` | 真相判定フロー |
-| 4.7 | 真相不合格時のAIアドバイスフィードバック | `VerifyTruthAPI` | `/api/attempt/verify-truth` | 真相判定フロー |
-| 5.1 | フォロー/フォロワーアトミック更新 | `UserService` | `followUser` | - |
-| 5.2 | タイムラインフィード表示 | `QuizService` | `getFollowedTimeline` | - |
-| 5.3 | ブックマークアトミック更新 | `BookmarkService` | `toggleBookmark` | - |
-| 5.4 | クイズリスト作成・編集・削除 | `QuizListService` | `createQuizList` | - |
-| 5.5 | リスト連続プレイ (Attempt.listId) | `AttemptService` | `saveAttempt(mode='list')` | - |
-| 5.6 | クイズリストパッケージエクスポート | `QuizListService` | `exportQuizList` | - |
-| 6.1 | クローズド指摘フィードバック送信 | `ReviewService` | `submitFeedbackReport` | - |
-| 6.2 | 指摘解決時の修正完了オート通知 | `ReviewService` | `resolveReport` | - |
-| 6.3 | 👍/👎良問投票（作成者除外） | `ReviewService` | `submitReview` | - |
-| 6.4 | 仮リセット期間中の評価マスク | UI Component | `QuizDetailView` | - |
-| 6.5 | 評価リセット承認時の非同期クリーンアップ| `ReviewService` | `resetReviews` | - |
-| 7.1 | コンテンツ通報とアトミック更新 | `ModerationService` | `flagContent` | - |
-| 7.2 | 5回通報時の自動保留（非公開） | `ModerationService` | `flagContent` (Function) | - |
-| 7.3 | 管理者審査（公開復帰/永久非公開） | `ModerationService` | `resolveFlag` | - |
-| 7.4 | タグ/ジャンル仮想マージ提案・投票 | `TagMergeService` | `createMergeRequest`, `voteMergeRequest` | - |
-| 7.5 | マージ可決 70% | `TagMergeService` | `voteMergeRequest` (tx) | - |
-| 7.6 | 新ジャンル申請 | `TagMergeService` | `submitGenreRequest` | - |
-| 7.7 | ジャンルアイコン SVG 禁止 | `storage.ts` / UI | `uploadImage` MIME 検証 | - |
-| 7.8 | ジャンル新設可決 80% | `TagMergeService` | `voteGenreRequest` | - |
-| 11.1 | ジャンル一覧（マージ統合） | `QuizService` | `getQuizzesByGenre` | C2 読み取りフロー |
-| 11.2 | canonical 優先 + legacy フォールバック | `QuizService` | `getQuizzesByGenre` | C2 読み取りフロー |
-| 11.3 | タグ一覧（canonical） | `QuizService` | `getQuizzesByTag` | - |
-| 11.4 | 有効ジャンルマスタ一覧 | `QuizService` | `listActiveGenres` | - |
-| 11.5 | 複合検索 | `QuizService` | `searchQuizzes` | - |
-| 11.6 | メタデータ Rules | `firestore.rules` | metadata_* / mergeRequests | - |
-| 11.7 | ガバナンス単一経路 | `TagMergeService` | `tagMerge.ts` のみ | - |
-| 11.8 | クイズの統合検索 (ユニバーサル検索) | `QuizService` | `searchQuizzes` | - |
-| 11.9 | ハイブリッド・マルチクエリ検索 (並行クエリとデデュプ) | `QuizService` | `searchQuizzes` | - |
-| 16.1–16.5 | 有効タグマスタ一覧 | `QuizService` | `listActiveTags` | タグマスタ読み取りフロー |
-| 16.6–16.13 | 複数タグ AND 複合検索 | `QuizService`, `quiz-tag-match` | `searchQuizzes`, `resolveCanonicalTagIds` | タグ AND 検索フロー |
-| 16.14–16.15 | サジェスト API 非対象 | — | Out of boundary | - |
-| 17.1–17.3 | 出題形式フィルタ | `QuizService`, `quiz-format-match` | `SearchFilters.format`, `resolveQuizFormat` | 形式フィルタ検索フロー |
-| 17.4–17.5 | ジャンル固定 scoped 検索 | `QuizService` | `searchQuizzes` + `expandGenreIdsForQuery` | 形式フィルタ検索フロー |
-| 17.6 | UI と同一形式判定 | `quiz-format-match` | `resolveQuizFormat` | - |
-| 17.7–17.8 | インデックス/UI Out | — | Out of boundary | - |
-| 18.1–18.5 | 週間人気ジャンル Top5 集計 | `GenresWeeklyTopAPI` | `GET /api/genres/weekly-top` | 週間ジャンル Top5 フロー |
-| 18.6–18.10 | 週間人気ワード／タグ Top5 集計 | `SearchWeeklyTopAPI` | `GET /api/search/weekly-top` | 週間ワード／タグ Top5 フロー |
-| 18.11–18.13 | 検索ログ記録（fire-and-forget） | `QuizService`, `search-log` | `writeSearchLog` | 検索ログ fire-and-forget フロー |
-| 18.14–18.16 | 境界明示（履歴は UI 側、Core 不保存） | — | Out of boundary | - |
-| 12.1 | ユーザーのBANと監査ログ記録 | `ReputationService` / API Route | `/api/admin/users/ban` | - |
-| 12.2 | BAN解除と監査ログ記録 | `ReputationService` / API Route | `/api/admin/users/unban` | - |
-| 12.3 | BAN中の書き込み拒否と強制ログアウト | Security Rules / AuthContext | `isNotBanned()`, `quizeum_banned` Cookie | - |
-| 8.1 | 初期HTML読み込み速度0.5秒以内 | Performance | SSR Cache / Optimization | - |
-| 8.2 | 高負荷時エラー率0.1%未満 | Infrastructure | High Availability | - |
-| 8.3 | クローラー向け高速HTMLとOGPメタデータ | SSR Component | `getServerSideProps` / Metadata | - |
+| Requirement | Summary                                               | Components                         | Interfaces                                  | Flows                           |
+| ----------- | ----------------------------------------------------- | ---------------------------------- | ------------------------------------------- | ------------------------------- |
+| 1.1         | ユーザー登録および認証                                | User Authentication                | Firebase Auth                               | -                               |
+| 1.2         | プロフィール編集                                      | `UserService`                      | `updateProfile`                             | -                               |
+| 1.3         | 称号バッジ自動付与                                    | `UserService`                      | `checkAndAwardBadges`                       | -                               |
+| 1.4         | 退会時即時Auth削除                                    | `DeleteAccountAPI`                 | `/api/user/delete-account`                  | 退会フロー                      |
+| 1.5         | 大規模関連データの非同期匿名化                        | `onDeleteUserJob`                  | Cloud Functions Trigger                     | 退会フロー                      |
+| 1.6         | 退会保留中のアクセス遮断                              | Security Rules                     | `deleteStatus != 'delete_pending'`          | -                               |
+| 2.1         | 下書き（タイトル・ジャンル・問題文必須）              | `QuizService`                      | `saveQuiz('draft')`                         | メタデータ解決フロー            |
+| 2.2         | ジャンルマスタ存在検証                                | `metadata-resolution`              | `assertActiveGenre`                         | メタデータ解決フロー            |
+| 2.3         | 公開時バリデーション & NGチェック                     | `QuizService`                      | `saveQuiz('published')`                     | メタデータ解決フロー            |
+| 2.4         | 保存時 canonical 非正規化                             | `metadata-resolution`              | `resolveCanonical*`                         | メタデータ解決フロー            |
+| 2.5         | 未登録タグのマスタ自動 create                         | `metadata-resolution`              | `ensureTagMasters`                          | メタデータ解決フロー            |
+| 2.6         | タグ名寄せ & 類似サジェスト                           | `QuizService`                      | `normalizeTag`, `getSimilarTag`             | -                               |
+| 2.7         | クイズタイトル更新時の非正規化同期                    | `QuizService`                      | `updateQuiz`                                | -                               |
+| 2.8         | クイズ削除時のカスケードクリーンアップ                | `QuizService`                      | `deleteQuiz`                                | -                               |
+| 2.9         | 作成クイズ一括エクスポート                            | `QuizService`                      | `exportQuizzes`                             | -                               |
+| 2.10        | 必須キーワード(エッセンス)のタグ風UI入力              | `QuizCreator` / UI                 | `truthKeywords`                             | -                               |
+| 2.11        | 公開時必須キーワードバリデーション                    | `QuizService`                      | `validateQuizForPublish`                    | -                               |
+| 2.12        | テストプレイは canonical 不要                         | `test-play`                        | sessionStorage 経路                         | -                               |
+| 3.1         | 通常モードプレイ                                      | `AttemptService`                   | `saveAttempt`                               | -                               |
+| 3.2         | 解答セッションローカル永続化                          | `LocalAttemptSession`              | `saveToLocalStorage`                        | -                               |
+| 3.3         | オフラインプレイ結果と自動同期                        | `LocalAttemptSession`              | `syncPendingAttempts`                       | -                               |
+| 3.4         | オフラインリストプレイの進行ブロック                  | `LocalAttemptSession`              | `checkConnectivity`                         | -                               |
+| 3.5         | プレイ結果画面（良問評価・難易度投票）                | `ReviewService`                    | `submitReview`                              | -                               |
+| 3.6         | 永続化試行保存とLB更新委譲                            | `AttemptService`                   | `saveAttempt`                               | リーダーボード更新フロー        |
+| 3.7         | 弱点克服ジャンルフィルタ（マージ展開）                | `AttemptService`                   | `getFailedQuestions`                        | -                               |
+| 9.1         | 永続化完了時のLB評価                                  | `AttemptService`                   | `saveAttempt`                               | リーダーボード更新フロー        |
+| 9.2         | 初回完了は firstPlay のみ                             | `AttemptService`                   | `saveAttempt` (tx)                          | リーダーボード更新フロー        |
+| 9.3         | 2回目以降は replay のみ                               | `AttemptService`                   | `saveAttempt` (tx)                          | リーダーボード更新フロー        |
+| 9.4         | 正解数優先・同点タイム順                              | `leaderboard-ranking.ts`           | `compareLeaderboard`                        | -                               |
+| 9.5         | ユーザー1枠・厳密優位時のみ差し替え                   | `leaderboard-ranking.ts`           | `mergeUserEntryAndTakeTop5`                 | -                               |
+| 9.6         | 上位5件保持                                           | `leaderboard-ranking.ts`           | `mergeUserEntryAndTakeTop5`                 | -                               |
+| 9.7         | 全問正解不要                                          | `AttemptService`                   | `saveAttempt`                               | -                               |
+| 9.8         | ウミガメ合格時の同一LB規則                            | `VerifyTruthAPI`                   | `/api/attempt/verify-truth`                 | 真相判定フロー                  |
+| 10.1        | 本人履歴・完了日時降順                                | `AttemptService` / PlayHistoryAPI  | `listUserPlayHistory`                       | -                               |
+| 10.2        | test-play 除外                                        | `AttemptService`                   | `listUserPlayHistory`                       | -                               |
+| 10.3        | 表示用メタデータ                                      | `AttemptService`                   | `listUserPlayHistory`                       | -                               |
+| 10.4        | 初回20件+カーソル                                     | `PlayHistoryAPI`                   | `GET /api/user/play-history`                | -                               |
+| 10.5        | 他人の履歴拒否                                        | `PlayHistoryAPI`                   | `GET /api/user/play-history`                | -                               |
+| 4.1         | 最大20回分の会話履歴を参照したステートフルAI質問      | `AskAiQuestionAPI`                 | `/api/attempt/ask-ai`                       | 質問対話フロー                  |
+| 4.2         | 無料ユーザーの1日20回制限                             | `AskAiQuestionAPI`                 | `/api/attempt/ask-ai`                       | 質問対話フロー                  |
+| 4.3         | 同一質問キャッシュ                                    | `AskAiQuestionAPI`                 | `/api/attempt/ask-ai`                       | 質問対話フロー                  |
+| 4.4         | プレイ画面2カラムレイアウト                           | UI Component                       | `LateralThinkingPlayView`                   | -                               |
+| 4.5         | 必須キーワード一致による即合格(AIバイパス)            | `VerifyTruthAPI`                   | `/api/attempt/verify-truth`                 | 真相判定フロー                  |
+| 4.6         | キーワード不足時のAIフォールバック真相判定            | `VerifyTruthAPI`                   | `/api/attempt/verify-truth`                 | 真相判定フロー                  |
+| 4.7         | 真相不合格時のAIアドバイスフィードバック              | `VerifyTruthAPI`                   | `/api/attempt/verify-truth`                 | 真相判定フロー                  |
+| 5.1         | フォロー/フォロワーアトミック更新                     | `UserService`                      | `followUser`                                | -                               |
+| 5.2         | タイムラインフィード表示                              | `QuizService`                      | `getFollowedTimeline`                       | -                               |
+| 5.3         | ブックマークアトミック更新                            | `BookmarkService`                  | `toggleBookmark`                            | -                               |
+| 5.4         | クイズリスト作成・編集・削除                          | `QuizListService`                  | `createQuizList`                            | -                               |
+| 5.5         | リスト連続プレイ (Attempt.listId)                     | `AttemptService`                   | `saveAttempt(mode='list')`                  | -                               |
+| 5.6         | クイズリストパッケージエクスポート                    | `QuizListService`                  | `exportQuizList`                            | -                               |
+| 6.1         | クローズド指摘フィードバック送信                      | `ReviewService`                    | `submitFeedbackReport`                      | -                               |
+| 6.2         | 指摘解決時の修正完了オート通知                        | `ReviewService`                    | `resolveReport`                             | -                               |
+| 6.3         | 👍/👎良問投票（作成者除外）                             | `ReviewService`                    | `submitReview`                              | -                               |
+| 6.4         | 仮リセット期間中の評価マスク                          | UI Component                       | `QuizDetailView`                            | -                               |
+| 6.5         | 評価リセット承認時の非同期クリーンアップ              | `ReviewService`                    | `resetReviews`                              | -                               |
+| 7.1         | コンテンツ通報とアトミック更新                        | `ModerationService`                | `flagContent`                               | -                               |
+| 7.2         | 5回通報時の自動保留（非公開）                         | `ModerationService`                | `flagContent` (Function)                    | -                               |
+| 7.3         | 管理者審査（公開復帰/永久非公開）                     | `ModerationService`                | `resolveFlag`                               | -                               |
+| 7.4         | タグ/ジャンル仮想マージ提案・投票                     | `TagMergeService`                  | `createMergeRequest`, `voteMergeRequest`    | -                               |
+| 7.5         | マージ可決 70%                                        | `TagMergeService`                  | `voteMergeRequest` (tx)                     | -                               |
+| 7.6         | 新ジャンル申請                                        | `TagMergeService`                  | `submitGenreRequest`                        | -                               |
+| 7.7         | ジャンルアイコン SVG 禁止                             | `storage.ts` / UI                  | `uploadImage` MIME 検証                     | -                               |
+| 7.8         | ジャンル新設可決 80%                                  | `TagMergeService`                  | `voteGenreRequest`                          | -                               |
+| 11.1        | ジャンル一覧（マージ統合）                            | `QuizService`                      | `getQuizzesByGenre`                         | C2 読み取りフロー               |
+| 11.2        | canonical 優先 + legacy フォールバック                | `QuizService`                      | `getQuizzesByGenre`                         | C2 読み取りフロー               |
+| 11.3        | タグ一覧（canonical）                                 | `QuizService`                      | `getQuizzesByTag`                           | -                               |
+| 11.4        | 有効ジャンルマスタ一覧                                | `QuizService`                      | `listActiveGenres`                          | -                               |
+| 11.5        | 複合検索                                              | `QuizService`                      | `searchQuizzes`                             | -                               |
+| 11.6        | メタデータ Rules                                      | `firestore.rules`                  | metadata_* / mergeRequests                  | -                               |
+| 11.7        | ガバナンス単一経路                                    | `TagMergeService`                  | `tagMerge.ts` のみ                          | -                               |
+| 11.8        | クイズの統合検索 (ユニバーサル検索)                   | `QuizService`                      | `searchQuizzes`                             | -                               |
+| 11.9        | ハイブリッド・マルチクエリ検索 (並行クエリとデデュプ) | `QuizService`                      | `searchQuizzes`                             | -                               |
+| 16.1–16.5   | 有効タグマスタ一覧                                    | `QuizService`                      | `listActiveTags`                            | タグマスタ読み取りフロー        |
+| 16.6–16.13  | 複数タグ AND 複合検索                                 | `QuizService`, `quiz-tag-match`    | `searchQuizzes`, `resolveCanonicalTagIds`   | タグ AND 検索フロー             |
+| 16.14–16.15 | サジェスト API 非対象                                 | —                                  | Out of boundary                             | -                               |
+| 17.1–17.3   | 出題形式フィルタ                                      | `QuizService`, `quiz-format-match` | `SearchFilters.format`, `resolveQuizFormat` | 形式フィルタ検索フロー          |
+| 17.4–17.5   | ジャンル固定 scoped 検索                              | `QuizService`                      | `searchQuizzes` + `expandGenreIdsForQuery`  | 形式フィルタ検索フロー          |
+| 17.6        | UI と同一形式判定                                     | `quiz-format-match`                | `resolveQuizFormat`                         | -                               |
+| 17.7–17.8   | インデックス/UI Out                                   | —                                  | Out of boundary                             | -                               |
+| 18.1–18.5   | 週間人気ジャンル Top5 集計                            | `GenresWeeklyTopAPI`               | `GET /api/genres/weekly-top`                | 週間ジャンル Top5 フロー        |
+| 18.6–18.10  | 週間人気ワード／タグ Top5 集計                        | `SearchWeeklyTopAPI`               | `GET /api/search/weekly-top`                | 週間ワード／タグ Top5 フロー    |
+| 18.11–18.13 | 検索ログ記録（fire-and-forget）                       | `QuizService`, `search-log`        | `writeSearchLog`                            | 検索ログ fire-and-forget フロー |
+| 18.14–18.16 | 境界明示（履歴は UI 側、Core 不保存）                 | —                                  | Out of boundary                             | -                               |
+| 12.1        | ユーザーのBANと監査ログ記録                           | `ReputationService` / API Route    | `/api/admin/users/ban`                      | -                               |
+| 12.2        | BAN解除と監査ログ記録                                 | `ReputationService` / API Route    | `/api/admin/users/unban`                    | -                               |
+| 12.3        | BAN中の書き込み拒否と強制ログアウト                   | Security Rules / AuthContext       | `isNotBanned()`, `quizeum_banned` Cookie    | -                               |
+| 8.1         | 初期HTML読み込み速度0.5秒以内                         | Performance                        | SSR Cache / Optimization                    | -                               |
+| 8.2         | 高負荷時エラー率0.1%未満                              | Infrastructure                     | High Availability                           | -                               |
+| 8.3         | クローラー向け高速HTMLとOGPメタデータ                 | SSR Component                      | `getServerSideProps` / Metadata             | -                               |
 
 ---
 
@@ -665,30 +665,30 @@ sequenceDiagram
 
 ### Component Summary Table
 
-| Component | Domain/Layer | Intent | Req Coverage | Key Dependencies (P0/P1) | Contracts |
-|-----------|--------------|--------|--------------|--------------------------|-----------|
-| `UserService` | Service | ユーザープロフィール、称号、フォロー管理 | 1.2, 1.3, 5.1 | Firestore (P0) | Service, State |
-| `metadata-resolution` | Lib | canonical 解決・マージ ID 展開・タグマスタ ensure | 2.2, 2.4, 2.5, 11.x | Firestore (P0) | Pure functions + IO |
-| `QuizService` | Service | クイズ保存・一覧・検索・エクスポート | 2.1–2.9, 11.1–11.5, 16.1–16.13, 17.1–17.5 | metadata-resolution (P0), quiz-tag-match (P0), quiz-format-match (P0), Firestore (P0) | Service |
-| `quiz-tag-match` | Lib | クイズ×タグの canonical/legacy 照合（AND 用） | 16.7, 16.8 | normalizeTag (P0) | Pure functions |
-| `quiz-format-match` | Lib | クイズ×出題形式の一致判定（`resolveQuizFormat` 使用） | 17.1, 17.6 | quiz-format (P0) | Pure functions |
-| `TagMergeService` | Service | マージ投票・ジャンル新設（`tagMerge.ts`） | 7.4–7.8, 11.7 | Firestore (P0) | Service, State |
-| `leaderboard-ranking` | Lib | LB順位比較・マージ・top5 | 9.4, 9.5, 9.6 | - | Pure functions |
-| `AttemptService` | Service | 解答永続化、LB更新、本人プレイ履歴、オフライン同期 | 3.1, 3.2, 3.3, 3.4, 3.6, 5.5, 9.1–9.7, 10.1–10.3 | Firestore (P0), LocalStore (P1), leaderboard-ranking (P0) | Service, State, Batch |
-| `/api/genres/weekly-top` | API Route | 週間人気ジャンル Top5 集計（attemptsコレクションかまの直近 7日間集計） | 18.1–18.5 | Firestore Admin SDK (P0) | HTTP GET, 30min cache |
-| `/api/search/weekly-top` | API Route | 週間人気ワード／タグ Top5 集計（search_logsから） | 18.6–18.10 | Firestore Admin SDK (P0) | HTTP GET, 30min cache |
-| `search-log` | Lib | fire-and-forget 検索ログ書き込み | 18.11–18.13 | Firestore (P0) | Pure function + IO |
-| `/api/user/play-history` | API Route | 本人プレイ履歴の認可付き取得 | 10.1, 10.4, 10.5 | AuthAdmin (P0), AttemptService (P0) | API |
-| `BookmarkService` | Service | クイズ・リストのブックマークアトミック管理 | 5.3 | Firestore (P0) | Service, State |
-| `QuizListService` | Service | リストの作成、ドラッグ＆ドロップ、パッケージング | 5.4, 5.6 | Firestore (P0), QuizService (P1) | Service, State |
-| `ReviewService` | Service | 良問評価、間違い指摘、修正通知、リセットバッチ | 3.5, 6.1, 6.2, 6.3, 6.5 | Firestore (P0), CloudTasks (P1) | Service, State, Batch |
-| `ModerationService` | Service | 通報、自動保留、審査のみ | 7.1, 7.2, 7.3 | Firestore (P0) | Service, State |
-| `ReputationService` | Service | 信頼スコア、モデレータ資格、BAN/UNBAN、監査ログ記録 | 12.1, 12.2 | Firestore (P0) | Service, State, Tx |
-| `/api/admin/users/ban` | API Route | 管理者用ユーザーBAN API | 12.1 | AuthAdmin (P0), ReputationService (P0) | API |
-| `/api/admin/users/unban` | API Route | 管理者用ユーザーUNBAN API | 12.2 | AuthAdmin (P0), ReputationService (P0) | API |
-| `/api/user/delete-account` | API Route | 即時Auth物理削除とCloud Tasksジョブ登録 | 1.4 | AuthAdmin (P0), CloudTasks (P0) | API |
-| `/api/attempt/ask-ai` | API Route | 水平思考クイズのAI質問判定 (ターン制限・キャッシュ) | 4.1, 4.2, 4.3 | Gemini API (P0), Firestore (P0) | API |
-| `/api/attempt/verify-truth` | API Route | 水平思考クイズのAI真相自動判定とフィードバック | 4.5, 4.6, 4.7 | Gemini API (P0), Firestore (P0) | API |
+| Component                   | Domain/Layer | Intent                                                                 | Req Coverage                                     | Key Dependencies (P0/P1)                                                              | Contracts             |
+| --------------------------- | ------------ | ---------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------- | --------------------- |
+| `UserService`               | Service      | ユーザープロフィール、称号、フォロー管理                               | 1.2, 1.3, 5.1                                    | Firestore (P0)                                                                        | Service, State        |
+| `metadata-resolution`       | Lib          | canonical 解決・マージ ID 展開・タグマスタ ensure                      | 2.2, 2.4, 2.5, 11.x                              | Firestore (P0)                                                                        | Pure functions + IO   |
+| `QuizService`               | Service      | クイズ保存・一覧・検索・エクスポート                                   | 2.1–2.9, 11.1–11.5, 16.1–16.13, 17.1–17.5        | metadata-resolution (P0), quiz-tag-match (P0), quiz-format-match (P0), Firestore (P0) | Service               |
+| `quiz-tag-match`            | Lib          | クイズ×タグの canonical/legacy 照合（AND 用）                          | 16.7, 16.8                                       | normalizeTag (P0)                                                                     | Pure functions        |
+| `quiz-format-match`         | Lib          | クイズ×出題形式の一致判定（`resolveQuizFormat` 使用）                  | 17.1, 17.6                                       | quiz-format (P0)                                                                      | Pure functions        |
+| `TagMergeService`           | Service      | マージ投票・ジャンル新設（`tagMerge.ts`）                              | 7.4–7.8, 11.7                                    | Firestore (P0)                                                                        | Service, State        |
+| `leaderboard-ranking`       | Lib          | LB順位比較・マージ・top5                                               | 9.4, 9.5, 9.6                                    | -                                                                                     | Pure functions        |
+| `AttemptService`            | Service      | 解答永続化、LB更新、本人プレイ履歴、オフライン同期                     | 3.1, 3.2, 3.3, 3.4, 3.6, 5.5, 9.1–9.7, 10.1–10.3 | Firestore (P0), LocalStore (P1), leaderboard-ranking (P0)                             | Service, State, Batch |
+| `/api/genres/weekly-top`    | API Route    | 週間人気ジャンル Top5 集計（attemptsコレクションかまの直近 7日間集計） | 18.1–18.5                                        | Firestore Admin SDK (P0)                                                              | HTTP GET, 30min cache |
+| `/api/search/weekly-top`    | API Route    | 週間人気ワード／タグ Top5 集計（search_logsから）                      | 18.6–18.10                                       | Firestore Admin SDK (P0)                                                              | HTTP GET, 30min cache |
+| `search-log`                | Lib          | fire-and-forget 検索ログ書き込み                                       | 18.11–18.13                                      | Firestore (P0)                                                                        | Pure function + IO    |
+| `/api/user/play-history`    | API Route    | 本人プレイ履歴の認可付き取得                                           | 10.1, 10.4, 10.5                                 | AuthAdmin (P0), AttemptService (P0)                                                   | API                   |
+| `BookmarkService`           | Service      | クイズ・リストのブックマークアトミック管理                             | 5.3                                              | Firestore (P0)                                                                        | Service, State        |
+| `QuizListService`           | Service      | リストの作成、ドラッグ＆ドロップ、パッケージング                       | 5.4, 5.6                                         | Firestore (P0), QuizService (P1)                                                      | Service, State        |
+| `ReviewService`             | Service      | 良問評価、間違い指摘、修正通知、リセットバッチ                         | 3.5, 6.1, 6.2, 6.3, 6.5                          | Firestore (P0), CloudTasks (P1)                                                       | Service, State, Batch |
+| `ModerationService`         | Service      | 通報、自動保留、審査のみ                                               | 7.1, 7.2, 7.3                                    | Firestore (P0)                                                                        | Service, State        |
+| `ReputationService`         | Service      | 信頼スコア、モデレータ資格、BAN/UNBAN、監査ログ記録                    | 12.1, 12.2                                       | Firestore (P0)                                                                        | Service, State, Tx    |
+| `/api/admin/users/ban`      | API Route    | 管理者用ユーザーBAN API                                                | 12.1                                             | AuthAdmin (P0), ReputationService (P0)                                                | API                   |
+| `/api/admin/users/unban`    | API Route    | 管理者用ユーザーUNBAN API                                              | 12.2                                             | AuthAdmin (P0), ReputationService (P0)                                                | API                   |
+| `/api/user/delete-account`  | API Route    | 即時Auth物理削除とCloud Tasksジョブ登録                                | 1.4                                              | AuthAdmin (P0), CloudTasks (P0)                                                       | API                   |
+| `/api/attempt/ask-ai`       | API Route    | 水平思考クイズのAI質問判定 (ターン制限・キャッシュ)                    | 4.1, 4.2, 4.3                                    | Gemini API (P0), Firestore (P0)                                                       | API                   |
+| `/api/attempt/verify-truth` | API Route    | 水平思考クイズのAI真相自動判定とフィードバック                         | 4.5, 4.6, 4.7                                    | Gemini API (P0), Firestore (P0)                                                       | API                   |
 
 ---
 
@@ -826,10 +826,10 @@ export interface QuizService {
 
 #### `quiz-tag-match`（`src/lib/quiz-tag-match.ts`）
 
-| Field | Detail |
-|-------|--------|
-| Intent | 単一クイズが指定タグ（canonical 解決済み）を満たすかを判定。複数タグ AND の共通ロジック |
-| Requirements | 16.7, 16.8 |
+| Field        | Detail                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------- |
+| Intent       | 単一クイズが指定タグ（canonical 解決済み）を満たすかを判定。複数タグ AND の共通ロジック |
+| Requirements | 16.7, 16.8                                                                              |
 
 ```typescript
 export interface TagMatchSpec {
@@ -856,10 +856,10 @@ export function quizMatchesAllTags(
 
 #### `quiz-format-match`（`src/lib/quiz-format-match.ts`）
 
-| Field | Detail |
-|-------|--------|
-| Intent | 単一クイズの有効出題形式が指定形式と一致するかを判定 |
-| Requirements | 17.1, 17.6 |
+| Field        | Detail                                               |
+| ------------ | ---------------------------------------------------- |
+| Intent       | 単一クイズの有効出題形式が指定形式と一致するかを判定 |
+| Requirements | 17.1, 17.6                                           |
 
 ```typescript
 import type { QuizFormat } from './quiz-format';
@@ -877,7 +877,7 @@ export function applyFormatFilter(
 ): Quiz[];
 ```
 
-- **判定規則**: `resolveQuizFormat(quiz) === format`。`quiz.format` が未設定の旧データは設問 `type` から推定（`quiz-format.ts` 既存ロジック）。
+- **判定規則**: `resolveQuizFormat(quiz) === format`。`quiz.format` が未設定の旧データは問題 `type` から推定（`quiz-format.ts` 既存ロジック）。
 - **レガシーデータ（validate-design 2026-06-05 反映）**: `quiz.format` 未設定かつ `questions` が空配列のとき、`resolveQuizFormat` は `'mixed'` を返す（既存 lib 挙動。要件 17.6 と一致）。このため **`format: 'mixed'` フィルタのみヒット**し、他形式フィルタでは不一致となる。テストフィクスチャ `{ format: undefined, questions: [] }` で期待値を固定する。
 - **Invariants**: `quizeum-play-flow-ui` の `QuizCard` / 形式カルーセルは同一 `QuizFormat` 型および `getFormatLabel` を使用。コアはラベル変換を行わない。
 
@@ -959,9 +959,9 @@ export interface PlayHistoryPage {
 - **Intent**: クライアントからの本人プレイ履歴取得を ID トークンで保護する。
 - **Requirements**: `10.1, 10.4, 10.5`
 
-| Method | Endpoint | Request | Response | Errors |
-|--------|----------|---------|----------|--------|
-| GET | `/api/user/play-history` | Query: `limit?`, `cursor?` — Header: `Authorization: Bearer <ID_TOKEN>` | `PlayHistoryPage` | 401, 403 |
+| Method | Endpoint                 | Request                                                                 | Response          | Errors   |
+| ------ | ------------------------ | ----------------------------------------------------------------------- | ----------------- | -------- |
+| GET    | `/api/user/play-history` | Query: `limit?`, `cursor?` — Header: `Authorization: Bearer <ID_TOKEN>` | `PlayHistoryPage` | 401, 403 |
 
 - **Preconditions**: `verifyIdToken` 成功。クエリの `uid` を受け付けない（トークンの `uid` のみ使用）。
 - **Postconditions**: トークン `uid` と一致する履歴のみ返却。他人指定は 403。
@@ -1136,11 +1136,11 @@ export interface FeedbackReport {
 
 ### Physical Data Model（Firestore `quizzes` 追記）
 
-| フィールド | 型 | 制約 | 説明 |
-|-----------|-----|------|------|
-| `leaderboardFirstPlay` | `LeaderboardRecord[]` | 最大5 / 必須 `[]` | 初回完了 attempt のランキング |
-| `leaderboardReplay` | `LeaderboardRecord[]` | 最大5 / 必須 `[]` | 2回目以降のランキング |
-| `leaderboard` | `LeaderboardRecord[]` | 任意 | 移行期間の読み取りフォールバック |
+| フィールド             | 型                    | 制約              | 説明                             |
+| ---------------------- | --------------------- | ----------------- | -------------------------------- |
+| `leaderboardFirstPlay` | `LeaderboardRecord[]` | 最大5 / 必須 `[]` | 初回完了 attempt のランキング    |
+| `leaderboardReplay`    | `LeaderboardRecord[]` | 最大5 / 必須 `[]` | 2回目以降のランキング            |
+| `leaderboard`          | `LeaderboardRecord[]` | 任意              | 移行期間の読み取りフォールバック |
 
 **`attempts` クエリ（プレイ履歴）**: `where('userId','==',uid)` + `orderBy('completedAt','desc')` + `limit` + `startAfter(cursor)`。`mode != 'test-play'` はクエリ後フィルタまたは将来 `where('mode','not-in',...)`（インデックス要検討）。
 
@@ -1148,30 +1148,30 @@ export interface FeedbackReport {
 
 **`metadata_genres/{genreId}`**
 
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `id` | string | ドキュメントIDと一致 |
-| `displayName` | string | 表示名 |
-| `iconImageUrl` | string \| null | ジャンルアイコン URL |
-| `canonicalId` | string \| null | 統合先（自身が canonical なら null） |
-| `mergedGenreIds` | string[] | 統合された旧ジャンルID |
-| `isActive` | boolean | 探索・作問で利用可能 |
+| フィールド       | 型             | 説明                                 |
+| ---------------- | -------------- | ------------------------------------ |
+| `id`             | string         | ドキュメントIDと一致                 |
+| `displayName`    | string         | 表示名                               |
+| `iconImageUrl`   | string \| null | ジャンルアイコン URL                 |
+| `canonicalId`    | string \| null | 統合先（自身が canonical なら null） |
+| `mergedGenreIds` | string[]       | 統合された旧ジャンルID               |
+| `isActive`       | boolean        | 探索・作問で利用可能                 |
 
 **`quizzes` 追記（書き込み時解決）**
 
-| フィールド | 書き込みタイミング |
-|-----------|-------------------|
+| フィールド         | 書き込みタイミング                 |
+| ------------------ | ---------------------------------- |
 | `canonicalGenreId` | 毎回 `saveQuiz`（draft/published） |
-| `canonicalTagIds` | 毎回 `saveQuiz`、タグ変更時再計算 |
+| `canonicalTagIds`  | 毎回 `saveQuiz`、タグ変更時再計算  |
 
 **Firestore 複合インデックス（Phase 6 追加）**
 
-| コレクション | フィールド | 用途 |
-|-------------|-----------|------|
-| `quizzes` | `status` ASC, `canonicalGenreId` ASC, `createdAt` DESC | ジャンル一覧・新着 |
-| `quizzes` | `status` ASC, `canonicalGenreId` ASC, `playCount` DESC | 人気 |
-| `quizzes` | `status` ASC, `canonicalGenreId` ASC, `bookmarksCount` DESC | トレンド |
-| `quizzes` | `status` ASC, `canonicalTagIds` ARRAY_CONTAINS, `createdAt` DESC | タグ一覧 |
+| コレクション | フィールド                                                       | 用途               |
+| ------------ | ---------------------------------------------------------------- | ------------------ |
+| `quizzes`    | `status` ASC, `canonicalGenreId` ASC, `createdAt` DESC           | ジャンル一覧・新着 |
+| `quizzes`    | `status` ASC, `canonicalGenreId` ASC, `playCount` DESC           | 人気               |
+| `quizzes`    | `status` ASC, `canonicalGenreId` ASC, `bookmarksCount` DESC      | トレンド           |
+| `quizzes`    | `status` ASC, `canonicalTagIds` ARRAY_CONTAINS, `createdAt` DESC | タグ一覧           |
 
 ### Migration Strategy
 
@@ -1199,7 +1199,7 @@ flowchart LR
 
 ---
 
-## Phase 8: ブックマーク・リスト・設問再利用
+## Phase 8: ブックマーク・リスト・問題再利用
 
 ### Architecture Pattern（Phase 8）
 
@@ -1231,16 +1231,16 @@ graph TB
 
 **パターン**: Option C Hybrid（gap 分析推奨）。既存サービスを拡張し、参照リンクと検証は `src/lib/` に純関数集約。UI は呼び出しのみ。
 
-### 設問リストプレイ契約
+### 問題リストプレイ契約
 
-クイズリスト（要件 5.5）と対称とし、設問リストは**収録設問ごとに1件の attempt** を記録する。
+クイズリスト（要件 5.5）と対称とし、問題リストは**収録問題ごとに1件の attempt** を記録する。
 
-| フィールド | 値 |
-|-----------|-----|
-| `mode` | `'question-list'` |
-| `listId` | 設問リスト ID |
-| `quizId` | 当該設問の親クイズ ID |
-| `totalQuestions` | 1（設問単位プレイ） |
+| フィールド       | 値                    |
+| ---------------- | --------------------- |
+| `mode`           | `'question-list'`     |
+| `listId`         | 問題リスト ID         |
+| `quizId`         | 当該問題の親クイズ ID |
+| `totalQuestions` | 1（問題単位プレイ）   |
 
 プレイ画面ルーティングは隣接 UI が担当。コアは `getQuestionsInList(listId)` で順序付き `Question[]` と親クイズメタを返す。
 
@@ -1274,51 +1274,51 @@ sequenceDiagram
     QuizSvc->>DB: update quizzes questionIds and denorm questions
 ```
 
-**Copy-on-Write 方針（design 確定）**: エディタが参照設問の内容を変更して保存した場合のみ新規 `questions/{id}` を発行し、当該クイズの `questionIds` を差し替える。未変更の参照は既存 ID をそのまま `questionIds` に追加し、設問ドキュメントへの書き込みは行わない。クイズから参照を外しただけでは設問ドキュメントを削除しない。
+**Copy-on-Write 方針（design 確定）**: エディタが参照問題の内容を変更して保存した場合のみ新規 `questions/{id}` を発行し、当該クイズの `questionIds` を差し替える。未変更の参照は既存 ID をそのまま `questionIds` に追加し、問題ドキュメントへの書き込みは行わない。クイズから参照を外しただけでは問題ドキュメントを削除しない。
 
 ### Requirements Traceability（Phase 8）
 
-| Requirement | Summary | Components | Interfaces | Flows |
-|-------------|---------|------------|------------|-------|
-| 13.1 | 3種 BM トグル | `BookmarkService` | `toggleBookmark` | - |
-| 13.2 | 公開設問のみ BM 登録 | `BookmarkService`, `question-list-validation` | `assertQuestionBookmarkable` | - |
-| 13.3 | 非公開親は BM 拒否 | 同上 | 同上 | - |
-| 13.4 | 3分類一覧 | `BookmarkService` | `getBookmarkFeed` | - |
-| 13.5 | クイズ BM 公開のみ | `BookmarkService` | `getBookmarkedQuizzes` | - |
-| 13.6 | 設問 BM に親メタ | `BookmarkService` | `enrichBookmarkedQuestions` | - |
-| 13.7 | 設問 BM 通知 | `BookmarkService`, `NotificationService` | `createNotification` | BM 成功後 |
-| 14.1 | 作成時 listType | `QuizListService` | `createQuizList` | - |
-| 14.2 | 未設定は quiz 扱い | `QuizListService` | `resolveListType` | - |
-| 14.3 | クイズリスト操作 | `QuizListService` | `addQuizToList` 等 | - |
-| 14.4 | 設問リストメンバー | `QuestionService` | `addQuestionToList` | - |
-| 14.5–14.6 | 公開設問のみ追加 | `question-list-validation` | `assertQuestionListAddable` | - |
-| 14.7 | タイプ不一致拒否 | `question-list-validation` | `assertListTypeOperation` | - |
-| 14.8 | question-list attempt | `QuizListService`, `AttemptService` | `getQuestionsInList`, `saveAttempt` | 設問リストプレイ |
-| 14.9 | タイプ別一覧 | `QuizListService` | `getQuizListsByAuthor` | - |
-| 14.10 | 設問リスト export | `QuizListService` | `exportQuestionList` | - |
-| 15.1 | 自作検索 | `AuthorQuizSearchService` | `searchAuthorQuizzes` | - |
-| 15.2 | 設問詳細 | `QuestionService` | `getQuestionsByQuiz` | - |
-| 15.3 | 参照リンク | `QuizService`, `linked-question` | `saveQuiz` 参照パス | 参照リンク保存 |
-| 15.4 | 非自作拒否 | `linked-question` | `assertAuthorOwnsSourceQuiz` | - |
-| 15.5 | 重複 doc 禁止 | `QuizService` | 参照パス | 同上 |
-| 15.6 | 参照解除のみ | `linked-question` | `canDeleteQuestionDoc` | - |
+| Requirement | Summary               | Components                                    | Interfaces                          | Flows            |
+| ----------- | --------------------- | --------------------------------------------- | ----------------------------------- | ---------------- |
+| 13.1        | 3種 BM トグル         | `BookmarkService`                             | `toggleBookmark`                    | -                |
+| 13.2        | 公開問題のみ BM 登録  | `BookmarkService`, `question-list-validation` | `assertQuestionBookmarkable`        | -                |
+| 13.3        | 非公開親は BM 拒否    | 同上                                          | 同上                                | -                |
+| 13.4        | 3分類一覧             | `BookmarkService`                             | `getBookmarkFeed`                   | -                |
+| 13.5        | クイズ BM 公開のみ    | `BookmarkService`                             | `getBookmarkedQuizzes`              | -                |
+| 13.6        | 問題 BM に親メタ      | `BookmarkService`                             | `enrichBookmarkedQuestions`         | -                |
+| 13.7        | 問題 BM 通知          | `BookmarkService`, `NotificationService`      | `createNotification`                | BM 成功後        |
+| 14.1        | 作成時 listType       | `QuizListService`                             | `createQuizList`                    | -                |
+| 14.2        | 未設定は quiz 扱い    | `QuizListService`                             | `resolveListType`                   | -                |
+| 14.3        | クイズリスト操作      | `QuizListService`                             | `addQuizToList` 等                  | -                |
+| 14.4        | 問題リストメンバー    | `QuestionService`                             | `addQuestionToList`                 | -                |
+| 14.5–14.6   | 公開問題のみ追加      | `question-list-validation`                    | `assertQuestionListAddable`         | -                |
+| 14.7        | タイプ不一致拒否      | `question-list-validation`                    | `assertListTypeOperation`           | -                |
+| 14.8        | question-list attempt | `QuizListService`, `AttemptService`           | `getQuestionsInList`, `saveAttempt` | 問題リストプレイ |
+| 14.9        | タイプ別一覧          | `QuizListService`                             | `getQuizListsByAuthor`              | -                |
+| 14.10       | 問題リスト export     | `QuizListService`                             | `exportQuestionList`                | -                |
+| 15.1        | 自作検索              | `AuthorQuizSearchService`                     | `searchAuthorQuizzes`               | -                |
+| 15.2        | 問題詳細              | `QuestionService`                             | `getQuestionsByQuiz`                | -                |
+| 15.3        | 参照リンク            | `QuizService`, `linked-question`              | `saveQuiz` 参照パス                 | 参照リンク保存   |
+| 15.4        | 非自作拒否            | `linked-question`                             | `assertAuthorOwnsSourceQuiz`        | -                |
+| 15.5        | 重複 doc 禁止         | `QuizService`                                 | 参照パス                            | 同上             |
+| 15.6        | 参照解除のみ          | `linked-question`                             | `canDeleteQuestionDoc`              | -                |
 
 ### Components（Phase 8）
 
-| Component | Domain | Intent | Req | Key Dependencies | Contracts |
-|-----------|--------|--------|-----|------------------|-----------|
-| `BookmarkService` | Service | 分類 BM と通知 | 13.1–13.7 | Firestore P0, validation P0, Notification P1 | Service |
-| `QuizListService` | Service | listType リスト | 14.1–14.10 | Firestore P0, validation P0 | Service |
-| `AuthorQuizSearchService` | Service | 自作クイズ検索 | 15.1–15.2 | QuizService P0 | Service |
-| `linked-question` | Lib | 参照リンク保存 | 15.3–15.6 | Firestore read P0 | Pure functions |
-| `question-list-validation` | Lib | 公開/タイプ検証 | 13.2–13.3, 14.5–14.7 | Firestore read P0 | Pure functions |
+| Component                  | Domain  | Intent          | Req                  | Key Dependencies                             | Contracts      |
+| -------------------------- | ------- | --------------- | -------------------- | -------------------------------------------- | -------------- |
+| `BookmarkService`          | Service | 分類 BM と通知  | 13.1–13.7            | Firestore P0, validation P0, Notification P1 | Service        |
+| `QuizListService`          | Service | listType リスト | 14.1–14.10           | Firestore P0, validation P0                  | Service        |
+| `AuthorQuizSearchService`  | Service | 自作クイズ検索  | 15.1–15.2            | QuizService P0                               | Service        |
+| `linked-question`          | Lib     | 参照リンク保存  | 15.3–15.6            | Firestore read P0                            | Pure functions |
+| `question-list-validation` | Lib     | 公開/タイプ検証 | 13.2–13.3, 14.5–14.7 | Firestore read P0                            | Pure functions |
 
 #### BookmarkService（Phase 8 拡張）
 
-| Field | Detail |
-|-------|--------|
-| Intent | 3分類ブックマーク取得と設問 BM のガード・通知 |
-| Requirements | 13.1–13.7 |
+| Field        | Detail                                        |
+| ------------ | --------------------------------------------- |
+| Intent       | 3分類ブックマーク取得と問題 BM のガード・通知 |
+| Requirements | 13.1–13.7                                     |
 
 **Contracts**: Service
 
@@ -1378,7 +1378,7 @@ interface QuestionInListEntry {
 
 - **14.2**: `listType` 未設定は `'quiz'`。
 - **14.7**: `assertListTypeOperation(list, 'quiz' | 'question')` を各 mutate 前に呼ぶ。
-- **14.10**: 自作設問はフルデータ、他者設問は ID + 親クイズ参照のみ（クイズリスト export と対称）。
+- **14.10**: 自作問題はフルデータ、他者問題は ID + 親クイズ参照のみ（クイズリスト export と対称）。
 
 #### AuthorQuizSearchService
 
@@ -1424,21 +1424,21 @@ function canDeleteQuestionDoc(
 ): Promise<boolean>;
 ```
 
-- **15.4**: 参照追加時、設問の `authorId` がリクエスト `authorId` と一致することを要求（自作クイズ内の設問のみリンク可）。
-- **15.6**: `updateQuiz` の設問削除で `canDeleteQuestionDoc === false` なら `questions` コレクションからは削除しない。
+- **15.4**: 参照追加時、問題の `authorId` がリクエスト `authorId` と一致することを要求（自作クイズ内の問題のみリンク可）。
+- **15.6**: `updateQuiz` の問題削除で `canDeleteQuestionDoc === false` なら `questions` コレクションからは削除しない。
 
 ### Data Models（Phase 8）
 
 **`quizLists` ドキュメント追加**:
 
-| Field | Type | Default | Notes |
-|-------|------|---------|-------|
+| Field      | Type                   | Default                        | Notes      |
+| ---------- | ---------------------- | ------------------------------ | ---------- |
 | `listType` | `'quiz' \| 'question'` | 既存 doc は読み取り時 `'quiz'` | 作成時必須 |
 
 **`Question`（エディタ送信用、永続化は既存 doc 再利用）**:
 
-| Field | Type | Notes |
-|-------|------|-------|
+| Field      | Type                     | Notes                                          |
+| ---------- | ------------------------ | ---------------------------------------------- |
 | `linkKind` | `'owned' \| 'reference'` | エディタ→保存 API のみ。Firestore 必須ではない |
 
 **`Attempt.mode`**: `'question-list'` を追加。
@@ -1466,9 +1466,9 @@ function canDeleteQuestionDoc(
 - **メタデータ検証（Phase 6）**:
   - 無効ジャンル・未解決タグで `saveQuiz` が失敗した場合、`validation-error` としてフィールド `genre` / `tags` にメッセージを返す（クライアントはエディタで表示）。
 - **Phase 8 — ブックマーク/リスト**:
-  - 非公開親設問の BM・設問リスト追加は `QuestionNotBookmarkableError` / `QuestionNotListAddableError`（422）で拒否。
-  - クイズリストへの設問追加・設問リストへのクイズ追加は `ListTypeMismatchError`（422）。
-  - 非自作設問のリンクは `ReferenceLinkForbiddenError`（403）。
+  - 非公開親問題の BM・問題リスト追加は `QuestionNotBookmarkableError` / `QuestionNotListAddableError`（422）で拒否。
+  - クイズリストへの問題追加・問題リストへのクイズ追加は `ListTypeMismatchError`（422）。
+  - 非自作問題のリンクは `ReferenceLinkForbiddenError`（403）。
 
 ---
 
@@ -1507,8 +1507,8 @@ function canDeleteQuestionDoc(
   - `unbanUser` が BAN解除時に `isBanned: false` を設定し、`bannedReason` / `bannedAt` フィールドを削除し、`adminLogs` に `action: 'unban'` を記録すること。
   - 管理者以外の権限（モデレータ等）によるBAN/UNBAN API呼び出しが `403 Forbidden` / `権限エラー` で拒否されること。
   - `firestore.rules` の `isNotBanned()` チェックにより、`isBanned: true` のユーザーからの全書込が Firestore 上で拒否されること。
-- **Phase 8 — ブックマーク分類**: `getBookmarkFeed` が3分類を返し、非公開親の設問が questions から除外されること。
-- **Phase 8 — listType**: 設問リストに公開設問追加成功、下書き親設問は拒否、クイズリストへの設問追加は拒否。
+- **Phase 8 — ブックマーク分類**: `getBookmarkFeed` が3分類を返し、非公開親の問題が questions から除外されること。
+- **Phase 8 — listType**: 問題リストに公開問題追加成功、下書き親問題は拒否、クイズリストへの問題追加は拒否。
 - **Phase 8 — 参照リンク**: 同一 `questionId` を2クイズが参照しても `questions` ドキュメントが1つのまま。参照解除後も他クイズ参照時は doc 残存。
 - **Phase 8 — searchAuthorQuizzes**: タグ・キーワードで自作下書きがヒットすること。
 - **Phase 9 — 統合検索（ユニバーサル検索）**:
@@ -1521,7 +1521,7 @@ function canDeleteQuestionDoc(
   - `searchQuizzes('keyword', { tags: ['x'] })` がキーワード部分一致 **かつ** タグ x を満たすクイズのみ返すこと。
   - `filters.tags` に重複指定しても結果が単一タグ指定と一致すること。
 - **Phase 11 — 出題形式フィルタ**:
-  - `searchQuizzes('', { format: 'multiple-choice' })` が選択式クイズのみ返すこと（`format` フィールドあり／設問推定の両方）。
+  - `searchQuizzes('', { format: 'multiple-choice' })` が選択式クイズのみ返すこと（`format` フィールドあり／問題推定の両方）。
   - `searchQuizzes('', { genreId: 'science', format: 'lateral-thinking' })` が当該ジャンル内のウミガメ形式のみ返すこと（他ジャンル混入なし）。
   - `searchQuizzes('keyword', { tags: ['js'], format: 'mixed' })` がキーワード・タグ・形式の AND を満たすこと。
   - `format` 未指定時、Phase 10 regression が維持されること。
@@ -1531,7 +1531,7 @@ function canDeleteQuestionDoc(
 - **`listActiveTags`**: 空コレクション、ソート安定、`canonicalId` フィルタ。
 
 ### Unit Tests（Phase 11）
-- **`quiz-format-match`**: `format` フィールド一致、設問 type からの推定一致、不一致、`applyFormatFilter` の未指定パススルー。
+- **`quiz-format-match`**: `format` フィールド一致、問題 type からの推定一致、不一致、`applyFormatFilter` の未指定パススルー。
 - **レガシーフィクスチャ**: `{ format: undefined, questions: [] }` は `mixed` フィルタのみ一致、`multiple-choice` 等では不一致。
 
 ### E2E / UI Tests
@@ -1547,7 +1547,7 @@ function canDeleteQuestionDoc(
     - `isNotBanned()` ヘルパーを定義し、書き込みアクションを実行する全ルール（`create`, `update`, `delete`）に `&& isNotBanned()` を追加。
     - `isNotBanned()` は、`/users/$(request.auth.uid)` ドキュメントの `isBanned` フィールドが `true` でないことを検証する。これにより、不正アカウントによるデータ改ざんを完全に防ぐ。
   - **Phase 6**: `metadata_tags` / `metadata_genres` は read 全公開。create は認証ユーザー（タグは `canonicalId==null` 初期化）。update は `canonicalId` セットまたは `merged*Ids` の `hasAll` 拡張のみ（`detailed_design.md` §6.5）。`mergeRequests` / `genreRequests` はモデレータ権限で create/update を制限（`isModeratorOrAbove()`）。
-  - **Phase 8**: `quizLists` の update は `authorId == request.auth.uid` を維持。`listType` 変更は create 後固定（update でのタイプ変更は拒否可）。設問リストへの追加はサーバー/クライアント双方で公開検証（Rules 単独では親クイズ状態まで検証困難なためサービス層が正本）。
+  - **Phase 8**: `quizLists` の update は `authorId == request.auth.uid` を維持。`listType` 変更は create 後固定（update でのタイプ変更は拒否可）。問題リストへの追加はサーバー/クライアント双方で公開検証（Rules 単独では親クイズ状態まで検証困難なためサービス層が正本）。
 - **APIキーの秘匿**:
   - Google Gemini API キーなどの認証情報はNext.jsのサーバー環境変数としてのみ管理し、クライアントへは一切露出させません。
 

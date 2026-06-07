@@ -42,7 +42,7 @@ export interface PlayProgressData {
   answeredQuestionIds: string[];
   /** 不正解だった問題IDリスト */
   failedQuestionIds: string[];
-  /** 設問ごとのユーザー回答 */
+  /** 問題ごとのユーザー回答 */
   questionAnswers?: Record<string, string>;
   /** 現在の正解数 */
   currentScore: number;

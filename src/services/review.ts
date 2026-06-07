@@ -68,6 +68,40 @@ export async function getReportsForCreator(creatorId: string): Promise<FeedbackR
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FeedbackReport));
 }
 
+/**
+ * 報告者(reporterId)が特定のクイズ(quizId)に対して送信した、
+ * 未解決(status == 'open')の指摘レポート一覧を取得する。
+ */
+export async function getOpenReportsForQuiz(
+  quizId: string,
+  reporterId: string
+): Promise<FeedbackReport[]> {
+  const q = query(
+    feedbackReportsCollection,
+    where('quizId', '==', quizId),
+    where('reporterId', '==', reporterId),
+    where('status', '==', 'open')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FeedbackReport));
+}
+
+/**
+ * 指摘レポートの内容を更新する。
+ */
+export async function updateFeedbackReport(
+  reportId: string,
+  category: 'typo' | 'fact' | 'alternative',
+  content: string
+): Promise<void> {
+  const reportRef = doc(feedbackReportsCollection, reportId);
+  await updateDoc(reportRef, {
+    category,
+    content,
+    updatedAt: new Date(),
+  });
+}
+
 export async function resolveReport(reportId: string, resolverNote?: string): Promise<void> {
   const reportRef = doc(feedbackReportsCollection, reportId);
   const reportSnap = await getDoc(reportRef);

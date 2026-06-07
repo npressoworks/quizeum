@@ -36,13 +36,13 @@ export default function ReviewPage() {
   // 正解した問題の quizId ごとのマッピング (一括アトミック削除用)
   const [solvedMap, setSolvedMap] = useState<Record<string, string[]>>({});
 
-   // 2. 間違えた問題のフェッチ
+  // 2. 間違えた問題のフェッチ
   const startReviewSession = async () => {
     if (!user) return;
     setLoadingQuestions(true);
     setNoQuestions(false);
     try {
-      // getFailedQuestions サービスを用いてアトミックに間違い設問をフェッチ (ジャンルフィルタ連動)
+      // getFailedQuestions サービスを用いてアトミックに間違い問題をフェッチ (ジャンルフィルタ連動)
       const gatheredQuestions = await getFailedQuestions(user.id, undefined, selectedGenre || null);
 
       if (gatheredQuestions.length === 0) {
@@ -111,7 +111,7 @@ export default function ReviewPage() {
     if (isCorrect) {
       setCorrectCount((prev) => prev + 1);
       setRecoveredCount((prev) => prev + 1);
-      
+
       const qId = (currentQuestion as any).quizId || 'unknown';
       const list = nextSolvedMap[qId] || [];
       if (!list.includes(currentQuestion.id)) {
@@ -258,35 +258,35 @@ export default function ReviewPage() {
             const q = failedQuestions[currentIdx];
             const inputProps = q.type === 'text-input' ? getTextInputFieldProps(q) : { type: 'text' as const, placeholder: '解答を入力してください...' };
             return (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = (e.currentTarget.elements.namedItem('textAnswer') as HTMLInputElement).value;
-                handleAnswerSubmit(input);
-                e.currentTarget.reset();
-              }}
-              style={{ display: 'flex', gap: '12px' }}
-            >
-              <input
-                type={inputProps.type}
-                name="textAnswer"
-                style={{
-                  flex: 1,
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '12px',
-                  color: 'var(--text-main)'
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const input = (e.currentTarget.elements.namedItem('textAnswer') as HTMLInputElement).value;
+                  handleAnswerSubmit(input);
+                  e.currentTarget.reset();
                 }}
-                placeholder={inputProps.placeholder}
-                inputMode={inputProps.inputMode}
-                maxLength={inputProps.maxLength}
-                minLength={inputProps.minLength}
-                required
-                autoComplete="off"
-              />
-              <button type="submit" className="btn btn-primary">送信</button>
-            </form>
+                style={{ display: 'flex', gap: '12px' }}
+              >
+                <input
+                  type={inputProps.type}
+                  name="textAnswer"
+                  style={{
+                    flex: 1,
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px',
+                    color: 'var(--text-main)'
+                  }}
+                  placeholder={inputProps.placeholder}
+                  inputMode={inputProps.inputMode}
+                  maxLength={inputProps.maxLength}
+                  minLength={inputProps.minLength}
+                  required
+                  autoComplete="off"
+                />
+                <button type="submit" className="btn btn-primary">送信</button>
+              </form>
             );
           })()}
         </div>

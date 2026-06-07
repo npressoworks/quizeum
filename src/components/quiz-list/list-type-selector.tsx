@@ -34,7 +34,7 @@ export function ListTypeSelector({ value, onChange, disabled = false }: ListType
           onChange={() => onChange('question')}
           disabled={disabled}
         />
-        <span>設問リスト（収録単位: 設問）</span>
+        <span>問題リスト（収録単位: 問題）</span>
       </label>
       {disabled && (
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 8 }}>

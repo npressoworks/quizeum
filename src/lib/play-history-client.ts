@@ -18,7 +18,7 @@ const MODE_LABELS: Record<Attempt['mode'], string> = {
   flashcard: 'フラッシュカード',
   review: '弱点克服',
   list: 'リストプレイ',
-  'question-list': '設問リストプレイ',
+  'question-list': '問題リストプレイ',
   'test-play': 'テストプレイ',
 };
 

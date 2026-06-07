@@ -14,6 +14,7 @@ jest.mock('@/lib/security/sanitize', () => ({
 import { QuizResultPageContent } from '@/app/quiz/[id]/result/page';
 import { getQuiz, getQuizzesByAuthor } from '@/services/quiz';
 import { getBookmarkFeed, toggleBookmark } from '@/services/bookmark';
+import { isFollowing, followUser, unfollowUser } from '@/services/user';
 
 // Mock Router
 const push = jest.fn();
@@ -38,6 +39,12 @@ jest.mock('@/services/quiz', () => ({
 jest.mock('@/services/bookmark', () => ({
   getBookmarkFeed: jest.fn(),
   toggleBookmark: jest.fn(),
+}));
+
+jest.mock('@/services/user', () => ({
+  isFollowing: jest.fn(),
+  followUser: jest.fn(),
+  unfollowUser: jest.fn(),
 }));
 
 jest.mock('@/context/auth-context', () => ({
@@ -157,6 +164,7 @@ describe('QuizResultPage Component (Phase 12)', () => {
       lists: [],
       questions: [],
     });
+    (isFollowing as jest.Mock).mockResolvedValue(false);
     localStorage.clear();
   });
 
@@ -245,6 +253,38 @@ describe('QuizResultPage Component (Phase 12)', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('report-modal-content')).toBeInTheDocument();
+    });
+  });
+
+  test('自分以外の作者のクイズ結果画面の場合、フォローボタンが表示され、初期状態が取得されること', async () => {
+    (isFollowing as jest.Mock).mockResolvedValue(false);
+    render(<QuizResultPageContent quizId={quizId} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('author-follow-btn')).toBeInTheDocument();
+      expect(screen.getByText('作者をフォローする')).toBeInTheDocument();
+    });
+    expect(isFollowing).toHaveBeenCalledWith('test-user-id', 'author-456');
+  });
+
+  test('すでにフォロー中の場合、フォローボタンが「フォロー中」表示になること', async () => {
+    (isFollowing as jest.Mock).mockResolvedValue(true);
+    render(<QuizResultPageContent quizId={quizId} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('author-follow-btn')).toBeInTheDocument();
+      expect(screen.getByText('フォロー中')).toBeInTheDocument();
+    });
+  });
+
+  test('自分自身のクイズ結果画面の場合、フォローボタンが表示されないこと', async () => {
+    const myQuiz = { ...mockQuiz, authorId: 'test-user-id' };
+    (getQuiz as jest.Mock).mockResolvedValue(myQuiz);
+
+    render(<QuizResultPageContent quizId={quizId} />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('author-follow-btn')).not.toBeInTheDocument();
     });
   });
 });

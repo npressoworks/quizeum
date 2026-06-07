@@ -24,26 +24,26 @@
 
 ## 1. Current State
 
-| Module | Genre relevance |
-|--------|-----------------|
-| tagMerge.ts | High - merge, genre requests, voteGenreRequest |
-| quiz.ts | Low - saveQuiz no canonical; getQuizzesByGenre genre== only |
-| quiz-validation.ts | Low - genre non-empty only |
-| moderation.ts | Harmful duplicate genre APIs (unused) |
-| attempt.ts | Low - genreFilter uses quiz.genre |
-| firestore.rules | Missing metadata_genres, genreRequests, mergeRequests |
-| firestore.indexes.json | Missing canonicalGenreId composites |
+| Module                 | Genre relevance                                             |
+| ---------------------- | ----------------------------------------------------------- |
+| tagMerge.ts            | High - merge, genre requests, voteGenreRequest              |
+| quiz.ts                | Low - saveQuiz no canonical; getQuizzesByGenre genre== only |
+| quiz-validation.ts     | Low - genre non-empty only                                  |
+| moderation.ts          | Harmful duplicate genre APIs (unused)                       |
+| attempt.ts             | Low - genreFilter uses quiz.genre                           |
+| firestore.rules        | Missing metadata_genres, genreRequests, mergeRequests       |
+| firestore.indexes.json | Missing canonicalGenreId composites                         |
 
 ## 2. Requirement-to-Asset Gaps
 
-| Source | Expected | Gap |
-|--------|----------|-----|
-| api_spec save | master validation + canonical fields | Missing in saveQuiz |
-| api_spec search perf | canonicalGenreId == / canonicalTagIds | Missing (In scope per user) |
-| detailed_design 6.4.2 | mergedGenreIds + genre in | Missing |
-| detailed_design 6.5 | metadata rules | Missing |
-| spec req 2.1 vs docs F-203 | draft genre required | Constraint - pick canonical source |
-| searchQuizzes | composite search service | Not implemented in src |
+| Source                     | Expected                              | Gap                                |
+| -------------------------- | ------------------------------------- | ---------------------------------- |
+| api_spec save              | master validation + canonical fields  | Missing in saveQuiz                |
+| api_spec search perf       | canonicalGenreId == / canonicalTagIds | Missing (In scope per user)        |
+| detailed_design 6.4.2      | mergedGenreIds + genre in             | Missing                            |
+| detailed_design 6.5        | metadata rules                        | Missing                            |
+| spec req 2.1 vs docs F-203 | draft genre required                  | Constraint - pick canonical source |
+| searchQuizzes              | composite search service              | Not implemented in src             |
 
 ## 3. Options
 
@@ -63,13 +63,13 @@
 
 ## 5. Effort
 
-| Workstream | Effort | Risk |
-|------------|--------|------|
-| metadata-resolution + saveQuiz | M | Medium |
-| queries + canonical C2 | M | Medium |
-| firestore.rules | M | High |
-| indexes + searchQuizzes optional | M-L | Medium |
-| tests + dead code removal | S | Low |
+| Workstream                       | Effort | Risk   |
+| -------------------------------- | ------ | ------ |
+| metadata-resolution + saveQuiz   | M      | Medium |
+| queries + canonical C2           | M      | Medium |
+| firestore.rules                  | M      | High   |
+| indexes + searchQuizzes optional | M-L    | Medium |
+| tests + dead code removal        | S      | Low    |
 
 Overall: L / Medium
 
@@ -121,16 +121,16 @@ Overall: L / Medium
 
 ---
 
-# Gap Analysis: quizeum-core — Phase 8 ブックマーク・リスト・設問再利用（2026-06-05）
+# Gap Analysis: quizeum-core — Phase 8 ブックマーク・リスト・問題再利用（2026-06-05）
 
 ## Analysis Summary
 
-- **Scope**: 要件 13–15（分類ブックマーク、クイズリスト／設問リスト、`question-list` プレイ、自作クイズ検索・参照リンク再利用）。UI は隣接スペック。roadmap Phase 8 + アプローチ 1（`listType` 単一コレクション）を前提。
+- **Scope**: 要件 13–15（分類ブックマーク、クイズリスト／問題リスト、`question-list` プレイ、自作クイズ検索・参照リンク再利用）。UI は隣接スペック。roadmap Phase 8 + アプローチ 1（`listType` 単一コレクション）を前提。
 - **Brownfield 資産**: `bookmarks` の 3 `targetType`、`QuizList.questionIds`、`toggleBookmark` / `getBookmarked*` / `addQuestionToList` の断片は既存。`docs/` と `api_specification.md` は Phase 8 機能を先行記述済み。
-- **最大ギャップ**: (1) `createQuiz` / `updateQuiz` が常に新規 `questions/{id}` を生成し参照リンク未対応、(2) `listType` と設問リストプレイパイプライン未実装、(3) ブックマーク取得・設問追加時の「親クイズ published」検証と設問ブックマーク通知が未接続。
-- **設計へ持ち越し（Research Needed）**: 参照リンク設問の編集時ポリシー（切り離し vs 元へ波及）、複数 `quizId` にまたがる `question-list` プレイのセッション組み立て。
-- **推奨（design 候補）**: Option C Hybrid — `quiz.ts` / `quiz-list.ts` / `bookmark.ts` / `question.ts` を拡張し、参照リンク解決と設問リストプレイは専用モジュール（例: `linked-question.ts`, `question-list-play.ts`）に分離。
-- **規模 / リスク**: Phase 8 単体 **L**（1–2週）、**Medium**（共有設問の保存セマンティクスと横断プレイ）。
+- **最大ギャップ**: (1) `createQuiz` / `updateQuiz` が常に新規 `questions/{id}` を生成し参照リンク未対応、(2) `listType` と問題リストプレイパイプライン未実装、(3) ブックマーク取得・問題追加時の「親クイズ published」検証と問題ブックマーク通知が未接続。
+- **設計へ持ち越し（Research Needed）**: 参照リンク問題の編集時ポリシー（切り離し vs 元へ波及）、複数 `quizId` にまたがる `question-list` プレイのセッション組み立て。
+- **推奨（design 候補）**: Option C Hybrid — `quiz.ts` / `quiz-list.ts` / `bookmark.ts` / `question.ts` を拡張し、参照リンク解決と問題リストプレイは専用モジュール（例: `linked-question.ts`, `question-list-play.ts`）に分離。
+- **規模 / リスク**: Phase 8 単体 **L**（1–2週）、**Medium**（共有問題の保存セマンティクスと横断プレイ）。
 
 ## Document Status
 
@@ -143,17 +143,17 @@ Overall: L / Medium
 
 ### 1.1 関連モジュール
 
-| 領域 | 主要ファイル | 状態 |
-|------|-------------|------|
-| ブックマーク | `src/services/bookmark.ts` | `toggleBookmark`（quiz/list/question）、`getBookmarkedQuizzes` / `getBookmarkedLists`、E2E 用 localStorage モック |
-| 設問 | `src/services/question.ts` | `getQuestion`, `getQuestionsByQuiz`, `toggleBookmarkQuestion`, `getBookmarkedQuestions`, `addQuestionToList` / `removeQuestionFromList` |
-| リスト | `src/services/quiz-list.ts`, `quiz-list-utils.ts` | クイズリスト CRUD、`reorderQuizList`, `exportQuizList`（クイズのみ） |
-| クイズ保存 | `src/services/quiz.ts` | `createQuiz` / `updateQuiz` — 全入力設問を新規 or 同一クイズ内 ID で upsert、**他クイズ ID 参照なし** |
-| 型 | `src/types/index.ts` | `Bookmark.targetType`, `QuizList.questionIds`, `Attempt.mode` に **`question-list` なし**、`Question` に参照フィールドなし |
-| 通知 | `src/services/notification.ts` | `type: 'bookmark'` あり、`toggleBookmark` からの発火なし |
-| Rules | `firestore.rules` | `targetType in ['quiz','list','question']` のみ — `listType`・参照リンク検証なし |
-| UI（参考） | `src/app/bookmarks/page.tsx` | クイズブックマークのみ（コア外だが統合テスト観点でギャップ） |
-| テスト | `tests/services/` | `bookmark` / `question-list` / `linked-question` の Phase 8 専用テスト **なし** |
+| 領域         | 主要ファイル                                      | 状態                                                                                                                                    |
+| ------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| ブックマーク | `src/services/bookmark.ts`                        | `toggleBookmark`（quiz/list/question）、`getBookmarkedQuizzes` / `getBookmarkedLists`、E2E 用 localStorage モック                       |
+| 問題         | `src/services/question.ts`                        | `getQuestion`, `getQuestionsByQuiz`, `toggleBookmarkQuestion`, `getBookmarkedQuestions`, `addQuestionToList` / `removeQuestionFromList` |
+| リスト       | `src/services/quiz-list.ts`, `quiz-list-utils.ts` | クイズリスト CRUD、`reorderQuizList`, `exportQuizList`（クイズのみ）                                                                    |
+| クイズ保存   | `src/services/quiz.ts`                            | `createQuiz` / `updateQuiz` — 全入力問題を新規 or 同一クイズ内 ID で upsert、**他クイズ ID 参照なし**                                   |
+| 型           | `src/types/index.ts`                              | `Bookmark.targetType`, `QuizList.questionIds`, `Attempt.mode` に **`question-list` なし**、`Question` に参照フィールドなし              |
+| 通知         | `src/services/notification.ts`                    | `type: 'bookmark'` あり、`toggleBookmark` からの発火なし                                                                                |
+| Rules        | `firestore.rules`                                 | `targetType in ['quiz','list','question']` のみ — `listType`・参照リンク検証なし                                                        |
+| UI（参考）   | `src/app/bookmarks/page.tsx`                      | クイズブックマークのみ（コア外だが統合テスト観点でギャップ）                                                                            |
+| テスト       | `tests/services/`                                 | `bookmark` / `question-list` / `linked-question` の Phase 8 専用テスト **なし**                                                         |
 
 ### 1.2 確立済みパターン（拡張時に踏襲）
 
@@ -165,51 +165,51 @@ Overall: L / Medium
 
 ### 1.3 docs との整合
 
-| docs | Phase 8 記述 | コード |
-|------|-------------|--------|
-| `db_design.md` | `questionIds` on lists/questions | 型・サービスにフィールドあり、`listType` **なし** |
-| `api_specification.md` | `toggleBookmarkQuestion`, 分類一覧 | 関数は分散、統合取得・親クイズメタ **未実装** |
-| `requirements_definition.md` F-408, F-506 | 設問 BM / マイリスト | コア関数のみ、UI・検証未接続 |
+| docs                                      | Phase 8 記述                       | コード                                            |
+| ----------------------------------------- | ---------------------------------- | ------------------------------------------------- |
+| `db_design.md`                            | `questionIds` on lists/questions   | 型・サービスにフィールドあり、`listType` **なし** |
+| `api_specification.md`                    | `toggleBookmarkQuestion`, 分類一覧 | 関数は分散、統合取得・親クイズメタ **未実装**     |
+| `requirements_definition.md` F-408, F-506 | 問題 BM / マイリスト               | コア関数のみ、UI・検証未接続                      |
 
 ## 2. Requirement-to-Asset Map
 
 ### 要件 13: 分類ブックマーク
 
-| AC | 期待 | 既存 | ギャップ |
-|----|------|------|----------|
-| 13.1 | 3種トグル + カウント | `toggleBookmark` | **OK**（設問は `toggleBookmarkQuestion` 経由） |
-| 13.2 | 登録時 parent published | `toggleBookmark` | **Missing** — 設問登録時に親 `quizzes.status` 未検証 |
-| 13.3 | 非公開親は登録拒否 | 同上 | **Missing** |
-| 13.4 | 3分類一覧・降順 | 3 getter 分散 | **Partial** — 統合 API なし（UI が 3 呼び出しで可） |
-| 13.5 | クイズ BM は公開のみ | `getBookmarkedQuizzes` | **OK**（`isPublished` フィルタ） |
-| 13.6 | 設問 BM に親タイトル、非公開除外 | `getBookmarkedQuestions` | **Missing** — 親クイズ join・published フィルタなし |
-| 13.7 | 他者設問 BM → 作成者通知 | `notification.ts` | **Missing** — `toggleBookmark` 後の通知未実装 |
+| AC   | 期待                             | 既存                     | ギャップ                                             |
+| ---- | -------------------------------- | ------------------------ | ---------------------------------------------------- |
+| 13.1 | 3種トグル + カウント             | `toggleBookmark`         | **OK**（問題は `toggleBookmarkQuestion` 経由）       |
+| 13.2 | 登録時 parent published          | `toggleBookmark`         | **Missing** — 問題登録時に親 `quizzes.status` 未検証 |
+| 13.3 | 非公開親は登録拒否               | 同上                     | **Missing**                                          |
+| 13.4 | 3分類一覧・降順                  | 3 getter 分散            | **Partial** — 統合 API なし（UI が 3 呼び出しで可）  |
+| 13.5 | クイズ BM は公開のみ             | `getBookmarkedQuizzes`   | **OK**（`isPublished` フィルタ）                     |
+| 13.6 | 問題 BM に親タイトル、非公開除外 | `getBookmarkedQuestions` | **Missing** — 親クイズ join・published フィルタなし  |
+| 13.7 | 他者問題 BM → 作成者通知         | `notification.ts`        | **Missing** — `toggleBookmark` 後の通知未実装        |
 
-### 要件 14: クイズリスト / 設問リスト
+### 要件 14: クイズリスト / 問題リスト
 
-| AC | 期待 | 既存 | ギャップ |
-|----|------|------|----------|
-| 14.1 | 作成時タイプ指定 | `createQuizList` | **Missing** — `listType` フィールドなし |
-| 14.2 | タイプ未設定 → クイズリスト | 読み取り全般 | **Missing** — デフォルト解釈ロジックなし |
-| 14.3–14.4 | タイプ別メンバー更新 | `quiz-list` / `question.ts` | **Partial** — `addQuestionToList` あり、**listType ガードなし** |
-| 14.5–14.6 | 公開設問のみ、他者可 | `addQuestionToList` | **Missing** — 親クイズ `published` 検証なし |
-| 14.7 | タイプ不一致操作拒否 | — | **Missing** |
-| 14.8 | `question-list` 連続プレイ | `Attempt.mode` | **Missing** — 型・保存・プレイ組み立て全体 |
-| 14.9 | 作者別タイプ別一覧 | `getQuizListsByAuthor` | **Missing** — `listType` フィルタなし |
-| 14.10 | 設問リストエクスポート | `exportQuizList` | **Missing** — クイズパッケージのみ |
+| AC        | 期待                        | 既存                        | ギャップ                                                        |
+| --------- | --------------------------- | --------------------------- | --------------------------------------------------------------- |
+| 14.1      | 作成時タイプ指定            | `createQuizList`            | **Missing** — `listType` フィールドなし                         |
+| 14.2      | タイプ未設定 → クイズリスト | 読み取り全般                | **Missing** — デフォルト解釈ロジックなし                        |
+| 14.3–14.4 | タイプ別メンバー更新        | `quiz-list` / `question.ts` | **Partial** — `addQuestionToList` あり、**listType ガードなし** |
+| 14.5–14.6 | 公開問題のみ、他者可        | `addQuestionToList`         | **Missing** — 親クイズ `published` 検証なし                     |
+| 14.7      | タイプ不一致操作拒否        | —                           | **Missing**                                                     |
+| 14.8      | `question-list` 連続プレイ  | `Attempt.mode`              | **Missing** — 型・保存・プレイ組み立て全体                      |
+| 14.9      | 作者別タイプ別一覧          | `getQuizListsByAuthor`      | **Missing** — `listType` フィルタなし                           |
+| 14.10     | 問題リストエクスポート      | `exportQuizList`            | **Missing** — クイズパッケージのみ                              |
 
-追加ギャップ: `questionIds` の DnD 並び替え、設問リスト用 `getQuestionsInList` 相当、既存リストのマイグレーション方針（読み取り時 `quiz` デフォルト）。
+追加ギャップ: `questionIds` の DnD 並び替え、問題リスト用 `getQuestionsInList` 相当、既存リストのマイグレーション方針（読み取り時 `quiz` デフォルト）。
 
 ### 要件 15: 自作検索・参照リンク
 
-| AC | 期待 | 既存 | ギャップ |
-|----|------|------|----------|
-| 15.1 | キーワード/タグ検索（下書き含む） | `getQuizzesByAuthor` | **Partial** — author 絞りのみ、**タグ/説明のサーバ検索なし** |
-| 15.2 | 設問詳細返却 | `getQuestionsByQuiz` | **OK**（検索 UI 用にラップ必要） |
-| 15.3 | 参照リンク追加（複製なし） | `createQuiz` / `updateQuiz` | **Missing** — 常に新規 `questions` 作成 |
-| 15.4 | 非自作リンク拒否 | — | **Missing** |
-| 15.5 | 保存時重複レコード禁止 | `updateQuiz` | **Missing** — 参照 ID パス未定義 |
-| 15.6 | 参照解除のみ、元削除しない | `updateQuiz` 削除ロジック | **Constraint** — 共有 ID の「削除」が他クイズを壊すリスク（design 必須） |
+| AC   | 期待                              | 既存                        | ギャップ                                                                 |
+| ---- | --------------------------------- | --------------------------- | ------------------------------------------------------------------------ |
+| 15.1 | キーワード/タグ検索（下書き含む） | `getQuizzesByAuthor`        | **Partial** — author 絞りのみ、**タグ/説明のサーバ検索なし**             |
+| 15.2 | 問題詳細返却                      | `getQuestionsByQuiz`        | **OK**（検索 UI 用にラップ必要）                                         |
+| 15.3 | 参照リンク追加（複製なし）        | `createQuiz` / `updateQuiz` | **Missing** — 常に新規 `questions` 作成                                  |
+| 15.4 | 非自作リンク拒否                  | —                           | **Missing**                                                              |
+| 15.5 | 保存時重複レコード禁止            | `updateQuiz`                | **Missing** — 参照 ID パス未定義                                         |
+| 15.6 | 参照解除のみ、元削除しない        | `updateQuiz` 削除ロジック   | **Constraint** — 共有 ID の「削除」が他クイズを壊すリスク（design 必須） |
 
 ## 3. Implementation Approach Options
 
@@ -221,36 +221,36 @@ Overall: L / Medium
 
 ### Option B: 新規モジュール中心
 
-- **新規**: `linked-question.ts`（参照解決・detach）、`question-list-play.ts`（横断設問セッション）、`author-quiz-search.ts`（自作検索）
+- **新規**: `linked-question.ts`（参照解決・detach）、`question-list-play.ts`（横断問題セッション）、`author-quiz-search.ts`（自作検索）
 - **既存**: 薄いラッパーのみ
 - **Trade-offs**: ✅ 責務分離・テスト容易 / ❌ 初期インターフェース設計コスト
 
 ### Option C: Hybrid（design フェーズの第一候補）
 
-- **拡張**: `bookmark.ts`（検証・通知・設問一覧 enrich）、`quiz-list.ts`（`listType`、フィルタ、設問エクスポート）、`types`
-- **新規**: 参照リンク + 設問リストプレイの専用モジュール、`quiz.ts` から呼び出し
+- **拡張**: `bookmark.ts`（検証・通知・問題一覧 enrich）、`quiz-list.ts`（`listType`、フィルタ、問題エクスポート）、`types`
+- **新規**: 参照リンク + 問題リストプレイの専用モジュール、`quiz.ts` から呼び出し
 - **Trade-offs**: ✅ Phase 5–7 と同パターン（`leaderboard-ranking.ts` 等）/ ❌ モジュール間契約の明文化が必要
 
 ## 4. Research Needed（design へ）
 
-1. **参照リンク設問の編集**: 要件 Out — 切り離し（コピー新規）vs 元更新 vs 読み取り専用表示。`updateQuiz` の `authorId` 上書き（L252）が参照設問と衝突する。
-2. **`question-list` プレイ**: 設問ごとに `quizId` が異なる場合のルーティング（`/quiz/[id]/play` 再利用 vs 専用 `/list/[id]/play-questions`）、`Attempt.quizId` の代表値、`failedQuestionIds` の集約。
-3. **共有設問の削除ガード**: 複数クイズの `questionIds` に同一 ID があるとき、`updateQuiz` の `batch.delete` を抑止する参照カウント or `linkedQuizIds` 非正規化。
+1. **参照リンク問題の編集**: 要件 Out — 切り離し（コピー新規）vs 元更新 vs 読み取り専用表示。`updateQuiz` の `authorId` 上書き（L252）が参照問題と衝突する。
+2. **`question-list` プレイ**: 問題ごとに `quizId` が異なる場合のルーティング（`/quiz/[id]/play` 再利用 vs 専用 `/list/[id]/play-questions`）、`Attempt.quizId` の代表値、`failedQuestionIds` の集約。
+3. **共有問題の削除ガード**: 複数クイズの `questionIds` に同一 ID があるとき、`updateQuiz` の `batch.delete` を抑止する参照カウント or `linkedQuizIds` 非正規化。
 4. **インデックス**: `quizLists` の `authorId` + `listType` + `createdAt` 複合が必要か。
-5. **通知ペイロード**: 設問 BM 時の `notifications` — `targetType` 拡張 or `questionId` + `quizId` メタ。
+5. **通知ペイロード**: 問題 BM 時の `notifications` — `targetType` 拡張 or `questionId` + `quizId` メタ。
 6. **Phase 6/7 との実装順**: Phase 8 は `saveQuiz` / Rules に触れる — Phase 6 canonical とのマージコンフリクトに注意。
 
 ## 5. Effort and Risk
 
-| ワークストリーム | 内容 | Effort | Risk |
-|------------------|------|--------|------|
-| ブックマーク検証・一覧 enrich・通知 | 13.x | S–M | Low |
-| `listType` + リスト CRUD/検証/エクスポート | 14.1–14.7, 14.9–14.10 | M | Low–Medium |
-| `question-list` プレイ + Attempt 拡張 | 14.8 | M–L | **Medium** |
-| 自作検索 API | 15.1–15.2 | S | Low |
-| 参照リンク `createQuiz`/`updateQuiz` | 15.3–15.6 | M–L | **High**（共有設問・削除） |
-| 型・Rules・docs 同期 | 横断 | S–M | Medium |
-| テスト（Jest 結合 + E2E 触媒） | 横断 | M | Low |
+| ワークストリーム                           | 内容                  | Effort | Risk                       |
+| ------------------------------------------ | --------------------- | ------ | -------------------------- |
+| ブックマーク検証・一覧 enrich・通知        | 13.x                  | S–M    | Low                        |
+| `listType` + リスト CRUD/検証/エクスポート | 14.1–14.7, 14.9–14.10 | M      | Low–Medium                 |
+| `question-list` プレイ + Attempt 拡張      | 14.8                  | M–L    | **Medium**                 |
+| 自作検索 API                               | 15.1–15.2             | S      | Low                        |
+| 参照リンク `createQuiz`/`updateQuiz`       | 15.3–15.6             | M–L    | **High**（共有問題・削除） |
+| 型・Rules・docs 同期                       | 横断                  | S–M    | Medium                     |
+| テスト（Jest 結合 + E2E 触媒）             | 横断                  | M      | Low                        |
 
 **Phase 8 全体**: **L** / **Medium**（参照リンクと横断プレイが支配的）
 
@@ -259,14 +259,14 @@ Overall: L / Medium
 1. **第一候補**: Option C — `listType` は `QuizList` 型と `createQuizList` に追加、読み取りデフォルト `'quiz'`。
 2. **参照リンク**: `Question` に `sourceQuestionId?: string`（または `isLinked: boolean`）+ `quiz.ts` 保存パスで「既存 ID・他クイズ所属・author 一致」なら `batch.set` スキップし `questionIds` のみ追加。
 3. **ブックマーク**: `getBookmarkedQuestions` 内で親 `quizzes` を chunk 取得し `status === 'published'` フィルタ + `parentQuizTitle` 付与；`toggleBookmark`（question）で事前検証；通知は `createNotification` を bookmark 成功分岐に追加。
-4. **設問リストプレイ**: 新ヘルパー `resolveQuestionListSession(listId)` → 順序付き `Question[]`；完了時 `mode: 'question-list'`, `listId` 設定（`quizId` は先頭設問の親 or 専用センチネルは design で固定）。
+4. **問題リストプレイ**: 新ヘルパー `resolveQuestionListSession(listId)` → 順序付き `Question[]`；完了時 `mode: 'question-list'`, `listId` 設定（`quizId` は先頭問題の親 or 専用センチネルは design で固定）。
 5. **検索**: `searchAuthorQuizzes(authorId, { keyword?, tag? })` — Firestore の全文検索限界のため、初版は `getQuizzesByAuthor` + クライアントフィルタ or `title` 前方一致の複合（性能は design で明記）。
 6. **テスト**: `tests/services/bookmark-question.test.ts`, `quiz-list-question-type.test.ts`, `quiz-linked-question.test.ts` を新設。
 7. **隣接スペック**: `quizeum-play-flow-ui` / `quizeum-creator-dash-ui` は core API 契約確定後に requirements 更新（roadmap 順）。
 
 ## References (Phase 8)
 
-- `.kiro/steering/roadmap.md` — Phase 8（アプローチ 1、設問リスト B）
+- `.kiro/steering/roadmap.md` — Phase 8（アプローチ 1、問題リスト B）
 - `.kiro/specs/quizeum-core/requirements.md` — 要件 13–15
 - `src/services/bookmark.ts`, `question.ts`, `quiz-list.ts`, `quiz.ts`
 - `docs/api_specification.md`, `docs/db_design.md`, `docs/detailed_design.md` §1.6
@@ -281,8 +281,8 @@ Overall: L / Medium
 - **Discovery Scope**: Extension（light discovery + gap 分析再利用）
 - **Key Findings**:
   - 既存 `toggleBookmark` / `questionIds` 断片を Option C Hybrid で拡張
-  - 参照設問編集は Copy-on-Write 切り離しで要件 Out の UX ギャップを解消
-  - 設問リストプレイはクイズリストと同様「メンバーごと1 attempt」
+  - 参照問題編集は Copy-on-Write 切り離しで要件 Out の UX ギャップを解消
+  - 問題リストプレイはクイズリストと同様「メンバーごと1 attempt」
 
 ## Design Decisions
 
@@ -297,7 +297,7 @@ Overall: L / Medium
 ### Decision: One attempt per question in question-list play
 
 - **Context**: 14.8 と既存 5.5 の対称性
-- **Selected**: `mode: 'question-list'`, `listId`, 各設問の `quizId` で attempt を個別記録
+- **Selected**: `mode: 'question-list'`, `listId`, 各問題の `quizId` で attempt を個別記録
 - **Rationale**: `saveAttempt` / プレイ履歴 / LB ロジックへの侵入が最小
 
 ### Decision: searchAuthorQuizzes in-memory filter
@@ -308,7 +308,7 @@ Overall: L / Medium
 
 ## Risks & Mitigations
 
-- 共有設問の誤削除 — `canDeleteQuestionDoc` + 参照パスでは delete しない
+- 共有問題の誤削除 — `canDeleteQuestionDoc` + 参照パスでは delete しない
 - `updateQuiz` の authorId 上書き — 参照 ID は `batch.set` スキップ
 - Phase 6 saveQuiz とのコンフリクト — 参照パスを `saveQuiz` 内の独立分岐としてマージ
 
@@ -371,28 +371,28 @@ Overall: L / Medium
 
 ## 1. Requirement-to-Asset Map
 
-| 要件 | 期待 | 現状 | ギャップ |
-|------|------|------|----------|
-| 16.1–5 `listActiveTags` | 存続タグ一覧 | `quiz.ts` L87–101、`useActiveTags` | ✅ なし |
-| 16.6–13 タグ AND | `SearchFilters.tags` + AND 照合 | `buildTagMatchSpecs`, `intersectQuizzesById`, `quizMatchesAllTags` | ✅ なし |
-| 17.1 形式フィルタ | 指定形式のみ返却 | 未実装 | ❌ **Missing** |
-| 17.2 条件 AND 合成 | format + 既存フィルタ | genre/tags/difficulty あり、format なし | ❌ **Missing** |
-| 17.3 format 未指定 | 従来挙動維持 | 暗黙的に満たす（追加後も default 未指定で OK） | ⚠️ テスト要 |
-| 17.4–5 scoped genre | ジャンル固定 + 他条件 AND | `filters.genreId` + `expandGenreIdsForQuery` L817–824 | ✅ ロジックあり（format 追加後に結合テスト要） |
-| 17.6 判定規則一致 | UI ラベルと同一 | `resolveQuizFormat` が lib に存在、core 未使用 | ❌ **Missing**（import + filter） |
-| 17.7–8 境界 | UI/インデックス Out | 該当なし | ✅ |
+| 要件                    | 期待                            | 現状                                                               | ギャップ                                      |
+| ----------------------- | ------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| 16.1–5 `listActiveTags` | 存続タグ一覧                    | `quiz.ts` L87–101、`useActiveTags`                                 | ✅ なし                                        |
+| 16.6–13 タグ AND        | `SearchFilters.tags` + AND 照合 | `buildTagMatchSpecs`, `intersectQuizzesById`, `quizMatchesAllTags` | ✅ なし                                        |
+| 17.1 形式フィルタ       | 指定形式のみ返却                | 未実装                                                             | ❌ **Missing**                                 |
+| 17.2 条件 AND 合成      | format + 既存フィルタ           | genre/tags/difficulty あり、format なし                            | ❌ **Missing**                                 |
+| 17.3 format 未指定      | 従来挙動維持                    | 暗黙的に満たす（追加後も default 未指定で OK）                     | ⚠️ テスト要                                    |
+| 17.4–5 scoped genre     | ジャンル固定 + 他条件 AND       | `filters.genreId` + `expandGenreIdsForQuery` L817–824              | ✅ ロジックあり（format 追加後に結合テスト要） |
+| 17.6 判定規則一致       | UI ラベルと同一                 | `resolveQuizFormat` が lib に存在、core 未使用                     | ❌ **Missing**（import + filter）              |
+| 17.7–8 境界             | UI/インデックス Out             | 該当なし                                                           | ✅                                             |
 
 ## 2. Current State Investigation
 
 ### 再利用可能アセット
 
-| モジュール | 役割 |
-|-----------|------|
-| `src/services/quiz.ts` | `SearchFilters`, `searchQuizzes`, `listActiveTags`, `listActiveGenres` |
-| `src/lib/quiz-format.ts` | `resolveQuizFormat`, `QuizFormat` 型 |
-| `src/lib/quiz-format-labels.ts` | UI 側ラベル（core は format id のみ照合） |
-| `src/lib/quiz-tag-match.ts` | タグ AND 照合（形式フィルタも同様に lib 純関数化可） |
-| `tests/services/quiz-search-tags-and.test.ts` | タグ AND / genreId 結合テストのテンプレ |
+| モジュール                                    | 役割                                                                   |
+| --------------------------------------------- | ---------------------------------------------------------------------- |
+| `src/services/quiz.ts`                        | `SearchFilters`, `searchQuizzes`, `listActiveTags`, `listActiveGenres` |
+| `src/lib/quiz-format.ts`                      | `resolveQuizFormat`, `QuizFormat` 型                                   |
+| `src/lib/quiz-format-labels.ts`               | UI 側ラベル（core は format id のみ照合）                              |
+| `src/lib/quiz-tag-match.ts`                   | タグ AND 照合（形式フィルタも同様に lib 純関数化可）                   |
+| `tests/services/quiz-search-tags-and.test.ts` | タグ AND / genreId 結合テストのテンプレ                                |
 
 ### 既存 `searchQuizzes` フロー（形式追加の挿入点）
 
@@ -428,21 +428,21 @@ Overall: L / Medium
 
 ## 4. Research Needed（設計フェーズへ）
 
-| 項目 | 内容 |
-|------|------|
-| 母集団上限 | keyword 空 + format のみ指定時、ベースを `getLatestQuizzes(100)` で足りるか（要件上は可。必要なら将来 `format` 専用取得） |
-| `mixed` 旧データ | `format` 無しクイズの推定形式がカルーセル選択と一致するか — フィクスチャで検証 |
-| scoped + sort | ジャンルページが `searchQuizzes` 切替時、ソート順をクライアント `sortQuizzesForList` で再適用するか（play-flow 設計） |
+| 項目             | 内容                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 母集団上限       | keyword 空 + format のみ指定時、ベースを `getLatestQuizzes(100)` で足りるか（要件上は可。必要なら将来 `format` 専用取得） |
+| `mixed` 旧データ | `format` 無しクイズの推定形式がカルーセル選択と一致するか — フィクスチャで検証                                            |
+| scoped + sort    | ジャンルページが `searchQuizzes` 切替時、ソート順をクライアント `sortQuizzesForList` で再適用するか（play-flow 設計）     |
 
 ## 5. Effort & Risk Summary
 
-| ワークストリーム | Effort | Risk |
-|-----------------|--------|------|
-| `SearchFilters.format` + 後段フィルタ | S | Low |
-| `quiz-format-match` 純関数 + テスト | S | Low |
-| scoped genre + format 結合テスト | S | Low |
-| **Phase 11 合計** | **S** | **Low** |
-| Phase 10 残差 | — | —（実装完了） |
+| ワークストリーム                      | Effort | Risk          |
+| ------------------------------------- | ------ | ------------- |
+| `SearchFilters.format` + 後段フィルタ | S      | Low           |
+| `quiz-format-match` 純関数 + テスト   | S      | Low           |
+| scoped genre + format 結合テスト      | S      | Low           |
+| **Phase 11 合計**                     | **S**  | **Low**       |
+| Phase 10 残差                         | —      | —（実装完了） |
 
 ## 6. Design Phase Recommendations
 

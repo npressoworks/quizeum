@@ -163,7 +163,7 @@ describe('searchQuizzes (出題形式フィルタ)', () => {
     expect(results.map((r) => r.id)).toEqual(['mc']);
   });
 
-  test('形式のみで設問 type から推定した形式を返す', async () => {
+  test('形式のみで問題 type から推定した形式を返す', async () => {
     const inferred = makeQuiz({
       id: 'lt',
       questions: [makeQuestion('lateral-thinking')],

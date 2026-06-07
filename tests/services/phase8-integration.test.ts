@@ -8,7 +8,7 @@ import { filterAuthorQuizzes } from '../../src/lib/author-quiz-search';
 import type { Question, Quiz } from '../../src/types';
 
 describe('Phase 8 integration smoke', () => {
-  test('listType 未設定は quiz、設問リスト操作は question のみ', () => {
+  test('listType 未設定は quiz、問題リスト操作は question のみ', () => {
     expect(resolveListType({} as never)).toBe('quiz');
     expect(() => assertListTypeOperation({ listType: 'question' }, 'question')).not.toThrow();
   });

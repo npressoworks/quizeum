@@ -83,6 +83,11 @@ service cloud.firestore {
         && request.resource.data.moderationTier == resource.data.moderationTier
         && request.resource.data.reputationScore == resource.data.reputationScore
         && request.resource.data.deleteStatus == resource.data.deleteStatus
+        // 他ユーザーからリアクションを受けた際の totalReactionsCount の更新のみ許可
+        || (
+          isAuthenticated()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalReactionsCount'])
+        )
         // 管理者またはシニアモデレータによる特権書き換えは許可
         || isSeniorModeratorOrAdmin()
       );
@@ -128,11 +133,14 @@ service cloud.firestore {
         && request.resource.data.flagsCount == 0
         && request.resource.data.status in ['draft', 'published'];
         
-      // プレイ数・ブックマーク数・リーダーボードのみの更新（プレイ完了・ブックマーク操作）
+      // プレイ数・ブックマーク数・良問評価・リーダーボードのみの更新（プレイ完了・ブックマーク操作など）
       function isPublicQuizStatsUpdate() {
         return isAuthenticated() && isNotBanned()
           && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['playCount', 'bookmarksCount', 'leaderboard', 'leaderboardFirstPlay', 'leaderboardReplay', 'updatedAt'])
+              .hasOnly([
+                'playCount', 'bookmarksCount', 'leaderboard', 'leaderboardFirstPlay', 'leaderboardReplay', 'updatedAt',
+                'positiveCount', 'negativeCount', 'tempPositiveCount', 'tempNegativeCount', 'reviewScore', 'reviewBadge'
+              ])
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.status == resource.data.status
           && request.resource.data.flagsCount == resource.data.flagsCount;
@@ -317,14 +325,62 @@ service cloud.firestore {
         && request.resource.data.status == 'open'
         && request.resource.data.category in ['typo', 'fact', 'alternative'];
 
-      // 作成者のみ status を resolved に更新可能
-      allow update: if isAuthenticated() && isNotBanned()
-        && resource.data.creatorId == request.auth.uid
-        && resource.data.status == 'open'
-        && request.resource.data.status == 'resolved'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      // 更新ルール:
+      // 1. クイズ作成者が status を resolved に更新可能
+      // 2. 報告者自身が open 状態の指摘の category / content / updatedAt を修正可能
+      allow update: if isAuthenticated() && isNotBanned() && (
+        (
+          resource.data.creatorId == request.auth.uid
+          && resource.data.status == 'open'
+          && request.resource.data.status == 'resolved'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        ) || (
+          resource.data.reporterId == request.auth.uid
+          && resource.data.status == 'open'
+          && request.resource.data.status == 'open'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['category', 'content', 'updatedAt'])
+        )
+      );
 
       allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------
+    // quizReviews コレクションルール
+    // -----------------------------------------------------------------
+    match /quizReviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isNotBanned()
+        && request.resource.data.reviewerId == request.auth.uid
+        && reviewId == request.auth.uid + '_' + request.resource.data.quizId;
+      allow update: if isAuthenticated() && isNotBanned()
+        && resource.data.reviewerId == request.auth.uid
+        && request.resource.data.reviewerId == request.auth.uid;
+      allow delete: if isAuthenticated() && isNotBanned() && (
+        resource.data.reviewerId == request.auth.uid || isModeratorOrAbove()
+      );
+    }
+
+    // -----------------------------------------------------------------
+    // reviewResetRequests コレクションルール
+    // -----------------------------------------------------------------
+    match /reviewResetRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isNotBanned()
+        && request.resource.data.requesterId == request.auth.uid;
+      allow update: if isModeratorOrAbove() && isNotBanned();
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------
+    // reactions コレクションルール
+    // -----------------------------------------------------------------
+    match /reactions/{reactionId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isNotBanned()
+        && request.resource.data.senderId == request.auth.uid
+        && reactionId == request.auth.uid + '_' + request.resource.data.quizId + '_' + request.resource.data.type;
+      allow update, delete: if false;
     }
 
     // -----------------------------------------------------------------

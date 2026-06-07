@@ -33,7 +33,7 @@ describe('useBookmarkFeed', () => {
     expect(mockGetBookmarkFeed).toHaveBeenCalledWith('user-1');
   });
 
-  it('removeBookmark で楽観的に設問を除去する', async () => {
+  it('removeBookmark で楽観的に問題を除去する', async () => {
     const { result } = renderHook(() => useBookmarkFeed('user-1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
 

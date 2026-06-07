@@ -41,7 +41,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  
+
   const rawMode = searchParams.get('mode') || 'normal';
   const questionListMode = rawMode === 'question-list';
   const playMode = rawMode as 'normal' | 'exam' | 'flashcard' | 'lateral' | 'list' | 'question-list';
@@ -88,7 +88,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
     async function loadQuiz() {
       try {
         const data = await getQuiz(quizId);
-        
+
         // カンニング防止：quick-press の本文は API ストリーム、正解は Base64 難読化
         if (data && data.questions) {
           data.questions = data.questions.map((q) => {
@@ -106,7 +106,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
         }
 
         setQuiz(data);
-        
+
         // ウミガメスープ保護: 未ログインならログインにリダイレクト
         if (playMode === 'lateral' && !user) {
           router.push('/login');
@@ -355,7 +355,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
       const token = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/attempt/verify-truth', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
@@ -460,7 +460,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
   useEffect(() => {
     if (!quiz || currentIdx >= quiz.questions.length) return;
     const currentQuestion = quiz.questions[currentIdx];
-    
+
     if (currentQuestion.type === 'sorting' && currentQuestion.sortingItems) {
       // 初期状態ではランダムシャッフル
       const items = [...currentQuestion.sortingItems];
@@ -470,7 +470,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
       }
       setSortingItems(items);
     }
-    
+
     if (currentQuestion.type === 'association') {
       setActiveHintIdx(0);
     }
@@ -547,7 +547,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
                 <span>・・・AIが質問を分析中です</span>
               </div>
             )}
-            
+
             {/* 合格クリアアニメーション (Task 4.3) */}
             {truthPassed && (
               <div className={`${styles.chatBubble} ${styles.bubbleSystem}`}>
@@ -732,28 +732,28 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
         {currentQuestion?.type === 'text-input' && (() => {
           const inputProps = getTextInputFieldProps(currentQuestion);
           return (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const input = (e.currentTarget.elements.namedItem('textAnswer') as HTMLInputElement).value;
-              handleAnswerSubmit(input);
-              e.currentTarget.reset();
-            }}
-            className={styles.inputForm}
-          >
-            <input
-              type={inputProps.type}
-              name="textAnswer"
-              className={styles.textInput}
-              placeholder={inputProps.placeholder}
-              inputMode={inputProps.inputMode}
-              maxLength={inputProps.maxLength}
-              minLength={inputProps.minLength}
-              required
-              autoComplete="off"
-            />
-            <button type="submit" className="btn btn-primary">送信</button>
-          </form>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const input = (e.currentTarget.elements.namedItem('textAnswer') as HTMLInputElement).value;
+                handleAnswerSubmit(input);
+                e.currentTarget.reset();
+              }}
+              className={styles.inputForm}
+            >
+              <input
+                type={inputProps.type}
+                name="textAnswer"
+                className={styles.textInput}
+                placeholder={inputProps.placeholder}
+                inputMode={inputProps.inputMode}
+                maxLength={inputProps.maxLength}
+                minLength={inputProps.minLength}
+                required
+                autoComplete="off"
+              />
+              <button type="submit" className="btn btn-primary">送信</button>
+            </form>
           );
         })()}
 
@@ -810,11 +810,11 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
                   e.preventDefault();
                   const input = (e.currentTarget.elements.namedItem('quickAnswer') as HTMLInputElement).value;
                   setUserAnswer(input);
-                  
+
                   // ローカルで正誤判定（タイム記録のために両モードで共通実行）
                   let isCorrect = false;
                   try {
-                    const decodedAnswers = currentQuestion.correctTextAnswerList?.map(ans => 
+                    const decodedAnswers = currentQuestion.correctTextAnswerList?.map(ans =>
                       decodeURIComponent(escape(atob(ans))).trim().toLowerCase().replace(/\s+/g, '')
                     ) || [];
                     const cleanInput = input.trim().toLowerCase().replace(/\s+/g, '');
@@ -985,7 +985,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
                   </div>
                 ))}
             </div>
-            
+
             {currentQuestion.associationHints && activeHintIdx < currentQuestion.associationHints.length - 1 && (
               <button
                 className="btn btn-secondary"
@@ -1078,7 +1078,7 @@ function QuizPlayPageContent({ quizId }: ContentProps) {
         )}
       </div>
 
-      {/* 模擬試験用の設問ナビゲーション */}
+      {/* 模擬試験用の問題ナビゲーション */}
       {effectivePlayMode === 'exam' && (
         <div className={styles.examNavGrid}>
           {(quiz.questions ?? []).map((q, idx) => {

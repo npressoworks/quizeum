@@ -2,7 +2,7 @@ import type { QuizList, QuizListType } from '@/types';
 import { resolveListType } from '@/types';
 
 export function getProfileListTypeLabel(listType: QuizListType): string {
-  return listType === 'question' ? '設問リスト' : 'クイズリスト';
+  return listType === 'question' ? '問題リスト' : 'クイズリスト';
 }
 
 export function getProfileListItemCount(
@@ -11,7 +11,7 @@ export function getProfileListItemCount(
   const resolved = resolveListType(list as QuizList);
   if (resolved === 'question') {
     const count = list.questionIds?.length ?? 0;
-    return { count, countLabel: `収録設問: ${count} 件` };
+    return { count, countLabel: `収録問題: ${count} 件` };
   }
   const count = list.quizIds?.length ?? 0;
   return { count, countLabel: `収録クイズ: ${count} 件` };

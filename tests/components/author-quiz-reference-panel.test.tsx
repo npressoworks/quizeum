@@ -12,7 +12,7 @@ jest.mock('@/hooks/useAuthorQuizReferenceSearch');
 
 jest.mock('@/services/author-quiz-search', () => ({
   getQuestionsByQuiz: jest.fn().mockResolvedValue([
-    { id: 'q-ref', type: 'multiple-choice', questionText: '参照設問', correctCount: 0, incorrectCount: 0 },
+    { id: 'q-ref', type: 'multiple-choice', questionText: '参照問題', correctCount: 0, incorrectCount: 0 },
   ]),
 }));
 
@@ -35,7 +35,7 @@ describe('AuthorQuizReferencePanel', () => {
     mockUseSearch.mockReturnValue(defaultSearchState);
   });
 
-  it('設問リンクで linkKind reference をコールバックする', async () => {
+  it('問題リンクで linkKind reference をコールバックする', async () => {
     const onLink = jest.fn();
     render(
       <AuthorQuizReferencePanel
@@ -54,11 +54,11 @@ describe('AuthorQuizReferencePanel', () => {
       expect.objectContaining({ id: 'q-ref', linkKind: 'reference' })
     );
     expect(screen.getByTestId('reference-link-success')).toHaveTextContent(
-      '設問をリンクしました: 参照設問'
+      '問題をリンクしました: 参照問題'
     );
   });
 
-  it('問題文ヒット時はアコーディオンを開き設問を最初から表示する', async () => {
+  it('問題文ヒット時はアコーディオンを開き問題を最初から表示する', async () => {
     mockUseSearch.mockReturnValue({
       ...defaultSearchState,
       keyword: 'キーワード',
@@ -103,7 +103,7 @@ describe('AuthorQuizReferencePanel', () => {
     );
   });
 
-  it('リンク済み設問はリンク解除ボタンを表示する', async () => {
+  it('リンク済み問題はリンク解除ボタンを表示する', async () => {
     const onUnlink = jest.fn();
     render(
       <AuthorQuizReferencePanel
@@ -118,7 +118,7 @@ describe('AuthorQuizReferencePanel', () => {
     fireEvent.click(screen.getByTestId('unlink-reference-q-ref'));
     expect(onUnlink).toHaveBeenCalledWith('q-ref');
     expect(screen.getByTestId('reference-link-success')).toHaveTextContent(
-      'リンクを解除しました: 参照設問'
+      'リンクを解除しました: 参照問題'
     );
   });
 });

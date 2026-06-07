@@ -1,8 +1,8 @@
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL, 
-  deleteObject 
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
 } from 'firebase/storage';
 import { storage } from '../lib/firebase/config';
 import { assertGenreIconFileValid } from '../lib/genre-icon-upload';
@@ -69,7 +69,7 @@ export function getQuizCoverPath(quizId: string, extension: string = 'png'): str
 }
 
 /**
- * 設問の参考画像の保存パスを取得
+ * 問題の参考画像の保存パスを取得
  * 形式: quizzes/{quizId}/questions/{questionId}_{timestamp}.png
  */
 export function getQuestionImagePath(quizId: string, questionId: string, extension: string = 'png'): string {

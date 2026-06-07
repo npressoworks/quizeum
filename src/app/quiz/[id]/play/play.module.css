@@ -47,8 +47,13 @@
   font-weight: 600;
 }
 
-.online { color: var(--color-accent); }
-.offline { color: #ff007f; }
+.online {
+  color: var(--color-accent);
+}
+
+.offline {
+  color: #ff007f;
+}
 
 /* 進行状況バー */
 .progressSection {
@@ -243,7 +248,7 @@
   margin-top: 24px;
 }
 
-/* 模擬試験用の設問ナビゲーション */
+/* 模擬試験用の問題ナビゲーション */
 .examNavGrid {
   display: flex;
   flex-wrap: wrap;
@@ -405,10 +410,21 @@
   font-weight: 700;
 }
 
-.responseYes { color: #00f5d4; }
-.responseNo { color: #ff007f; }
-.responseIrrelevant { color: #ffb703; }
-.responseUnknown { color: var(--text-muted); }
+.responseYes {
+  color: #00f5d4;
+}
+
+.responseNo {
+  color: #ff007f;
+}
+
+.responseIrrelevant {
+  color: #ffb703;
+}
+
+.responseUnknown {
+  color: var(--text-muted);
+}
 
 .cacheBadge {
   background: rgba(0, 245, 212, 0.15);
@@ -499,13 +515,25 @@
 
 /* アニメーション */
 @keyframes pulse {
-  from { opacity: 0.5; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.5;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes zoomIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* 早押しクイズスタイル */
@@ -534,10 +562,12 @@
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(255, 0, 127, 0.7);
   }
+
   70% {
     transform: scale(1.02);
     box-shadow: 0 0 0 15px rgba(255, 0, 127, 0);
   }
+
   100% {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(255, 0, 127, 0);
@@ -549,10 +579,12 @@
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(0, 245, 212, 0.7);
   }
+
   70% {
     transform: scale(1.02);
     box-shadow: 0 0 0 15px rgba(0, 245, 212, 0);
   }
+
   100% {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(0, 245, 212, 0);

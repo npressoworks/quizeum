@@ -24,7 +24,7 @@ const mockQuiz: Quiz = {
   tags: ['歴史', 'ミステリー'],
   originalTags: ['歴史', 'ミステリー'],
   questions: [],
-  questionIds: [], // 設問IDの配列
+  questionIds: [], // 問題IDの配列
   questionCount: 0,
   status: 'published',
   flagsCount: 0,
@@ -56,7 +56,7 @@ describe('Task 4.1 非機能要件 & パフォーマンス検証テスト', () =
       // HTMLとしての基本タグ構造の確認
       expect(html).toContain('<!DOCTYPE html>');
       expect(html).toContain('<html lang="ja">');
-      
+
       // titleおよびdescriptionの整合性検証
       expect(html).toContain('<title>世界史の真実クイズ | quizeum</title>');
       expect(html).toContain('<meta name="description" content="歴史ミステリーの真相に迫る高度なクイズです。">');
@@ -75,12 +75,12 @@ describe('Task 4.1 非機能要件 & パフォーマンス検証テスト', () =
 
     test('8.1 初期HTMLのレンダリング応答時間が0.5秒（500ms）を遥かに下回り、極めて高速に処理完了すること', () => {
       const start = performance.now();
-      
+
       // 100回連続でレンダリングを実行して負荷をかける
       for (let i = 0; i < 100; i++) {
         renderOgpHtml(mockQuiz);
       }
-      
+
       const duration = performance.now() - start;
       const averageTime = duration / 100;
 
@@ -93,13 +93,13 @@ describe('Task 4.1 非機能要件 & パフォーマンス検証テスト', () =
   describe('8.1 & 8.2 高負荷（スパイクアクセス）シミュレーション', () => {
     test('1000件の同時並行アクセススパイクにおいて、エラー率が0.1%未満であり、平均応答時間が0.5秒以内であること', async () => {
       const requestCount = 1000;
-      
+
       // 通常運用状態（エラー確率 0%）でのスパイクアクセス検証
       const result = await simulateSpikeAccess(requestCount, 0);
 
       // エラー率が 0.1% 未満（0.001）であることを検証
       expect(result.errorRate).toBeLessThan(0.001);
-      
+
       // 平均応答時間が 0.5秒（500ms）以下であることを検証
       expect(result.averageResponseTimeMs).toBeLessThan(500);
 

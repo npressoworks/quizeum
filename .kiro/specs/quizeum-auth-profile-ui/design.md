@@ -7,7 +7,7 @@
 
 **Phase 5（2026-06）**: 本人プロフィールのコンテンツタブに「プレイ履歴」を追加し、`GET /api/user/play-history` の結果を一覧・ページング表示する（APIは `quizeum-core` 実装済み）。
 
-**Phase 8（2026-06）**: プロフィール「作成したリスト」タブで、クイズリストと設問リスト（`listType`）を種別ラベル・正しい収録件数で区別表示する（`listType` 永続化・取得は `quizeum-core` / `quizeum-creator-dash-ui` 実装済み）。
+**Phase 8（2026-06）**: プロフィール「作成したリスト」タブで、クイズリストと問題リスト（`listType`）を種別ラベル・正しい収録件数で区別表示する（`listType` 永続化・取得は `quizeum-core` / `quizeum-creator-dash-ui` 実装済み）。
 
 ### Goals
 - 画面群の基礎となるデザインシステム（カジュアルモダンなUI）トークンおよびレイアウトの維持。
@@ -21,7 +21,7 @@
 - クイズプレイ・作成・モデレーション画面（各専用スペック）。
 - `attempts` 永続化・プレイ履歴API・`test-play` 除外ロジック（`quizeum-core`）。
 - 他ユーザープロフィールからのプレイ履歴閲覧。
-- **Phase 8**: リスト作成・編集・`listType` 選択 UI（`quizeum-creator-dash-ui`）。ブックマーク3タブ・設問リストプレイ（`quizeum-play-flow-ui`）。
+- **Phase 8**: リスト作成・編集・`listType` 選択 UI（`quizeum-creator-dash-ui`）。ブックマーク3タブ・問題リストプレイ（`quizeum-play-flow-ui`）。
 
 ---
 
@@ -38,7 +38,7 @@
 ### Out of Boundary
 - Firestoreセキュリティルール、バッジ自動付与サーバー処理。
 - プレイ履歴のクエリ実装・`PlayHistoryPage` 生成（`quizeum-core` / `GET /api/user/play-history`）。
-- **Phase 8**: `listType` の付与・リスト CRUD・設問リスト編集 UI（`quizeum-creator-dash-ui`）。リスト詳細の `listType` 分岐表示本体（`quizeum-play-flow-ui` の `/list/[id]` — 本スペックはプロフィールカードからの遷移のみ）。
+- **Phase 8**: `listType` の付与・リスト CRUD・問題リスト編集 UI（`quizeum-creator-dash-ui`）。リスト詳細の `listType` 分岐表示本体（`quizeum-play-flow-ui` の `/list/[id]` — 本スペックはプロフィールカードからの遷移のみ）。
 
 ### Allowed Dependencies
 - **`quizeum-core`**: `UserService`, `AuthContext`, **`PlayHistoryPage` / `PlayHistoryEntry` 型（`@/types`）**
@@ -58,7 +58,7 @@
 ### Existing Architecture Analysis
 認証・プロフィール・通知・接続・リアクション履歴の各画面は実装済み。プロフィールのコンテンツタブは `quizzes` / `lists` / 本人時 `history`。Phase 5 のプレイ履歴は実装済み。
 
-**Phase 8 ギャップ（現状コード）**: `src/app/profile/[uid]/page.tsx` のリストタブは全カードで `list.quizIds.length` を「収録問題」として表示しており、設問リストで誤表示となる。`listType` バッジ・`data-testid` 未付与。`bookmark-list-grid.tsx` には既に `listType === 'question'` のラベル分岐があり、同パターンをプロフィール用に抽出する。
+**Phase 8 ギャップ（現状コード）**: `src/app/profile/[uid]/page.tsx` のリストタブは全カードで `list.quizIds.length` を「収録問題」として表示しており、問題リストで誤表示となる。`listType` バッジ・`data-testid` 未付与。`bookmark-list-grid.tsx` には既に `listType === 'question'` のラベル分岐があり、同パターンをプロフィール用に抽出する。
 
 ### Technology Stack
 - **Frontend**: Next.js v16.2.6 (App Router), React v19.2.4, TypeScript
@@ -173,7 +173,7 @@ sequenceDiagram
     Note over Panel: resolveListType で種別解決
     Panel->>User: カードに種別バッジと正しい収録件数
     opt フィルタ操作
-        User->>Panel: クイズリストのみ / 設問リストのみ
+        User->>Panel: クイズリストのみ / 問題リストのみ
         Panel->>User: クライアント絞り込み表示
     end
     User->>Panel: カードクリック
@@ -184,45 +184,45 @@ sequenceDiagram
 
 ## Requirements Traceability
 
-| Requirement | Summary | Components | Interfaces | Flows |
-|-------------|---------|------------|------------|-------|
-| 1.1 | Google OAuthログイン | `/login` Page | Firebase Auth | 認証フロー |
-| 1.2 | ログイン成功時のリダイレクト | `/login` Page | `useAuth`, `useRouter` | 認証フロー |
-| 1.3 | ログイン済みのログイン画面アクセス回避 | `/login` Page | `useAuth` | - |
-| 1.4 | Firebase 認証エラーの日本語表示 | `/login` Page | Firebase Auth error mapping | 認証フロー |
-| 1.5 | 開発・E2E 用簡易ログイン（本番非表示） | `/login` Page | `NODE_ENV` / `NEXT_PUBLIC_ENV` ガード | - |
-| 2.1 | プロフィール基本情報・バッジ表示 | `/profile/[uid]` Page | `UserService` | - |
-| 2.2 | 作成クイズ・リストのタブ表示 | `/profile/[uid]` Page | `UserService`, Tab UI | - |
-| 2.3 | 他人のプロフィールのフォローボタン | `/profile/[uid]` Page | `UserService` | - |
-| 2.4 | フォロー・フォロー解除のインタラクション | `/profile/[uid]` Page | `UserService.followUser` | - |
-| 2.5 | 退会処理中アカウントへのアクセス制御 | `/profile/[uid]` Page | `UserService` (deleteStatus) | - |
-| 2.6 | 本人プロフィールのプレイ履歴表示領域 | `ProfilePage`, `ProfilePlayHistoryPanel` | Tab `history` | プレイ履歴フロー |
-| 3.1 | プロフィール編集入力フォーム | `/profile/edit` Page | Input Form | - |
-| 3.2 | 表示名30字・自己紹介200字制限 | `/profile/edit` Page | Form Validation (Zod) | - |
-| 3.3 | 編集保存とプロフィール画面への遷移 | `/profile/edit` Page | `UserService.updateProfile` | - |
-| 4.1 | フォロー・フォロワーのタブ表示 | `/profile/[uid]/connections` Page | Tab UI | - |
-| 4.2 | フォローカードとダイレクトトグル | `/profile/[uid]/connections` Page | UserCard, `UserService` | - |
-| 5.1 | 通知の時系列一覧表示 | `/notifications` Page | Notification List | - |
-| 5.2 | 指摘完了通知クリックによる遷移 | `/notifications` Page | Click-to-QuizDetail | - |
-| 6.1 | 送受信リアクションのタブ表示 | `/profile/[uid]/likes` Page | Tab UI | - |
-| 6.2 | リアクションカードと遷移 | `/profile/[uid]/likes` Page | LikeCard | - |
-| 7.1 | 本人のみ「プレイ履歴」専用タブ | `ProfilePage`, `ProfilePlayHistoryPanel` | Tab `history` | プレイ履歴フロー |
-| 7.2 | Bearer で履歴取得 | `play-history-client` | `GET /api/user/play-history` | プレイ履歴フロー |
-| 7.3 | 行: タイトルリンク・スコア・モード・日時・時間 | `ProfilePlayHistoryPanel` | `getAttemptModeLabel` | - |
-| 7.4 | 空状態 | `ProfilePlayHistoryPanel` | - | - |
-| 7.5 | `nextCursor` で追記読み込み | `ProfilePlayHistoryPanel` | Load more | プレイ履歴フロー |
-| 7.6 | 401/403/500 のエラーUI | `ProfilePlayHistoryPanel` | - | - |
-| 7.7 | E2E testid | `ProfilePlayHistoryPanel` | data-testid | - |
-| 7.8 | 永続化ロジックなし | — | Out of boundary | - |
-| 8.1 | 作成リスト全件カード表示 | `ProfileListsPanel` | `getQuizListsByAuthor` | リスト表示フロー |
-| 8.2 | listType 種別ラベル | `ProfileListCard`, `profile-list-display` | `resolveListType` | - |
-| 8.3 | クイズリスト収録クイズ数 | `profile-list-display` | `quizIds.length` | - |
-| 8.4 | 設問リスト収録設問数 | `profile-list-display` | `questionIds.length` | - |
-| 8.5 | リスト詳細へ遷移 | `ProfileListCard` | Link `/list/[id]` | リスト表示フロー |
-| 8.6 | 本人0件時の空状態と作成導線 | `ProfileListsPanel` | `/list/create` | - |
-| 8.7 | 任意 listType フィルタ | `ProfileListsPanel` | クライアント filter | リスト表示フロー |
-| 8.8 | listType CRUD なし | — | Out of boundary | - |
-| 8.9 | E2E testid | `ProfileListCard` | data-testid | - |
+| Requirement | Summary                                        | Components                                | Interfaces                            | Flows            |
+| ----------- | ---------------------------------------------- | ----------------------------------------- | ------------------------------------- | ---------------- |
+| 1.1         | Google OAuthログイン                           | `/login` Page                             | Firebase Auth                         | 認証フロー       |
+| 1.2         | ログイン成功時のリダイレクト                   | `/login` Page                             | `useAuth`, `useRouter`                | 認証フロー       |
+| 1.3         | ログイン済みのログイン画面アクセス回避         | `/login` Page                             | `useAuth`                             | -                |
+| 1.4         | Firebase 認証エラーの日本語表示                | `/login` Page                             | Firebase Auth error mapping           | 認証フロー       |
+| 1.5         | 開発・E2E 用簡易ログイン（本番非表示）         | `/login` Page                             | `NODE_ENV` / `NEXT_PUBLIC_ENV` ガード | -                |
+| 2.1         | プロフィール基本情報・バッジ表示               | `/profile/[uid]` Page                     | `UserService`                         | -                |
+| 2.2         | 作成クイズ・リストのタブ表示                   | `/profile/[uid]` Page                     | `UserService`, Tab UI                 | -                |
+| 2.3         | 他人のプロフィールのフォローボタン             | `/profile/[uid]` Page                     | `UserService`                         | -                |
+| 2.4         | フォロー・フォロー解除のインタラクション       | `/profile/[uid]` Page                     | `UserService.followUser`              | -                |
+| 2.5         | 退会処理中アカウントへのアクセス制御           | `/profile/[uid]` Page                     | `UserService` (deleteStatus)          | -                |
+| 2.6         | 本人プロフィールのプレイ履歴表示領域           | `ProfilePage`, `ProfilePlayHistoryPanel`  | Tab `history`                         | プレイ履歴フロー |
+| 3.1         | プロフィール編集入力フォーム                   | `/profile/edit` Page                      | Input Form                            | -                |
+| 3.2         | 表示名30字・自己紹介200字制限                  | `/profile/edit` Page                      | Form Validation (Zod)                 | -                |
+| 3.3         | 編集保存とプロフィール画面への遷移             | `/profile/edit` Page                      | `UserService.updateProfile`           | -                |
+| 4.1         | フォロー・フォロワーのタブ表示                 | `/profile/[uid]/connections` Page         | Tab UI                                | -                |
+| 4.2         | フォローカードとダイレクトトグル               | `/profile/[uid]/connections` Page         | UserCard, `UserService`               | -                |
+| 5.1         | 通知の時系列一覧表示                           | `/notifications` Page                     | Notification List                     | -                |
+| 5.2         | 指摘完了通知クリックによる遷移                 | `/notifications` Page                     | Click-to-QuizDetail                   | -                |
+| 6.1         | 送受信リアクションのタブ表示                   | `/profile/[uid]/likes` Page               | Tab UI                                | -                |
+| 6.2         | リアクションカードと遷移                       | `/profile/[uid]/likes` Page               | LikeCard                              | -                |
+| 7.1         | 本人のみ「プレイ履歴」専用タブ                 | `ProfilePage`, `ProfilePlayHistoryPanel`  | Tab `history`                         | プレイ履歴フロー |
+| 7.2         | Bearer で履歴取得                              | `play-history-client`                     | `GET /api/user/play-history`          | プレイ履歴フロー |
+| 7.3         | 行: タイトルリンク・スコア・モード・日時・時間 | `ProfilePlayHistoryPanel`                 | `getAttemptModeLabel`                 | -                |
+| 7.4         | 空状態                                         | `ProfilePlayHistoryPanel`                 | -                                     | -                |
+| 7.5         | `nextCursor` で追記読み込み                    | `ProfilePlayHistoryPanel`                 | Load more                             | プレイ履歴フロー |
+| 7.6         | 401/403/500 のエラーUI                         | `ProfilePlayHistoryPanel`                 | -                                     | -                |
+| 7.7         | E2E testid                                     | `ProfilePlayHistoryPanel`                 | data-testid                           | -                |
+| 7.8         | 永続化ロジックなし                             | —                                         | Out of boundary                       | -                |
+| 8.1         | 作成リスト全件カード表示                       | `ProfileListsPanel`                       | `getQuizListsByAuthor`                | リスト表示フロー |
+| 8.2         | listType 種別ラベル                            | `ProfileListCard`, `profile-list-display` | `resolveListType`                     | -                |
+| 8.3         | クイズリスト収録クイズ数                       | `profile-list-display`                    | `quizIds.length`                      | -                |
+| 8.4         | 問題リスト収録問題数                           | `profile-list-display`                    | `questionIds.length`                  | -                |
+| 8.5         | リスト詳細へ遷移                               | `ProfileListCard`                         | Link `/list/[id]`                     | リスト表示フロー |
+| 8.6         | 本人0件時の空状態と作成導線                    | `ProfileListsPanel`                       | `/list/create`                        | -                |
+| 8.7         | 任意 listType フィルタ                         | `ProfileListsPanel`                       | クライアント filter                   | リスト表示フロー |
+| 8.8         | listType CRUD なし                             | —                                         | Out of boundary                       | -                |
+| 8.9         | E2E testid                                     | `ProfileListCard`                         | data-testid                           | -                |
 
 ---
 
@@ -230,25 +230,25 @@ sequenceDiagram
 
 ### Component Summary Table
 
-| Component | Domain/Layer | Intent | Req Coverage | Key Dependencies | Contracts |
-|-----------|--------------|--------|--------------|------------------|-----------|
-| `LoginPage` | UI / Page | 認証の開始とリダイレクト制御 | 1.1, 1.2, 1.3, 1.4, 1.5 | `useAuth`, Firebase Auth | State |
-| `ProfilePage` | UI / Page | プロフィール閲覧、3タブ（本人時）、フォロー、退会チェック | 2.1–2.6, 7.1, 8.1 | `UserService`, `useAuth` | State |
-| `ProfileListsPanel` | UI / Component | 作成リストタブの一覧・空状態・任意フィルタ | 8.1, 8.6, 8.7 | `ProfileListCard` | State |
-| `ProfileListCard` | UI / Component | リスト1件のカード（種別・件数・リンク） | 8.2–8.5, 8.9 | `profile-list-display` | Presentational |
-| `ProfilePlayHistoryPanel` | UI / Component | プレイ履歴専用タブの一覧・ページング | 7.2–7.7 | `play-history-client` (P0) | State, API |
-| `ProfileEditPage` | UI / Page | プロフィール表示名・自己紹介の編集・バリデーション | 3.1, 3.2, 3.3 | `UserService`, Zod Schema | FormState |
-| `ConnectionsPage` | UI / Page | フォロー/フォロワーのタブ切替一覧と直接フォロー制御 | 4.1, 4.2 | `UserService` | State |
-| `NotificationsPage` | UI / Page | アクティビティ通知一覧の表示と詳細遷移 | 5.1, 5.2 | `NotificationService` | State |
-| `LikesPage` | UI / Page | リアクション送信・獲得履歴のタブ表示と遷移 | 6.1, 6.2 | `ReactionService` | State |
-| `Header` | UI / Layout | グローバルナビゲーションおよびログインアバターの表示 | - | `useAuth` | State |
+| Component                 | Domain/Layer   | Intent                                                    | Req Coverage            | Key Dependencies           | Contracts      |
+| ------------------------- | -------------- | --------------------------------------------------------- | ----------------------- | -------------------------- | -------------- |
+| `LoginPage`               | UI / Page      | 認証の開始とリダイレクト制御                              | 1.1, 1.2, 1.3, 1.4, 1.5 | `useAuth`, Firebase Auth   | State          |
+| `ProfilePage`             | UI / Page      | プロフィール閲覧、3タブ（本人時）、フォロー、退会チェック | 2.1–2.6, 7.1, 8.1       | `UserService`, `useAuth`   | State          |
+| `ProfileListsPanel`       | UI / Component | 作成リストタブの一覧・空状態・任意フィルタ                | 8.1, 8.6, 8.7           | `ProfileListCard`          | State          |
+| `ProfileListCard`         | UI / Component | リスト1件のカード（種別・件数・リンク）                   | 8.2–8.5, 8.9            | `profile-list-display`     | Presentational |
+| `ProfilePlayHistoryPanel` | UI / Component | プレイ履歴専用タブの一覧・ページング                      | 7.2–7.7                 | `play-history-client` (P0) | State, API     |
+| `ProfileEditPage`         | UI / Page      | プロフィール表示名・自己紹介の編集・バリデーション        | 3.1, 3.2, 3.3           | `UserService`, Zod Schema  | FormState      |
+| `ConnectionsPage`         | UI / Page      | フォロー/フォロワーのタブ切替一覧と直接フォロー制御       | 4.1, 4.2                | `UserService`              | State          |
+| `NotificationsPage`       | UI / Page      | アクティビティ通知一覧の表示と詳細遷移                    | 5.1, 5.2                | `NotificationService`      | State          |
+| `LikesPage`               | UI / Page      | リアクション送信・獲得履歴のタブ表示と遷移                | 6.1, 6.2                | `ReactionService`          | State          |
+| `Header`                  | UI / Layout    | グローバルナビゲーションおよびログインアバターの表示      | -                       | `useAuth`                  | State          |
 
 #### `ProfilePlayHistoryPanel`（Phase 5）
 
-| Field | Detail |
-|-------|--------|
-| Intent | 本人プロフィールの「プレイ履歴」タブ内で API 結果を表示する |
-| Requirements | 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8 |
+| Field        | Detail                                                      |
+| ------------ | ----------------------------------------------------------- |
+| Intent       | 本人プロフィールの「プレイ履歴」タブ内で API 結果を表示する |
+| Requirements | 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8                      |
 
 **Responsibilities & Constraints**
 - 親 `ProfilePage` から `isActive: boolean`（またはタブが `history` のときのみマウント）を受け取り、**初回アクティブ時**にのみ初回フェッチ（不要なAPI呼び出しを避ける）。
@@ -277,10 +277,10 @@ type ProfileContentTab = 'quizzes' | 'lists' | 'history';
 - タブボタン: `data-testid="profile-tab-history"`（E2E用、要件7と併用可）。
 
 ##### `data-testid` 契約
-| 要素 | test id |
-|------|---------|
-| パネル全体 | `play-history-section` |
-| 各行 | `play-history-entry` |
+| 要素       | test id                  |
+| ---------- | ------------------------ |
+| パネル全体 | `play-history-section`   |
+| 各行       | `play-history-entry`     |
 | もっと見る | `play-history-load-more` |
 
 **Implementation Notes**
@@ -290,15 +290,15 @@ type ProfileContentTab = 'quizzes' | 'lists' | 'history';
 
 #### `ProfileListCard` / `ProfileListsPanel`（Phase 8）
 
-| Field | Detail |
-|-------|--------|
-| Intent | プロフィール「作成したリスト」タブで `listType` を視覚区別し、正しい収録件数を表示する |
-| Requirements | 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9 |
+| Field        | Detail                                                                                 |
+| ------------ | -------------------------------------------------------------------------------------- |
+| Intent       | プロフィール「作成したリスト」タブで `listType` を視覚区別し、正しい収録件数を表示する |
+| Requirements | 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9                                            |
 
 **Responsibilities & Constraints**
 - 種別解決は常に `resolveListType(list)` を使用する（`listType` 未設定は `quiz`）。**`list.listType` の直参照は禁止**（`bookmark-list-grid.tsx` は `list.listType === 'question'` だが、レガシー未設定ドキュメントで誤判定し得るためプロフィール側はコピーしない）。
 - `ProfileListCard` では `getProfileListTypeLabel(resolveListType(list))` のみでバッジ文言を決定する。
-- 収録件数: `quiz` → `list.quizIds?.length ?? 0`（ラベル「収録クイズ: N 件」）。`question` → `list.questionIds?.length ?? 0`（ラベル「収録設問: N 件」）。設問リストで `quizIds` 件数を表示してはならない（8.4）。
+- 収録件数: `quiz` → `list.quizIds?.length ?? 0`（ラベル「収録クイズ: N 件」）。`question` → `list.questionIds?.length ?? 0`（ラベル「収録問題: N 件」）。問題リストで `quizIds` 件数を表示してはならない（8.4）。
 - カード全体は `/list/[id]` への `Link`。クリック領域は既存 `quizCard` スタイルを踏襲。
 - 本人プロフィールかつ0件: 既存空状態文言 + `/list/create` 導線を維持（8.6）。
 - フィルタ（8.7・任意）: `ProfileListsPanel` 内に `all` | `quiz` | `question` チップ。初版は **既取得 `quizLists` のクライアントフィルタ** とし、追加 API 呼び出しは不要。フィルタ未実装でも種別バッジのみで要件 8.2 は充足する。
@@ -315,7 +315,7 @@ export function getProfileListTypeLabel(listType: QuizListType): string;
 
 export function getProfileListItemCount(list: Pick<QuizList, 'listType' | 'quizIds' | 'questionIds'>): {
   count: number;
-  countLabel: string; // 例: "収録クイズ: 3 件" / "収録設問: 12 件"
+  countLabel: string; // 例: "収録クイズ: 3 件" / "収録問題: 12 件"
 };
 // 内部で resolveListType(list) を呼び出し、list.listType 直参照は行わない
 ```
@@ -335,15 +335,15 @@ interface ProfileListsPanelProps {
 ```
 
 ##### `data-testid` 契約
-| 要素 | test id |
-|------|---------|
-| リストカード | `profile-list-card` |
-| 種別ラベル | `profile-list-type-badge` |
-| フィルタ（任意実装時） | `profile-list-filter-all`, `profile-list-filter-quiz`, `profile-list-filter-question` |
-| フィルタ結果0件（全体は1件以上） | `profile-list-filter-empty` |
+| 要素                             | test id                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------- |
+| リストカード                     | `profile-list-card`                                                                   |
+| 種別ラベル                       | `profile-list-type-badge`                                                             |
+| フィルタ（任意実装時）           | `profile-list-filter-all`, `profile-list-filter-quiz`, `profile-list-filter-question` |
+| フィルタ結果0件（全体は1件以上） | `profile-list-filter-empty`                                                           |
 
 **Implementation Notes**
-- `bookmark-list-grid.tsx` の種別ラベル**文言**（「クイズリスト」「設問リスト」）と統一するが、種別**判定ロジック**は `resolveListType` 経由のみ（上記 Constraints 参照）。
+- `bookmark-list-grid.tsx` の種別ラベル**文言**（「クイズリスト」「問題リスト」）と統一するが、種別**判定ロジック**は `resolveListType` 経由のみ（上記 Constraints 参照）。
 - タブ見出しの件数 `作成したリスト (N)` はフィルタ適用前の全件数を表示する（フィルタは一覧の見え方のみ変更）。
 - テスト: `profile-list-display` 単体 — `listType: undefined` の `QuizList` が `resolveListType` 経由でクイズリスト扱い・`quizIds` 件数になること、`listType: 'question'` で `questionIds` 件数になること。`ProfileListCard` RTL（バッジ・testid・レガシー未設定リスト）。
 - Phase 8 統合検証時、既存タブ（クイズ／プレイ履歴）の回帰はスモーク確認とする（1.4, 1.5, 2.5, 2.6 は実装済み領域）。
@@ -395,9 +395,9 @@ export interface ProfileEditFormInput {
   - `play-history-load-more` で追記読み込み（`nextCursor` がある場合）。
   - 他人プロフィールではプレイ履歴タブが存在しないこと。
 - **作成リスト listType 表示（Phase 8）**:
-  - `profile-list-card` が存在し、`profile-list-type-badge` がクイズ／設問で異なる文言を示すこと。
-  - 設問リストカードで収録件数が `questionIds` ベースであること（`quizIds` を使っていないこと）。
+  - `profile-list-card` が存在し、`profile-list-type-badge` がクイズ／問題で異なる文言を示すこと。
+  - 問題リストカードで収録件数が `questionIds` ベースであること（`quizIds` を使っていないこと）。
   - カードクリックで `/list/[id]` へ遷移すること。
   - 本人0件時に `/list/create` 導線が表示されること。
-  - （任意）フィルタでクイズリストのみ／設問リストのみに絞れること。
+  - （任意）フィルタでクイズリストのみ／問題リストのみに絞れること。
   - フィルタ適用で0件・全体1件以上のとき `profile-list-filter-empty` が表示され、フィルタ解除で一覧が復帰すること。

@@ -36,7 +36,7 @@ function hasLateralThinkingUserInput(q: Question): boolean {
   return (q.truthKeywords?.length ?? 0) > 0;
 }
 
-/** 設問にユーザー入力（初期値以外の内容）があるか判定する */
+/** 問題にユーザー入力（初期値以外の内容）があるか判定する */
 export function hasQuestionUserInput(q: Question): boolean {
   if (q.questionText.trim()) return true;
   if (q.explanation.trim()) return true;

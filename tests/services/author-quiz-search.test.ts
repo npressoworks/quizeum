@@ -53,7 +53,7 @@ describe('author-quiz-search', () => {
     expect(filterAuthorQuizzes(quizzes, {})).toHaveLength(2);
   });
 
-  test('filterAuthorQuizzesWithQuestions: 設問文一致でヒットする', () => {
+  test('filterAuthorQuizzesWithQuestions: 問題文一致でヒットする', () => {
     const quizzes = [
       makeQuiz({ id: '1', title: '無関係タイトル' }),
       makeQuiz({ id: '2', title: '別クイズ' }),

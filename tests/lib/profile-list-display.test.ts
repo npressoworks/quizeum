@@ -6,7 +6,7 @@ import {
 describe('profile-list-display', () => {
   test('getProfileListTypeLabel', () => {
     expect(getProfileListTypeLabel('quiz')).toBe('クイズリスト');
-    expect(getProfileListTypeLabel('question')).toBe('設問リスト');
+    expect(getProfileListTypeLabel('question')).toBe('問題リスト');
   });
 
   test('getProfileListItemCount: listType 未設定は quizIds 件数', () => {
@@ -25,6 +25,6 @@ describe('profile-list-display', () => {
       questionIds: ['a', 'b', 'c'],
     });
     expect(result.count).toBe(3);
-    expect(result.countLabel).toBe('収録設問: 3 件');
+    expect(result.countLabel).toBe('収録問題: 3 件');
   });
 });

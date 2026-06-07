@@ -14,7 +14,7 @@ interface UsePlayStateProps {
   questions: Question[];
   /** false のとき localStorage セッションを読み書きしない（テストプレイ用） */
   persistSession?: boolean;
-  /** true のとき正解設定が不完全な設問は正誤判定をスキップする */
+  /** true のとき正解設定が不完全な問題は正誤判定をスキップする */
   skipJudgmentWhenIncomplete?: boolean;
 }
 
@@ -33,7 +33,7 @@ export function usePlayState({
   const [score, setScore] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  
+
   // フラッシュカード用のカード裏面表示ステート
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
 
@@ -51,7 +51,7 @@ export function usePlayState({
       setQuestionAnswers(saved.questionAnswers ?? {});
       setScore(saved.currentScore);
       setElapsedSeconds(saved.elapsedSeconds);
-      
+
       // 復旧された回答済みの数から次の未解答インデックスを決定
       const nextIdx = saved.answeredQuestionIds.length;
       if (nextIdx < questions.length) {
@@ -79,7 +79,7 @@ export function usePlayState({
       totalQuestions: questions.length,
       elapsedSeconds,
     };
-    
+
     // プレイ完了まで常に保存
     if (answeredIds.length < questions.length) {
       LocalAttemptSession.save(quizId, userId, progress);
@@ -94,13 +94,13 @@ export function usePlayState({
     const timer = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
 
-      // 通常モードにおける個別設問の制限時間カウントダウン
+      // 通常モードにおける個別問題の制限時間カウントダウン
       if (mode === 'normal') {
         setTimeLeft((prev) => {
           if (prev === null) return null;
           if (prev <= 1) {
             // 時間切れ (0秒) -> 自動的に不正解扱いとして次の問題へ
-            handleAnswerSubmit(''); 
+            handleAnswerSubmit('');
             return null;
           }
           return prev - 1;
@@ -111,10 +111,10 @@ export function usePlayState({
     return () => clearInterval(timer);
   }, [mode, answeredIds, questions, currentIdx]);
 
-  // 設問が変わる際のタイマー初期化
+  // 問題が変わる際のタイマー初期化
   useEffect(() => {
     if (questions.length === 0 || currentIdx >= questions.length) return;
-    
+
     const currentQuestion = questions[currentIdx];
     if (mode === 'normal' && currentQuestion?.limitTime) {
       setTimeLeft(currentQuestion.limitTime);
@@ -129,8 +129,8 @@ export function usePlayState({
     if (questions.length === 0 || currentIdx >= questions.length) return;
 
     const currentQuestion = questions[currentIdx];
-    
-    // すでに回答済みの設問はスキップ (通常モード・フラッシュカードモードでの重複回答防止)
+
+    // すでに回答済みの問題はスキップ (通常モード・フラッシュカードモードでの重複回答防止)
     if (mode !== 'exam' && answeredIds.includes(currentQuestion.id)) return;
 
     let isCorrect = false;
@@ -164,7 +164,7 @@ export function usePlayState({
       // カンマ区切りの要素ID文字列（例："id1,id2,id3"）を受け取ると想定
       const userSortedIds = answerTextOrChoiceId.split(',');
       const sortingItems = currentQuestion.sortingItems ?? [];
-      
+
       if (userSortedIds.length !== sortingItems.length) {
         isCorrect = false;
       } else {
@@ -204,7 +204,7 @@ export function usePlayState({
       [currentQuestion.id]: answerTextOrChoiceId,
     }));
 
-    // 次の設問へ進む (試験モード以外は自動で進む)
+    // 次の問題へ進む (試験モード以外は自動で進む)
     if (mode !== 'exam') {
       if (currentIdx < questions.length - 1) {
         setCurrentIdx((prev) => prev + 1);

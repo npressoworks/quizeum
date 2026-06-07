@@ -6,7 +6,10 @@
       "displayName": "e2e-test-user",
       "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=e2e-test-uid-123456",
       "bio": "E2Eテスト用の管理者アカウントです。",
-      "followedGenres": ["entertainment", "trivia"],
+      "followedGenres": [
+        "entertainment",
+        "trivia"
+      ],
       "badges": [
         {
           "id": "badge_play_10",
@@ -44,7 +47,10 @@
       "displayName": "クイズ職人",
       "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=creator-uid-789",
       "bio": "面白いクイズをたくさん作ります！",
-      "followedGenres": ["anime-game", "academic"],
+      "followedGenres": [
+        "anime-game",
+        "academic"
+      ],
       "badges": [
         {
           "id": "badge_creator_tier1",
@@ -73,7 +79,9 @@
       "displayName": "レビュー魔",
       "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=voter-uid-abc",
       "bio": "辛口レビュー多めです。",
-      "followedGenres": ["riddle-puzzle"],
+      "followedGenres": [
+        "riddle-puzzle"
+      ],
       "badges": [],
       "createdQuizzesCount": 0,
       "totalPlayCount": 50,
@@ -280,10 +288,30 @@
       "hint": "useで始まる一般的なステート用フックです。",
       "limitTime": 30,
       "choices": [
-        { "id": "opt1", "choiceText": "useState", "isCorrect": true, "selectedCount": 10 },
-        { "id": "opt2", "choiceText": "useEffect", "isCorrect": false, "selectedCount": 2 },
-        { "id": "opt3", "choiceText": "useContext", "isCorrect": false, "selectedCount": 1 },
-        { "id": "opt4", "choiceText": "useReducer", "isCorrect": false, "selectedCount": 0 }
+        {
+          "id": "opt1",
+          "choiceText": "useState",
+          "isCorrect": true,
+          "selectedCount": 10
+        },
+        {
+          "id": "opt2",
+          "choiceText": "useEffect",
+          "isCorrect": false,
+          "selectedCount": 2
+        },
+        {
+          "id": "opt3",
+          "choiceText": "useContext",
+          "isCorrect": false,
+          "selectedCount": 1
+        },
+        {
+          "id": "opt4",
+          "choiceText": "useReducer",
+          "isCorrect": false,
+          "selectedCount": 0
+        }
       ],
       "correctCount": 10,
       "incorrectCount": 3,
@@ -304,8 +332,18 @@
       "hint": "値の再代入とオブジェクトのミュータビリティの違いを考えましょう。",
       "limitTime": 20,
       "choices": [
-        { "id": "opt-true", "choiceText": "〇", "isCorrect": false, "selectedCount": 4 },
-        { "id": "opt-false", "choiceText": "✕", "isCorrect": true, "selectedCount": 9 }
+        {
+          "id": "opt-true",
+          "choiceText": "〇",
+          "isCorrect": false,
+          "selectedCount": 4
+        },
+        {
+          "id": "opt-false",
+          "choiceText": "✕",
+          "isCorrect": true,
+          "selectedCount": 9
+        }
       ],
       "correctCount": 9,
       "incorrectCount": 4,
@@ -326,7 +364,9 @@
       "hint": "1024前後のキリの良い数値です。",
       "limitTime": 45,
       "textInputMode": "numeric",
-      "correctTextAnswerList": ["1024"],
+      "correctTextAnswerList": [
+        "1024"
+      ],
       "correctCount": 15,
       "incorrectCount": 1,
       "bookmarksCount": 2,
@@ -346,7 +386,9 @@
       "hint": "お札の肖像画にもなった長州藩出身の人物です。",
       "limitTime": 30,
       "textInputMode": "text",
-      "correctTextAnswerList": ["伊藤博文"],
+      "correctTextAnswerList": [
+        "伊藤博文"
+      ],
       "correctCount": 12,
       "incorrectCount": 2,
       "bookmarksCount": 0,
@@ -367,7 +409,9 @@
       "limitTime": 15,
       "textInputMode": "char-count",
       "textInputCharCount": 5,
-      "correctTextAnswerList": ["apple"],
+      "correctTextAnswerList": [
+        "apple"
+      ],
       "correctCount": 20,
       "incorrectCount": 0,
       "bookmarksCount": 0,
@@ -386,7 +430,10 @@
       "imageUrl": null,
       "hint": "凱旋門やエッフェル塔がある都市です。",
       "limitTime": 10,
-      "correctTextAnswerList": ["パリ", "paris"],
+      "correctTextAnswerList": [
+        "パリ",
+        "paris"
+      ],
       "correctCount": 30,
       "incorrectCount": 5,
       "bookmarksCount": 0,
@@ -406,10 +453,26 @@
       "hint": "戦国時代の終わりから江戸時代の始まりの流れを意識しましょう。",
       "limitTime": 60,
       "sortingItems": [
-        { "id": "s-item-1", "text": "本能寺の変", "correctOrder": 0 },
-        { "id": "s-item-2", "text": "関ヶ原の戦い", "correctOrder": 1 },
-        { "id": "s-item-3", "text": "大坂冬の陣", "correctOrder": 2 },
-        { "id": "s-item-4", "text": "明暦の大火", "correctOrder": 3 }
+        {
+          "id": "s-item-1",
+          "text": "本能寺の変",
+          "correctOrder": 0
+        },
+        {
+          "id": "s-item-2",
+          "text": "関ヶ原の戦い",
+          "correctOrder": 1
+        },
+        {
+          "id": "s-item-3",
+          "text": "大坂冬の陣",
+          "correctOrder": 2
+        },
+        {
+          "id": "s-item-4",
+          "text": "明暦の大火",
+          "correctOrder": 3
+        }
       ],
       "correctCount": 8,
       "incorrectCount": 6,
@@ -435,7 +498,12 @@
         "ヒント3：日本では青森県が代表的な生産地です。",
         "ヒント4：スティーブ・ジョブズが創業した世界的IT企業のロゴになっています。"
       ],
-      "correctTextAnswerList": ["リンゴ", "りんご", "アップル", "apple"],
+      "correctTextAnswerList": [
+        "リンゴ",
+        "りんご",
+        "アップル",
+        "apple"
+      ],
       "correctCount": 25,
       "incorrectCount": 4,
       "bookmarksCount": 0,
@@ -455,7 +523,15 @@
       "hint": "男は過去に遭難した経験があります。",
       "limitTime": null,
       "aiContextDetails": "男はかつて海で遭難した。食料が尽きた際、他の生存者が亡くなった男の妻の肉を「ウミガメのスープ」だと偽って男に食べさせた。生き延びた男がこのレストランで本物のウミガメのスープを食べ、味が全く違うことから過去の真相に気づき、ショックで自殺した。",
-      "truthKeywords": ["遭難", "妻", "肉", "別", "違う", "気づい", "悟っ"],
+      "truthKeywords": [
+        "遭難",
+        "妻",
+        "肉",
+        "別",
+        "違う",
+        "気づい",
+        "悟っ"
+      ],
       "correctCount": 3,
       "incorrectCount": 1,
       "bookmarksCount": 5,
@@ -474,9 +550,18 @@
       "thumbnailUrl": null,
       "difficulty": 4,
       "genre": "anime-game",
-      "tags": ["react", "javascript"],
-      "originalTags": ["React", "JavaScript"],
-      "questionIds": ["q-mc-1", "q-tf-2"],
+      "tags": [
+        "react",
+        "javascript"
+      ],
+      "originalTags": [
+        "React",
+        "JavaScript"
+      ],
+      "questionIds": [
+        "q-mc-1",
+        "q-tf-2"
+      ],
       "questions": [
         {
           "id": "q-mc-1",
@@ -488,10 +573,30 @@
           "hint": "useで始まる一般的なステート用フックです。",
           "limitTime": 30,
           "choices": [
-            { "id": "opt1", "choiceText": "useState", "isCorrect": true, "selectedCount": 10 },
-            { "id": "opt2", "choiceText": "useEffect", "isCorrect": false, "selectedCount": 2 },
-            { "id": "opt3", "choiceText": "useContext", "isCorrect": false, "selectedCount": 1 },
-            { "id": "opt4", "choiceText": "useReducer", "isCorrect": false, "selectedCount": 0 }
+            {
+              "id": "opt1",
+              "choiceText": "useState",
+              "isCorrect": true,
+              "selectedCount": 10
+            },
+            {
+              "id": "opt2",
+              "choiceText": "useEffect",
+              "isCorrect": false,
+              "selectedCount": 2
+            },
+            {
+              "id": "opt3",
+              "choiceText": "useContext",
+              "isCorrect": false,
+              "selectedCount": 1
+            },
+            {
+              "id": "opt4",
+              "choiceText": "useReducer",
+              "isCorrect": false,
+              "selectedCount": 0
+            }
           ],
           "correctCount": 10,
           "incorrectCount": 3
@@ -506,8 +611,18 @@
           "hint": "値の再代入とオブジェクトのミュータビリティの違いを考えましょう。",
           "limitTime": 20,
           "choices": [
-            { "id": "opt-true", "choiceText": "〇", "isCorrect": false, "selectedCount": 4 },
-            { "id": "opt-false", "choiceText": "✕", "isCorrect": true, "selectedCount": 9 }
+            {
+              "id": "opt-true",
+              "choiceText": "〇",
+              "isCorrect": false,
+              "selectedCount": 4
+            },
+            {
+              "id": "opt-false",
+              "choiceText": "✕",
+              "isCorrect": true,
+              "selectedCount": 9
+            }
           ],
           "correctCount": 9,
           "incorrectCount": 4
@@ -527,7 +642,10 @@
       "isReviewMasked": false,
       "activeResetRequestId": null,
       "canonicalGenreId": "anime-game",
-      "canonicalTagIds": ["react", "javascript"],
+      "canonicalTagIds": [
+        "react",
+        "javascript"
+      ],
       "leaderboardFirstPlay": [
         {
           "userId": "e2e-test-uid-123456",
@@ -552,9 +670,19 @@
       "thumbnailUrl": null,
       "difficulty": 5,
       "genre": "academic",
-      "tags": ["math", "history"],
-      "originalTags": ["数学", "歴史"],
-      "questionIds": ["q-ti-1", "q-ti-2", "q-ti-3"],
+      "tags": [
+        "math",
+        "history"
+      ],
+      "originalTags": [
+        "数学",
+        "歴史"
+      ],
+      "questionIds": [
+        "q-ti-1",
+        "q-ti-2",
+        "q-ti-3"
+      ],
       "questions": [
         {
           "id": "q-ti-1",
@@ -566,7 +694,9 @@
           "hint": "1024前後のキリの良い数値です。",
           "limitTime": 45,
           "textInputMode": "numeric",
-          "correctTextAnswerList": ["1024"],
+          "correctTextAnswerList": [
+            "1024"
+          ],
           "correctCount": 15,
           "incorrectCount": 1
         },
@@ -580,7 +710,9 @@
           "hint": "お札の肖像画にもなった長州藩出身の人物です。",
           "limitTime": 30,
           "textInputMode": "text",
-          "correctTextAnswerList": ["伊藤博文"],
+          "correctTextAnswerList": [
+            "伊藤博文"
+          ],
           "correctCount": 12,
           "incorrectCount": 2
         },
@@ -595,7 +727,9 @@
           "limitTime": 15,
           "textInputMode": "char-count",
           "textInputCharCount": 5,
-          "correctTextAnswerList": ["apple"],
+          "correctTextAnswerList": [
+            "apple"
+          ],
           "correctCount": 20,
           "incorrectCount": 0
         }
@@ -614,7 +748,10 @@
       "isReviewMasked": false,
       "activeResetRequestId": null,
       "canonicalGenreId": "academic",
-      "canonicalTagIds": ["math", "history"],
+      "canonicalTagIds": [
+        "math",
+        "history"
+      ],
       "leaderboardFirstPlay": [],
       "leaderboardReplay": [],
       "format": "text-input",
@@ -631,9 +768,15 @@
       "thumbnailUrl": null,
       "difficulty": 3,
       "genre": "trivia",
-      "tags": ["quick"],
-      "originalTags": ["早押し"],
-      "questionIds": ["q-qp-1"],
+      "tags": [
+        "quick"
+      ],
+      "originalTags": [
+        "早押し"
+      ],
+      "questionIds": [
+        "q-qp-1"
+      ],
       "questions": [
         {
           "id": "q-qp-1",
@@ -644,7 +787,10 @@
           "imageUrl": null,
           "hint": "凱旋門やエッフェル塔がある都市です。",
           "limitTime": 10,
-          "correctTextAnswerList": ["パリ", "paris"],
+          "correctTextAnswerList": [
+            "パリ",
+            "paris"
+          ],
           "correctCount": 30,
           "incorrectCount": 5
         }
@@ -663,7 +809,9 @@
       "isReviewMasked": false,
       "activeResetRequestId": null,
       "canonicalGenreId": "trivia",
-      "canonicalTagIds": ["quick"],
+      "canonicalTagIds": [
+        "quick"
+      ],
       "leaderboardFirstPlay": [],
       "leaderboardReplay": [],
       "format": "quick-press",
@@ -680,9 +828,15 @@
       "thumbnailUrl": null,
       "difficulty": 5,
       "genre": "academic",
-      "tags": ["history"],
-      "originalTags": ["歴史"],
-      "questionIds": ["q-so-1"],
+      "tags": [
+        "history"
+      ],
+      "originalTags": [
+        "歴史"
+      ],
+      "questionIds": [
+        "q-so-1"
+      ],
       "questions": [
         {
           "id": "q-so-1",
@@ -694,10 +848,26 @@
           "hint": "戦国時代の終わりから江戸時代の始まりの流れを意識しましょう。",
           "limitTime": 60,
           "sortingItems": [
-            { "id": "s-item-1", "text": "本能寺の変", "correctOrder": 0 },
-            { "id": "s-item-2", "text": "関ヶ原の戦い", "correctOrder": 1 },
-            { "id": "s-item-3", "text": "大坂冬の陣", "correctOrder": 2 },
-            { "id": "s-item-4", "text": "明暦の大火", "correctOrder": 3 }
+            {
+              "id": "s-item-1",
+              "text": "本能寺の変",
+              "correctOrder": 0
+            },
+            {
+              "id": "s-item-2",
+              "text": "関ヶ原の戦い",
+              "correctOrder": 1
+            },
+            {
+              "id": "s-item-3",
+              "text": "大坂冬の陣",
+              "correctOrder": 2
+            },
+            {
+              "id": "s-item-4",
+              "text": "明暦の大火",
+              "correctOrder": 3
+            }
           ],
           "correctCount": 8,
           "incorrectCount": 6
@@ -717,7 +887,9 @@
       "isReviewMasked": false,
       "activeResetRequestId": null,
       "canonicalGenreId": "academic",
-      "canonicalTagIds": ["history"],
+      "canonicalTagIds": [
+        "history"
+      ],
       "leaderboardFirstPlay": [],
       "leaderboardReplay": [],
       "format": "sorting",
@@ -734,9 +906,15 @@
       "thumbnailUrl": null,
       "difficulty": 4,
       "genre": "riddle-puzzle",
-      "tags": ["puzzle"],
-      "originalTags": ["パズル"],
-      "questionIds": ["q-as-1"],
+      "tags": [
+        "puzzle"
+      ],
+      "originalTags": [
+        "パズル"
+      ],
+      "questionIds": [
+        "q-as-1"
+      ],
       "questions": [
         {
           "id": "q-as-1",
@@ -753,7 +931,12 @@
             "ヒント3：日本では青森県が代表的な生産地です。",
             "ヒント4：スティーブ・ジョブズが創業した世界的IT企業のロゴになっています。"
           ],
-          "correctTextAnswerList": ["リンゴ", "りんご", "アップル", "apple"],
+          "correctTextAnswerList": [
+            "リンゴ",
+            "りんご",
+            "アップル",
+            "apple"
+          ],
           "correctCount": 25,
           "incorrectCount": 4
         }
@@ -772,7 +955,9 @@
       "isReviewMasked": false,
       "activeResetRequestId": null,
       "canonicalGenreId": "riddle-puzzle",
-      "canonicalTagIds": ["puzzle"],
+      "canonicalTagIds": [
+        "puzzle"
+      ],
       "leaderboardFirstPlay": [],
       "leaderboardReplay": [],
       "format": "association",
@@ -789,9 +974,15 @@
       "thumbnailUrl": null,
       "difficulty": 4,
       "genre": "riddle-puzzle",
-      "tags": ["umigame"],
-      "originalTags": ["ウミガメのスープ"],
-      "questionIds": ["q-lt-1"],
+      "tags": [
+        "umigame"
+      ],
+      "originalTags": [
+        "ウミガメのスープ"
+      ],
+      "questionIds": [
+        "q-lt-1"
+      ],
       "questions": [
         {
           "id": "q-lt-1",
@@ -803,7 +994,15 @@
           "hint": "男は過去に遭難した経験があります。",
           "limitTime": null,
           "aiContextDetails": "男はかつて海で遭難した。食料が尽きた際、他の生存者が亡くなった男の妻の肉を「ウミガメのスープ」だと偽って男に食べさせた。生き延びた男がこのレストランで本物のウミガメのスープを食べ、味が全く違うことから過去の真相に気づき、ショックで自殺した。",
-          "truthKeywords": ["遭難", "妻", "肉", "別", "違う", "気づい", "悟っ"],
+          "truthKeywords": [
+            "遭難",
+            "妻",
+            "肉",
+            "別",
+            "違う",
+            "気づい",
+            "悟っ"
+          ],
           "correctCount": 3,
           "incorrectCount": 1
         }
@@ -822,7 +1021,9 @@
       "isReviewMasked": false,
       "activeResetRequestId": null,
       "canonicalGenreId": "riddle-puzzle",
-      "canonicalTagIds": ["umigame"],
+      "canonicalTagIds": [
+        "umigame"
+      ],
       "leaderboardFirstPlay": [],
       "leaderboardReplay": [],
       "format": "lateral-thinking",
@@ -839,9 +1040,15 @@
       "thumbnailUrl": null,
       "difficulty": 1,
       "genre": "general",
-      "tags": ["react"],
-      "originalTags": ["React"],
-      "questionIds": ["q-mc-1"],
+      "tags": [
+        "react"
+      ],
+      "originalTags": [
+        "React"
+      ],
+      "questionIds": [
+        "q-mc-1"
+      ],
       "questions": [
         {
           "id": "q-mc-1",
@@ -853,8 +1060,18 @@
           "hint": "useで始まる一般的なステート用フックです。",
           "limitTime": 30,
           "choices": [
-            { "id": "opt1", "choiceText": "useState", "isCorrect": true, "selectedCount": 0 },
-            { "id": "opt2", "choiceText": "useEffect", "isCorrect": false, "selectedCount": 0 }
+            {
+              "id": "opt1",
+              "choiceText": "useState",
+              "isCorrect": true,
+              "selectedCount": 0
+            },
+            {
+              "id": "opt2",
+              "choiceText": "useEffect",
+              "isCorrect": false,
+              "selectedCount": 0
+            }
           ],
           "correctCount": 0,
           "incorrectCount": 0
@@ -874,7 +1091,9 @@
       "isReviewMasked": false,
       "activeResetRequestId": null,
       "canonicalGenreId": "general",
-      "canonicalTagIds": ["react"],
+      "canonicalTagIds": [
+        "react"
+      ],
       "leaderboardFirstPlay": [],
       "leaderboardReplay": [],
       "format": "multiple-choice",
@@ -890,7 +1109,10 @@
       "authorAvatar": "https://api.dicebear.com/7.x/bottts/svg?seed=e2e-test-uid-123456",
       "title": "おすすめフロントエンド開発クイズ集",
       "description": "ReactやJavaScriptの基礎知識クイズや記述式クイズを収録した、開発者におすすめのクイズリストです。",
-      "quizIds": ["quiz-mc-tf-1", "quiz-text-input-1"],
+      "quizIds": [
+        "quiz-mc-tf-1",
+        "quiz-text-input-1"
+      ],
       "questionIds": [],
       "listType": "quiz",
       "isPublished": true,
@@ -904,9 +1126,13 @@
       "authorName": "クイズ職人",
       "authorAvatar": "https://api.dicebear.com/7.x/bottts/svg?seed=creator-uid-789",
       "title": "歴史＆数学 記述・並び替え特訓セクション",
-      "description": "記述式問題と並び替え問題のみを厳選したトレーニング用設問リストです。",
+      "description": "記述式問題と並び替え問題のみを厳選したトレーニング用問題リストです。",
       "quizIds": [],
-      "questionIds": ["q-ti-1", "q-ti-2", "q-so-1"],
+      "questionIds": [
+        "q-ti-1",
+        "q-ti-2",
+        "q-so-1"
+      ],
       "listType": "question",
       "isPublished": true,
       "bookmarksCount": 0,
@@ -955,10 +1181,18 @@
       "score": 1,
       "totalQuestions": 2,
       "elapsedSeconds": 25,
-      "failedQuestionIds": ["q-tf-2"],
+      "failedQuestionIds": [
+        "q-tf-2"
+      ],
       "questionAnswers": [
-        { "questionId": "q-mc-1", "userAnswer": "opt1" },
-        { "questionId": "q-tf-2", "userAnswer": "opt-true" }
+        {
+          "questionId": "q-mc-1",
+          "userAnswer": "opt1"
+        },
+        {
+          "questionId": "q-tf-2",
+          "userAnswer": "opt-true"
+        }
       ],
       "difficultyVote": 4,
       "completedAt": "2026-06-05T14:00:00Z"
@@ -974,7 +1208,10 @@
       "elapsedSeconds": 120,
       "failedQuestionIds": [],
       "questionAnswers": [
-        { "questionId": "q-lt-1", "userAnswer": "遭難したとき妻の肉を食べたことが本物のスープを飲んだことで分かったため" }
+        {
+          "questionId": "q-lt-1",
+          "userAnswer": "遭難したとき妻の肉を食べたことが本物のスープを飲んだことで分かったため"
+        }
       ],
       "aiQuestionsHistory": [
         {
@@ -1077,9 +1314,16 @@
       "votesAgainstCount": 0,
       "weightedVotesFor": 1,
       "weightedVotesAgainst": 0,
-      "votedUserIds": ["e2e-test-uid-123456"],
+      "votedUserIds": [
+        "e2e-test-uid-123456"
+      ],
       "votes": [
-        { "voterId": "e2e-test-uid-123456", "type": "for", "weight": 1, "votedAt": "2026-06-06T03:00:00Z" }
+        {
+          "voterId": "e2e-test-uid-123456",
+          "type": "for",
+          "weight": 1,
+          "votedAt": "2026-06-06T03:00:00Z"
+        }
       ],
       "createdAt": "2026-06-06T03:00:00Z",
       "updatedAt": "2026-06-06T03:00:00Z"
@@ -1097,7 +1341,9 @@
       "votesAgainstCount": 0,
       "weightedVotesFor": 1,
       "weightedVotesAgainst": 0,
-      "votedUserIds": ["creator-uid-789"],
+      "votedUserIds": [
+        "creator-uid-789"
+      ],
       "createdAt": "2026-06-06T04:00:00Z",
       "updatedAt": "2026-06-06T04:00:00Z"
     }

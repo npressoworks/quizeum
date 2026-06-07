@@ -2,7 +2,7 @@ import type { Question } from '../types';
 
 export class ReferenceLinkForbiddenError extends Error {
   readonly code = 'reference-link-forbidden' as const;
-  constructor(message = '自作クイズ以外の設問は参照リンクできません') {
+  constructor(message = '自作クイズ以外の問題は参照リンクできません') {
     super(message);
     this.name = 'ReferenceLinkForbiddenError';
   }
@@ -51,7 +51,7 @@ export function hasQuestionContentChanged(incoming: Question, stored: Question):
 }
 
 /**
- * 保存ペイロードを参照 ID のみ / 新規・変更所有設問 / Copy-on-Write 切り離しに分類する（純関数）
+ * 保存ペイロードを参照 ID のみ / 新規・変更所有問題 / Copy-on-Write 切り離しに分類する（純関数）
  */
 export function partitionQuestionsForSave(
   questions: Question[],
@@ -103,7 +103,7 @@ export function assertAuthorOwnsQuestion(
 }
 
 /**
- * 他クイズが当該設問 ID を参照している場合は questions ドキュメントを削除してはならない
+ * 他クイズが当該問題 ID を参照している場合は questions ドキュメントを削除してはならない
  */
 export async function canDeleteQuestionDoc(
   questionId: string,

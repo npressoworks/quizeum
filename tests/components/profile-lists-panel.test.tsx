@@ -36,7 +36,7 @@ describe('ProfileListsPanel', () => {
     );
   });
 
-  it('フィルタで設問リストのみに絞れる', () => {
+  it('フィルタで問題リストのみに絞れる', () => {
     render(
       <ProfileListsPanel
         lists={[list('quiz-1'), list('q-1', 'question')]}
@@ -46,7 +46,7 @@ describe('ProfileListsPanel', () => {
     expect(screen.getAllByTestId('profile-list-card')).toHaveLength(2);
     fireEvent.click(screen.getByTestId('profile-list-filter-question'));
     expect(screen.getAllByTestId('profile-list-card')).toHaveLength(1);
-    expect(screen.getByTestId('profile-list-type-badge')).toHaveTextContent('設問リスト');
+    expect(screen.getByTestId('profile-list-type-badge')).toHaveTextContent('問題リスト');
   });
 
   it('フィルタ結果0件で解除操作を表示', () => {

@@ -53,10 +53,10 @@ export default function BookmarksPage() {
       <div className={styles.titleSection}>
         <h1 className={styles.title}>
           <Bookmark size={32} fill="#00ff66" style={{ color: '#00ff66' }} />
-          お気に入りブックマーク一覧
+          ブックマーク
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-          クイズ・リスト・設問を種類ごとに管理できます。
+          クイズ・リスト・問題を種類ごとに管理できます。
         </p>
       </div>
 

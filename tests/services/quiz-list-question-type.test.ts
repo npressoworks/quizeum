@@ -10,7 +10,7 @@ describe('quiz-list question type utils', () => {
     expect(reorderQuestionIds(['a', 'b'], ['x', 'a'])).toEqual(['a']);
   });
 
-  test('buildQuestionListExportPackage: 設問リスト export 形状', () => {
+  test('buildQuestionListExportPackage: 問題リスト export 形状', () => {
     const list = {
       id: 'list-1',
       listType: 'question',

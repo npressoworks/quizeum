@@ -68,7 +68,7 @@ async function assertQuestionBookmarkable(questionId: string): Promise<Question>
   let question: Question;
 
   if (!questionSnap.exists()) {
-    // 設問ドキュメントが存在しない場合、親クイズの非正規化データから検索してオンデマンドで復元する
+    // 問題ドキュメントが存在しない場合、親クイズの非正規化データから検索してオンデマンドで復元する
     const parentQuizQuery = query(quizzesRef, where('questionIds', 'array-contains', questionId));
     const parentQuizSnap = await getDocs(parentQuizQuery);
 
@@ -358,7 +358,7 @@ export async function getBookmarkedLists(userId: string): Promise<QuizList[]> {
 }
 
 /**
- * ブックマークした設問を親クイズメタ付きで取得（公開親のみ）
+ * ブックマークした問題を親クイズメタ付きで取得（公開親のみ）
  */
 export async function enrichBookmarkedQuestions(
   userId: string
@@ -397,7 +397,7 @@ export async function enrichBookmarkedQuestions(
 }
 
 /**
- * クイズ・リスト・設問の3分類ブックマーク一覧
+ * クイズ・リスト・問題の3分類ブックマーク一覧
  */
 export async function getBookmarkFeed(userId: string): Promise<BookmarkFeed> {
   const [quizzes, lists, questions] = await Promise.all([

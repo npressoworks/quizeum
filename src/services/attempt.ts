@@ -187,7 +187,7 @@ export async function createLateralAttemptSession(
    ========================================================================== */
 
 /**
- * 過去に自身が間違えた設問配列のみを抽出し、復習用データとして提供する。
+ * 過去に自身が間違えた問題配列のみを抽出し、復習用データとして提供する。
  *
  * @param userId ユーザーID
  * @param quizId クイズID（指定された場合、そのクイズ内の間違いに絞る）
@@ -260,7 +260,7 @@ export async function getFailedQuestions(
 }
 
 /**
- * 復習プレイで正解した設問を、ユーザーの過去の間違いリストからアトミックに削除する。
+ * 復習プレイで正解した問題を、ユーザーの過去の間違いリストからアトミックに削除する。
  * 同時に、users.totalFailedQuestionsCount もアトミックに減算する。
  */
 export async function updateFailedQuestions(
@@ -414,9 +414,9 @@ export async function listUserPlayHistory(params: {
   const nextCursor =
     hasMore && last
       ? encodePlayHistoryCursor(
-          toDate((last.data() as Attempt).completedAt),
-          last.id
-        )
+        toDate((last.data() as Attempt).completedAt),
+        last.id
+      )
       : null;
 
   return { items, nextCursor };

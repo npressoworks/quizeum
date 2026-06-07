@@ -1,7 +1,7 @@
 import type { Question } from '@/types';
 import { searchTextIncludes } from '@/lib/normalize-search-text';
 
-/** 設問タイプに応じた正解テキスト（検索照合用）を返す。aiContextDetails は含めない。 */
+/** 問題タイプに応じた正解テキスト（検索照合用）を返す。aiContextDetails は含めない。 */
 export function getQuestionAnswerSearchTexts(question: Question): string[] {
   switch (question.type) {
     case 'multiple-choice':
@@ -22,7 +22,7 @@ export function getQuestionAnswerSearchTexts(question: Question): string[] {
   }
 }
 
-/** 設問の問題文 + 正解テキストをフラット配列で返す */
+/** 問題の問題文 + 正解テキストをフラット配列で返す */
 export function getQuestionSearchableTexts(question: Question): string[] {
   return [question.questionText, ...getQuestionAnswerSearchTexts(question)].filter(
     (text) => text.trim().length > 0
@@ -45,7 +45,7 @@ export function questionMatchesKeyword(question: Question, keyword: string): boo
   );
 }
 
-/** キーワードに一致する設問のみ返す */
+/** キーワードに一致する問題のみ返す */
 export function filterQuestionsMatchingKeyword(
   questions: Question[],
   keyword: string
@@ -55,7 +55,7 @@ export function filterQuestionsMatchingKeyword(
   return questions.filter((q) => questionMatchesKeyword(q, trimmed));
 }
 
-/** 問題文ヒットを先頭に、表示用に並べ替えた設問リスト */
+/** 問題文ヒットを先頭に、表示用に並べ替えた問題リスト */
 export function sortQuestionsForKeywordDisplay(
   questions: Question[],
   keyword: string
@@ -68,7 +68,7 @@ export function sortQuestionsForKeywordDisplay(
   return [...textHits, ...answerOnlyHits];
 }
 
-/** 問題文でキーワードに一致する設問が1件以上あるか */
+/** 問題文でキーワードに一致する問題が1件以上あるか */
 export function quizHasQuestionTextMatch(questions: Question[], keyword: string): boolean {
   const trimmed = keyword.trim();
   if (!trimmed) return false;

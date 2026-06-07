@@ -60,7 +60,7 @@ export function QuestionListAttachPanel({
       await addQuestionToList(listId, questionId);
       await refreshAttached();
     } catch (e) {
-      setAttachError(e instanceof Error ? e.message : '設問の追加に失敗しました');
+      setAttachError(e instanceof Error ? e.message : '問題の追加に失敗しました');
     }
   };
 
@@ -70,7 +70,7 @@ export function QuestionListAttachPanel({
       await removeQuestionFromList(listId, questionId);
       await refreshAttached();
     } catch (e) {
-      setAttachError(e instanceof Error ? e.message : '設問の削除に失敗しました');
+      setAttachError(e instanceof Error ? e.message : '問題の削除に失敗しました');
     }
   };
 
@@ -107,7 +107,7 @@ export function QuestionListAttachPanel({
           style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}
           data-testid="question-attach-disabled-hint"
         >
-          リストを一度保存すると、設問の検索・アタッチが有効になります。
+          リストを一度保存すると、問題の検索・アタッチが有効になります。
         </p>
       )}
 
@@ -128,7 +128,7 @@ export function QuestionListAttachPanel({
 
       {activeTab === 'public-explore' && (
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8 }}>
-          探索は直近公開クイズの設問から検索します（全件保証なし）
+          探索は直近公開クイズの問題から検索します（全件保証なし）
         </p>
       )}
 
@@ -136,7 +136,7 @@ export function QuestionListAttachPanel({
         <input
           type="text"
           className={styles.input}
-          placeholder="設問文・親クイズタイトルで検索"
+          placeholder="問題文・親クイズタイトルで検索"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           disabled={panelDisabled}
@@ -158,7 +158,7 @@ export function QuestionListAttachPanel({
         {loading ? (
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>読み込み中...</span>
         ) : candidates.length === 0 ? (
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>該当する設問がありません</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>該当する問題がありません</span>
         ) : (
           candidates.map((c) => (
             <div key={c.questionId} className={styles.searchItem}>
@@ -181,11 +181,11 @@ export function QuestionListAttachPanel({
       </div>
 
       <span className={styles.label} style={{ display: 'block', marginBottom: 8 }}>
-        アタッチ済み設問
+        アタッチ済み問題
       </span>
       <div className={styles.attachedList}>
         {attached.length === 0 ? (
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>まだ設問がありません</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>まだ問題がありません</span>
         ) : (
           attached.map((entry, idx) => (
             <div

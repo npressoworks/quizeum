@@ -31,6 +31,6 @@ describe('QuestionListAttachPanel', () => {
     );
     expect(screen.getByTestId('question-attach-disabled-hint')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('question-attach-tab-public-explore'));
-    expect(screen.getByText(/直近公開クイズの設問から検索/)).toBeInTheDocument();
+    expect(screen.getByText(/直近公開クイズの問題から検索/)).toBeInTheDocument();
   });
 });

@@ -59,7 +59,7 @@ function baseQuiz(questions: Question[]): Quiz {
 }
 
 describe('validateQuizForPublish reference skip', () => {
-  it('参照リンク設問は正解未設定でも公開検証をスキップする', () => {
+  it('参照リンク問題は正解未設定でも公開検証をスキップする', () => {
     const refQ = baseQuestion({
       id: 'ref-1',
       linkKind: 'reference',

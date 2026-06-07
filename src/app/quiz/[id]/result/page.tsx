@@ -3,21 +3,21 @@
 import React, { useEffect, useState, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Check, X, ShieldAlert, Award, Heart, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, ArrowLeft, Trophy, CheckCircle, ChevronRight, Bookmark } from 'lucide-react';
+import { Check, X, ShieldAlert, Award, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, ArrowLeft, Trophy, CheckCircle, ChevronRight, Bookmark, UserPlus, UserCheck } from 'lucide-react';
 import { parseMarkdownToHtml } from '@/lib/security/sanitize';
 import { MarkdownContent } from '@/components/markdown/markdown-content';
 import { useAuth } from '@/context/auth-context';
 import { getDifficultyColor } from '@/lib/difficulty-color';
 import { getQuiz, getQuizzesByAuthor } from '@/services/quiz';
 import { getQuizList } from '@/services/quiz-list';
-import { submitReview, submitFeedbackReport } from '@/services/review';
-import { sendReaction } from '@/services/reaction';
+import { submitReview, submitFeedbackReport, getOpenReportsForQuiz, updateFeedbackReport } from '@/services/review';
+import { isFollowing, followUser, unfollowUser } from '@/services/user';
 import { db } from '@/lib/firebase/config';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getPendingSyncAttempts } from '@/services/attempt-session';
 import { formatCorrectAnswer, formatUserAnswer, getUserAnswerRaw } from '@/services/attempt-answer-display';
 import { Quiz, Attempt, FeedbackReport, Question } from '@/types';
-import { getBookmarkFeed, toggleBookmark } from '@/services/bookmark';
+import { getBookmarkFeed, toggleBookmark, isBookmarked } from '@/services/bookmark';
 import { QuestionBookmarkToggle } from '@/components/bookmark/question-bookmark-toggle';
 import { QuizCard } from '@/components/quiz/quiz-card';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
@@ -43,7 +43,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  
+
   const attemptId = searchParams.get('attemptId');
   const localId = searchParams.get('localId');
 
@@ -56,12 +56,14 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
   // 投票・リアクション状況
   const [voted, setVoted] = useState<'positive' | 'negative' | null>(null);
   const [difficultyVote, setDifficultyVote] = useState<number | null>(null);
-  const [reactionSent, setReactionSent] = useState<boolean>(false);
+  const [isFollowingAuthor, setIsFollowingAuthor] = useState<boolean>(false);
+  const [followLoading, setFollowLoading] = useState<boolean>(false);
   const [feedbackCategory, setFeedbackCategory] = useState<'typo' | 'fact' | 'alternative'>('typo');
   const [feedbackContent, setFeedbackContent] = useState<string>('');
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
   const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
+  const [openReports, setOpenReports] = useState<FeedbackReport[]>([]);
 
   // リストの連続プレイ用
   const listId = searchParams.get('listId');
@@ -211,22 +213,85 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
     localStorage.setItem(indexKey, JSON.stringify(index));
   };
 
+  const userId = user?.id;
+  const quizIdStr = quiz?.id;
+  const questionIdsStr = quiz?.questions?.map((q) => q.id).join(',');
+  const authorId = quiz?.authorId;
+
   useEffect(() => {
-    if (!user) {
+    if (!userId || !quizIdStr) {
       setBookmarkedQuestionIds(new Set());
       setBookmarkedQuizIds(new Set());
       return;
     }
-    getBookmarkFeed(user.id)
-      .then((feed) => {
-        setBookmarkedQuestionIds(new Set(feed.questions.map((e) => e.question.id)));
-        setBookmarkedQuizIds(new Set(feed.quizzes.map((e) => e.quiz.id)));
-      })
-      .catch(() => {
+
+    async function loadBookmarks() {
+      try {
+        // 現在のクイズ全体のブックマーク状態を取得
+        const quizBookmarked = await isBookmarked(userId, quizIdStr);
+        setBookmarkedQuizIds(new Set(quizBookmarked ? [quizIdStr] : []));
+
+        // 各問題のブックマーク状態を取得
+        const questionIds = quiz?.questions?.map((q) => q.id) || [];
+        const bookmarkedIds: string[] = [];
+
+        await Promise.all(
+          questionIds.map(async (qId) => {
+            try {
+              const bookmarked = await isBookmarked(userId, qId);
+              if (bookmarked) {
+                bookmarkedIds.push(qId);
+              }
+            } catch (err) {
+              console.error(`Failed to load bookmark status for question ${qId}:`, err);
+            }
+          })
+        );
+
+        setBookmarkedQuestionIds(new Set(bookmarkedIds));
+      } catch (err) {
+        console.error('[QuizResult] ブックマークロード失敗:', err);
         setBookmarkedQuestionIds(new Set());
         setBookmarkedQuizIds(new Set());
-      });
-  }, [user]);
+      }
+    }
+    loadBookmarks();
+  }, [userId, quizIdStr, questionIdsStr]);
+
+  // 作者のフォロー状態取得
+  useEffect(() => {
+    if (!userId || !authorId || userId === authorId) {
+      setIsFollowingAuthor(false);
+      return;
+    }
+    async function checkFollowStatus() {
+      try {
+        const following = await isFollowing(userId, authorId);
+        setIsFollowingAuthor(following);
+      } catch (err) {
+        console.error('[QuizResult] フォロー状態の取得失敗:', err);
+      }
+    }
+    checkFollowStatus();
+  }, [userId, authorId]);
+
+  // 指摘レポートの初期状態取得
+  useEffect(() => {
+    if (!user || !quiz) {
+      setOpenReports([]);
+      return;
+    }
+    async function loadOpenReports() {
+      try {
+        const reports = await getOpenReportsForQuiz(quiz.id, user.id);
+        setOpenReports(reports);
+      } catch (err) {
+        console.error('[QuizResult] 指摘レポート取得失敗:', err);
+        setOpenReports([]);
+      }
+    }
+    loadOpenReports();
+  }, [user, quiz]);
 
   // 同じ作者のおすすめクイズを取得
   useEffect(() => {
@@ -249,7 +314,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
     loadRecommend();
   }, [quiz?.authorId, quiz?.id]);
 
-  // 2.5 リスト内の次設問／次クイズ判定（設問リストを優先）
+  // 2.5 リスト内の次問題／次クイズ判定（問題リストを優先）
   useEffect(() => {
     if (!listId || !quiz) return;
 
@@ -321,7 +386,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
 
   const handleNextQuestionClick = () => {
     if (!online) {
-      alert('現在オフラインのため、次の設問に進むことはできません。');
+      alert('現在オフラインのため、次の問題に進むことはできません。');
       return;
     }
     const nextEntry = advanceQuestionListSession();
@@ -334,8 +399,17 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
   };
 
   // 個別の問題間違い指摘モーダル起動
-  const openFeedbackModal = (q: Question) => {
+  const openFeedbackModal = (q: Question | null) => {
     setSelectedQuestion(q);
+    const targetId = q ? q.id : 'unknown';
+    const existingReport = openReports.find((r) => r.questionId === targetId);
+    if (existingReport) {
+      setFeedbackCategory(existingReport.category);
+      setFeedbackContent(existingReport.content);
+    } else {
+      setFeedbackCategory('typo');
+      setFeedbackContent('');
+    }
     setShowFeedbackModal(true);
   };
 
@@ -364,14 +438,22 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
     }
   };
 
-  // 作家感謝リアクション
-  const handleSendReaction = async () => {
-    if (!user || !quiz || reactionSent || !online) return;
+  // 作者のフォロー/フォロー解除トグル
+  const handleFollowToggle = async () => {
+    if (!userId || !authorId || !online || followLoading) return;
+    setFollowLoading(true);
     try {
-      await sendReaction(user.id, quiz.authorId, quiz.id, 'thank');
-      setReactionSent(true);
-    } catch (e) {
-      console.error('[QuizResult] リアクション送信失敗:', e);
+      if (isFollowingAuthor) {
+        await unfollowUser(userId, authorId);
+        setIsFollowingAuthor(false);
+      } else {
+        await followUser(userId, authorId);
+        setIsFollowingAuthor(true);
+      }
+    } catch (err) {
+      console.error('[QuizResult] フォロー操作失敗:', err);
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -382,18 +464,31 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
 
     setFeedbackLoading(true);
     try {
-      const report: Omit<FeedbackReport, 'id' | 'status' | 'createdAt'> = {
-        quizId: quiz.id,
-        quizTitle: quiz.title,
-        questionId: selectedQuestion ? selectedQuestion.id : 'unknown',
-        questionText: selectedQuestion ? selectedQuestion.questionText : '全体',
-        reporterId: user.id,
-        creatorId: quiz.authorId,
-        category: feedbackCategory,
-        content: feedbackContent,
-      };
+      const targetQuestionId = selectedQuestion ? selectedQuestion.id : 'unknown';
+      const existingReport = openReports.find((r) => r.questionId === targetQuestionId);
 
-      await submitFeedbackReport(report);
+      if (existingReport && existingReport.id) {
+        // 既存の指摘を更新
+        await updateFeedbackReport(existingReport.id, feedbackCategory, feedbackContent);
+      } else {
+        // 新規作成
+        const report: Omit<FeedbackReport, 'id' | 'status' | 'createdAt'> = {
+          quizId: quiz.id,
+          quizTitle: quiz.title,
+          questionId: targetQuestionId,
+          questionText: selectedQuestion ? selectedQuestion.questionText : '全体',
+          reporterId: user.id,
+          creatorId: quiz.authorId,
+          category: feedbackCategory,
+          content: feedbackContent,
+        };
+        await submitFeedbackReport(report);
+      }
+
+      // 指摘レポート一覧を再取得
+      const updatedReports = await getOpenReportsForQuiz(quiz.id, user.id);
+      setOpenReports(updatedReports);
+
       setFeedbackSubmitted(true);
       setTimeout(() => {
         setShowFeedbackModal(false);
@@ -401,7 +496,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
         setFeedbackContent('');
       }, 2000);
     } catch (e) {
-      console.error('[QuizResult] 指摘送信失敗:', e);
+      console.error('[QuizResult] 指摘送信・更新失敗:', e);
     } finally {
       setFeedbackLoading(false);
     }
@@ -573,7 +668,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
             const diffNum = isNaN(diffVal) ? 0 : diffVal;
             return (
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}>
-                難易度: 
+                難易度:
                 <span style={{ color: getDifficultyColor(diffNum) }}>
                   {'★'.repeat(diffNum)}
                 </span>
@@ -708,16 +803,15 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
         {/* 3. 指摘・お礼・通報リアクションバー */}
         <div className={styles.actionBtnRow}>
           <button
-            className="btn btn-secondary"
-            style={{ flex: 1 }}
-            onClick={() => {
-              setSelectedQuestion(null);
-              setFeedbackCategory('typo');
-              setShowFeedbackModal(true);
+            className={`btn ${openReports.some((r) => r.questionId === 'unknown') ? 'btn-primary' : 'btn-secondary'}`}
+            style={{
+              flex: 1,
+              ...(openReports.some((r) => r.questionId === 'unknown') ? { background: '#ffb703', borderColor: '#ffb703', color: '#1a1a2e' } : {})
             }}
+            onClick={() => openFeedbackModal(null)}
             disabled={!online}
           >
-            <MessageSquare size={16} /> クイズ全体の指摘
+            <MessageSquare size={16} /> {openReports.some((r) => r.questionId === 'unknown') ? 'クイズ全体の指摘 (指摘済)' : 'クイズ全体の指摘'}
           </button>
           <button
             className="btn btn-secondary"
@@ -728,15 +822,25 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
           >
             <AlertTriangle size={16} /> クイズを通報
           </button>
-          <button
-            className="btn btn-accent"
-            style={{ flex: 1 }}
-            onClick={handleSendReaction}
-            disabled={!online || reactionSent || user?.id === quiz.authorId}
-          >
-            <Heart size={16} fill={reactionSent ? '#fff' : 'none'} />
-            {reactionSent ? '感謝を送信しました！' : '作家にお礼リアクションを送る'}
-          </button>
+          {user && user.id !== quiz.authorId && (
+            <button
+              className={`btn ${isFollowingAuthor ? 'btn-secondary' : 'btn-accent'}`}
+              style={{ flex: 1 }}
+              onClick={handleFollowToggle}
+              disabled={!online || followLoading}
+              data-testid="author-follow-btn"
+            >
+              {isFollowingAuthor ? (
+                <>
+                  <UserCheck size={16} style={{ marginRight: '6px' }} /> フォロー中
+                </>
+              ) : (
+                <>
+                  <UserPlus size={16} style={{ marginRight: '6px' }} /> 作者をフォローする
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* リスト連続プレイナビゲーション */}
@@ -757,13 +861,13 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
                   data-testid="question-list-next"
                   style={{ width: '100%', marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
-                  <span>次の設問へ</span>
+                  <span>次の問題へ</span>
                   <ChevronRight size={18} />
                 </button>
               ) : isLastInQuestionList ? (
                 <div className={styles.listClearMessage} style={{ background: 'rgba(0, 245, 212, 0.05)', border: '1px solid rgba(0, 245, 212, 0.2)', padding: '20px', borderRadius: 'var(--radius-md)', textAlign: 'center', marginTop: '16px' }}>
                   <p style={{ color: '#00f5d4', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '12px' }}>
-                    🎉 設問リストのすべての設問を完遂しました！
+                    🎉 問題リストのすべての問題を完遂しました！
                   </p>
                   <Link
                     href={`/list/${listId}`}
@@ -809,7 +913,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
       {/* 問題正誤リストおよび解説表示 (Task 5.1) */}
       <section className={styles.questionsList}>
         <h2 style={{ fontSize: '1.3rem', fontWeight: '700', color: 'var(--text-main)' }}>
-          設問ごとの解説
+          問題ごとの解説
         </h2>
 
         {(quiz.questions ?? []).map((q, idx) => {
@@ -863,12 +967,18 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
                   />
                   <button
                     className="btn btn-outline"
-                    style={{ padding: '4px 10px', fontSize: '0.8rem', borderColor: 'rgba(255,183,3,0.3)', color: '#ffb703' }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.8rem',
+                      borderColor: '#ffb703',
+                      color: openReports.some((r) => r.questionId === q.id) ? '#1a1a2e' : '#ffb703',
+                      background: openReports.some((r) => r.questionId === q.id) ? '#ffb703' : 'transparent'
+                    }}
                     onClick={() => openFeedbackModal(q)}
                     disabled={!online}
                   >
                     <MessageSquare size={12} style={{ marginRight: '4px', display: 'inline', verticalAlign: 'text-bottom' }} />
-                    この設問を指摘
+                    {openReports.some((r) => r.questionId === q.id) ? '問題指摘済' : 'この問題を指摘'}
                   </button>
                 </div>
               </div>
@@ -901,7 +1011,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
               {q.explanation && (
                 <div className={styles.explanationBox}>
                   <div className={styles.explanationTitle}>💡 解説</div>
-                  <p 
+                  <p
                     style={{ fontSize: '0.95rem', color: 'var(--text-muted)', lineHeight: '1.6' }}
                     dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(q.explanation) }}
                   />
@@ -973,7 +1083,7 @@ export function QuizResultPageContent({ quizId }: ContentProps) {
               <AlertTriangle size={18} style={{ color: '#ffb703' }} />
               問題の間違い・別解の指摘
             </h3>
-            
+
             {feedbackSubmitted ? (
               <div style={{ textAlign: 'center', padding: '24px 0', color: '#00f5d4' }}>
                 <CheckCircle size={32} style={{ margin: '0 auto 12px' }} />

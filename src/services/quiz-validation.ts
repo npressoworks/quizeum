@@ -98,7 +98,7 @@ export interface QuizPublishValidationError {
   message: string;
   /** 問題単位のエラーの場合、問題インデックス（0始まり） */
   questionIndex?: number;
-  /** 設問内の対象フィールド */
+  /** 問題内の対象フィールド */
   questionField?: QuizValidationQuestionField;
   /** 正解候補リスト内のインデックス（questionField === 'correctTextAnswer' の場合） */
   answerIndex?: number;
@@ -139,7 +139,7 @@ export function formatValidationErrorSummary(
 }
 
 /**
- * 設問の問題文を検証する（下書き・公開の共通）
+ * 問題の問題文を検証する（下書き・公開の共通）
  */
 export function collectQuestionTextValidationErrors(
   question: Question,
@@ -436,7 +436,7 @@ export function validateQuizForPublish(quiz: Quiz): QuizPublishValidationError[]
       errors.push(...collectQuestionValidationErrors(q, idx));
     });
 
-    // ── クイズ形式と設問タイプの一貫性チェック ──────────
+    // ── クイズ形式と問題タイプの一貫性チェック ──────────
     if (quiz.format) {
       quiz.questions.forEach((q, idx) => {
         if (isReferenceLinkQuestion(q)) return;

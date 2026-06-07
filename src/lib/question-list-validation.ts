@@ -3,7 +3,7 @@ import { resolveListType } from '../types';
 
 export class QuestionNotBookmarkableError extends Error {
   readonly code = 'question-not-bookmarkable' as const;
-  constructor(message = '親クイズが公開済みでない設問はブックマークできません') {
+  constructor(message = '親クイズが公開済みでない問題はブックマークできません') {
     super(message);
     this.name = 'QuestionNotBookmarkableError';
   }
@@ -11,7 +11,7 @@ export class QuestionNotBookmarkableError extends Error {
 
 export class QuestionNotListAddableError extends Error {
   readonly code = 'question-not-list-addable' as const;
-  constructor(message = '親クイズが公開済みでない設問はリストに追加できません') {
+  constructor(message = '親クイズが公開済みでない問題はリストに追加できません') {
     super(message);
     this.name = 'QuestionNotListAddableError';
   }
@@ -40,9 +40,9 @@ export function assertListTypeOperation(
 ): void {
   const resolved = resolveListType(list as { listType?: QuizListType });
   if (resolved === 'quiz' && memberKind === 'question') {
-    throw new ListTypeMismatchError('クイズリストに設問のみの操作はできません');
+    throw new ListTypeMismatchError('クイズリストに問題のみの操作はできません');
   }
   if (resolved === 'question' && memberKind === 'quiz') {
-    throw new ListTypeMismatchError('設問リストにクイズのみの操作はできません');
+    throw new ListTypeMismatchError('問題リストにクイズのみの操作はできません');
   }
 }

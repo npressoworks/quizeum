@@ -79,15 +79,15 @@ test.describe('Phase 8 E2E スモーク', () => {
     await page.getByTestId('bookmarks-tab-quiz').click();
     await page.getByTestId('bookmarks-tab-list').click();
     await page.getByTestId('bookmarks-tab-question').click();
-    await expect(page.locator('h1').filter({ hasText: 'お気に入りブックマーク一覧' })).toBeVisible();
+    await expect(page.locator('h1').filter({ hasText: 'ブックマーク' })).toBeVisible();
   });
 
-  test('6.10: 設問リストを新規作成し編集画面へ遷移すること', async ({ page }) => {
+  test('6.10: 問題リストを新規作成し編集画面へ遷移すること', async ({ page }) => {
     page.on('dialog', async (dialog) => await dialog.accept());
     await ensureLoggedIn(page);
     await page.goto('/list/create');
 
-    const listTitle = `[TEST] E2E設問リスト_${Date.now().toString().slice(-4)}`;
+    const listTitle = `[TEST] E2E問題リスト_${Date.now().toString().slice(-4)}`;
     await page.locator('input[type="text"]').first().fill(listTitle);
     await page.getByTestId('list-type-question').check();
     await page.locator('text=リストを保存する').first().click();
@@ -113,7 +113,7 @@ test.describe('Phase 8 E2E スモーク', () => {
     await expect(page).toHaveURL(/\/list\/(?!create)[^/]+$/);
 
     await page.goto('/list/create');
-    await page.locator('input[type="text"]').first().fill(`[TEST] E2E設問リスト_${suffix}`);
+    await page.locator('input[type="text"]').first().fill(`[TEST] E2E問題リスト_${suffix}`);
     await page.getByTestId('list-type-question').check();
     await page.locator('text=リストを保存する').first().click();
     await expect(page).toHaveURL(/\/list\/[^/]+\/edit/);
@@ -125,13 +125,13 @@ test.describe('Phase 8 E2E スモーク', () => {
 
     await page.getByTestId('profile-list-filter-question').click();
     await expect(cards.first()).toBeVisible();
-    await expect(page.getByTestId('profile-list-type-badge').first()).toHaveText('設問リスト');
+    await expect(page.getByTestId('profile-list-type-badge').first()).toHaveText('問題リスト');
 
     await page.getByTestId('profile-list-filter-quiz').click();
     await expect(page.getByTestId('profile-list-type-badge').first()).toHaveText('クイズリスト');
   });
 
-  test('6.10: 参照リンクパネルから過去クイズの設問をリンクできること', async ({ page }) => {
+  test('6.10: 参照リンクパネルから過去クイズの問題をリンクできること', async ({ page }) => {
     page.on('dialog', async (dialog) => await dialog.accept());
     const sourceTitle = `[TEST] E2E参照元_${Date.now().toString().slice(-4)}`;
     await publishMinimalQuiz(page, sourceTitle);
@@ -152,7 +152,7 @@ test.describe('Phase 8 E2E スモーク', () => {
     const quizRow = page.locator('[data-testid^="reference-quiz-"]').first();
     await expect(quizRow).toBeVisible({ timeout: 15000 });
     await quizRow.click();
-    await expect(page.getByText('設問読み込み中...')).toBeHidden({ timeout: 15000 });
+    await expect(page.getByText('問題読み込み中...')).toBeHidden({ timeout: 15000 });
 
     const linkBtn = page.locator('[data-testid^="link-reference-"]').first();
     await expect(linkBtn).toBeVisible({ timeout: 15000 });
@@ -160,9 +160,9 @@ test.describe('Phase 8 E2E スモーク', () => {
     await expect(page.getByTestId('reference-question-badge').first()).toBeVisible();
   });
 
-  test('11.10: 設問リストから連続プレイを完走できること', async ({ page }) => {
+  test('11.10: 問題リストから連続プレイを完走できること', async ({ page }) => {
     page.on('dialog', async (dialog) => await dialog.accept());
-    const quizTitle = `[TEST] E2E設問リストプレイ_${Date.now().toString().slice(-4)}`;
+    const quizTitle = `[TEST] E2E問題リストプレイ_${Date.now().toString().slice(-4)}`;
     await publishMinimalQuiz(page, quizTitle);
 
     await page.goto('/list/create');
@@ -180,10 +180,10 @@ test.describe('Phase 8 E2E スモーク', () => {
     const attachBtn = page.locator('[data-testid^="attach-question-"]').first();
     await expect(attachBtn).toBeVisible({ timeout: 30000 });
     await attachBtn.click();
-    await expect(page.getByText('まだ設問がありません')).toBeHidden({ timeout: 15000 });
+    await expect(page.getByText('まだ問題がありません')).toBeHidden({ timeout: 15000 });
 
     await page.goto(`/list/${listId}`);
-    await expect(page.getByText(/収録設問一覧 \(1問\)/)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/収録問題一覧 \(1問\)/)).toBeVisible({ timeout: 15000 });
     const playStartBtn = page.getByTestId('question-list-play-start');
     await expect(playStartBtn).toBeEnabled({ timeout: 10000 });
     await playStartBtn.click();

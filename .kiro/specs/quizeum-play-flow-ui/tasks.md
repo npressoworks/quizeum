@@ -31,13 +31,13 @@
   - _Boundary: QuizDetailPage_
 
 ### 3. クイズプレイ画面（通常・模擬試験・フラッシュカード）のUI実装
-- [x] 3.1 設問表示・タイマー・ヒント表示の実装 (P)
+- [x] 3.1 問題表示・タイマー・ヒント表示の実装 (P)
   - `src/app/quiz/[id]/play/page.tsx` に通常プレイ用のUIを実装する。
   - 個別カウントダウンタイマー、模擬試験全体の総合制限タイマー、ヒントポップアップダイアログを構築する。
   - _Requirements: 3.1, 3.2_
   - _Boundary: QuizPlayPage_
 - [x] 3.2 localStorageを用いた解答進捗のセッション保護と復元の実装
-  - `src/hooks/usePlayState.ts` を作成し、設問解答時や経過秒数を `localStorage` に自動シリアライズして退避し、ページ再読み込み時に自動復元する処理を実装する。
+  - `src/hooks/usePlayState.ts` を作成し、問題解答時や経過秒数を `localStorage` に自動シリアライズして退避し、ページ再読み込み時に自動復元する処理を実装する。
   - オフライン時のローカル解答進行と、オンライン復帰時の同期インジケーターを実装する。
   - _Requirements: 3.3, 3.4_
   - _Boundary: PlayStateManager_
@@ -60,7 +60,7 @@
 
 ### 5. クイズ結果画面のUI実装
 - [x] 5.1 スコア結果・正誤リストおよび解説表示の実装 (P)
-  - `src/app/quiz/[id]/result/page.tsx` を作成し、正解数、経過秒数、各設問の正誤一覧、マークダウン解説を表示する。
+  - `src/app/quiz/[id]/result/page.tsx` を作成し、正解数、経過秒数、各問題の正誤一覧、マークダウン解説を表示する。
   - _Requirements: 5.1_
   - _Boundary: QuizResultPage_
 - [x] 5.2 評価・難易度投票、間違い指摘、作家リアクションUIの実装
@@ -72,11 +72,11 @@
 ### 6. 弱点克服（復習プレイ）画面のUI実装
 - [x] 6.1 ジャンルフィルタ選択と復習プレイセッション開始の実装 (P)
   - `src/app/quiz/review/page.tsx` を作成し、復習前にジャンル（またはオールジャンル）を選択するパネルを実装する。
-  - 間違えた設問を一括フェッチして開始するフローを構築する。
+  - 間違えた問題を一括フェッチして開始するフローを構築する。
   - _Requirements: 6.1, 6.2_
   - _Boundary: ReviewPage_
 - [x] 6.2 復習完了時のリスト自動クレンジング実装
-  - 復習セッション終了時、正解した設問を間違いリストから一括削除し、`users.totalFailedQuestionsCount` を減算するアトミック処理を呼び出す。
+  - 復習セッション終了時、正解した問題を間違いリストから一括削除し、`users.totalFailedQuestionsCount` を減算するアトミック処理を呼び出す。
   - _Requirements: 6.3_
   - _Boundary: ReviewPage-Cleanup_
 
@@ -190,21 +190,21 @@
 
 ---
 
-### 11. Phase 8 拡張 — 分類ブックマークと設問リストプレイ UI（2026-06）
+### 11. Phase 8 拡張 — 分類ブックマークと問題リストプレイ UI（2026-06）
 
-> **前提**: `quizeum-core` Phase 8 完了（`getBookmarkFeed`, `getQuestionsInList`, `toggleBookmark` 設問対応, `saveAttempt` の `question-list` モード）。本スペックは UI・セッション状態・遷移のみ。
+> **前提**: `quizeum-core` Phase 8 完了（`getBookmarkFeed`, `getQuestionsInList`, `toggleBookmark` 問題対応, `saveAttempt` の `question-list` モード）。本スペックは UI・セッション状態・遷移のみ。
 
-- [x] 11.1 (P) 設問リスト連続プレイセッションライブラリ
+- [x] 11.1 (P) 問題リスト連続プレイセッションライブラリ
   - `sessionStorage` キー `quizeum_question_list_session` でリスト ID・順序付きエントリ（`questionId`, `parentQuizId`）・現在インデックスを初期化・読取・進行・クリアする純関数を実装する。
-  - 設問リストプレイ用 URL（`mode=question-list`, `questionId`, `qIndex`, `listId`）を組み立てるヘルパーを提供する。
+  - 問題リストプレイ用 URL（`mode=question-list`, `questionId`, `qIndex`, `listId`）を組み立てるヘルパーを提供する。
   - Jest で init → read → advance → 最終後 null → clear のシーケンスを検証する。
-  - **完了状態**: セッションライブラリの単体テストがグリーンであり、設問リスト開始時に先頭エントリの URL が生成できること。
+  - **完了状態**: セッションライブラリの単体テストがグリーンであり、問題リスト開始時に先頭エントリの URL が生成できること。
   - _Requirements: 11.11, 11.12_
   - _Boundary: question-list-session_
   - _Depends: quizeum-core Phase 8_
 
 - [x] 11.2 (P) `useBookmarkFeed` フック
-  - マウント時に `getBookmarkFeed` を1回呼び出し、クイズ・リスト・設問の3分類フィードと loading 状態を返す。
+  - マウント時に `getBookmarkFeed` を1回呼び出し、クイズ・リスト・問題の3分類フィードと loading 状態を返す。
   - `toggleBookmark` による解除後、該当タブの配列から楽観的にエントリを除去する `removeBookmark` を提供する（タブ切替で再フェッチしない）。
   - **完了状態**: 認証ユーザーで feed が3分類とも取得でき、解除後に UI 状態から当該アイテムが消えること。
   - _Requirements: 11.1, 11.3, 11.4, 11.5_
@@ -212,10 +212,10 @@
   - _Depends: quizeum-core Phase 8_
 
 - [x] 11.3 (P) ブックマークタブ・カードコンポーネント群
-  - `BookmarksTabs` で「クイズ」「リスト」「設問」タブを切り替え、設計どおりの `data-testid`（`bookmarks-tabs`, `bookmarks-tab-quiz`, `bookmarks-tab-list`, `bookmarks-tab-question`）を付与する。
+  - `BookmarksTabs` で「クイズ」「リスト」「問題」タブを切り替え、設計どおりの `data-testid`（`bookmarks-tabs`, `bookmarks-tab-quiz`, `bookmarks-tab-list`, `bookmarks-tab-question`）を付与する。
   - `BookmarkQuizGrid` は既存ホームカードスタイルを再利用し、解除トグルと `/quiz/[id]` 遷移を提供する。
   - `BookmarkListGrid` はリストカードに解除トグルと `/list/[id]` リンクを提供する。
-  - `BookmarkQuestionList` は問題文抜粋・親クイズタイトル・ブックマーク日時降順で設問を表示し、カードクリックで `/quiz/[parentQuizId]/play?startAtQuestionId={id}` へ遷移する。
+  - `BookmarkQuestionList` は問題文抜粋・親クイズタイトル・ブックマーク日時降順で問題を表示し、カードクリックで `/quiz/[parentQuizId]/play?startAtQuestionId={id}` へ遷移する。
   - 各タブの空状態に要件どおりの案内文を表示する。
   - **完了状態**: 3タブコンポーネントが Storybook 相当の単体描画または RTL で切替・空状態・testid を確認できること。
   - _Requirements: 11.1, 11.3, 11.4, 11.5, 11.6_
@@ -225,55 +225,55 @@
 - [x] 11.4 ブックマーク一覧ページの3タブ統合
   - `bookmarks/page.tsx` を `getBookmarkedQuizzes` 単体から `useBookmarkFeed` + `BookmarksTabs` + 各グリッドへ置換する。
   - 未認証アクセス時は既存どおり `/login` へリダイレクトする（11.2）。
-  - **完了状態**: `/bookmarks` で3タブが表示され、クイズタブの既存カード UX が維持されつつリスト・設問タブが動作すること。
+  - **完了状態**: `/bookmarks` で3タブが表示され、クイズタブの既存カード UX が維持されつつリスト・問題タブが動作すること。
   - _Requirements: 7.3, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
   - _Depends: 11.3_
   - _Boundary: BookmarksPage_
 
-- [x] 11.5 (P) 設問ブックマークトグルコンポーネント
-  - 設問行に星アイコンのオン／オフトグルを表示し、認証時は `toggleBookmark(userId, questionId, 'question')` を呼び出す。
+- [x] 11.5 (P) 問題ブックマークトグルコンポーネント
+  - 問題行に星アイコンのオン／オフトグルを表示し、認証時は `toggleBookmark(userId, questionId, 'question')` を呼び出す。
   - 未認証時の操作は `/login` へ遷移する。親クイズ非公開などコア検証エラー時はトグルを元に戻しエラーを表示する。
   - **完了状態**: トグル操作で BM 状態が切り替わり、未認証時にログイン画面へ遷移すること。
   - _Requirements: 11.7, 11.8, 11.9_
   - _Boundary: QuestionBookmarkToggle_
   - _Depends: quizeum-core Phase 8_
 
-- [x] 11.6 (P) リスト詳細の設問リスト分岐と連続プレイ開始
-  - `resolveListType` で `listType === 'question'` のとき `getQuestionsInList` による順序付き設問一覧（抜粋・親タイトル）と「設問リストプレイ開始」ボタンを表示する。
-  - 開始時に `initQuestionListSession` を呼び、先頭設問の親クイズプレイ URL へ遷移する。
-  - `listType === 'quiz'`（または legacy 未設定）は従来の `getQuizzesInList` + 「リストプレイ開始」（`mode=list`）を維持し、設問リスト UI と混在させない。
-  - **完了状態**: 設問リスト詳細で設問一覧と開始ボタンが表示され、クイズリスト詳細は従来どおりクイズ連続プレイのみ提供すること。
+- [x] 11.6 (P) リスト詳細の問題リスト分岐と連続プレイ開始
+  - `resolveListType` で `listType === 'question'` のとき `getQuestionsInList` による順序付き問題一覧（抜粋・親タイトル）と「問題リストプレイ開始」ボタンを表示する。
+  - 開始時に `initQuestionListSession` を呼び、先頭問題の親クイズプレイ URL へ遷移する。
+  - `listType === 'quiz'`（または legacy 未設定）は従来の `getQuizzesInList` + 「リストプレイ開始」（`mode=list`）を維持し、問題リスト UI と混在させない。
+  - **完了状態**: 問題リスト詳細で問題一覧と開始ボタンが表示され、クイズリスト詳細は従来どおりクイズ連続プレイのみ提供すること。
   - _Requirements: 11.10, 11.11, 11.13_
   - _Depends: 11.1_
   - _Boundary: ListDetailPage_
 
-- [x] 11.7 プレイ画面の設問リストモードと設問BM統合
+- [x] 11.7 プレイ画面の問題リストモードと問題BM統合
   - `mode=question-list` クエリ時、`questionId` に一致する1問のみをプレイ対象とし、完了時に `saveAttempt` で `mode: 'question-list'`, `totalQuestions: 1`, `listId` を送信する。
-  - 通常・模擬試験プレイ中の設問表示行に `QuestionBookmarkToggle` を配置する（ウミガメスープは対象外でよい）。
-  - `startAtQuestionId` クエリ時は当該設問から解答開始できるようインデックスを初期化する（設問タブからの単体プレイ、セッションは作成しない）。
-  - **完了状態**: 設問リストプレイで1問完了後に attempt が `question-list` で保存され、プレイ中に設問 BM トグルが動作すること。
+  - 通常・模擬試験プレイ中の問題表示行に `QuestionBookmarkToggle` を配置する（ウミガメスープは対象外でよい）。
+  - `startAtQuestionId` クエリ時は当該問題から解答開始できるようインデックスを初期化する（問題タブからの単体プレイ、セッションは作成しない）。
+  - **完了状態**: 問題リストプレイで1問完了後に attempt が `question-list` で保存され、プレイ中に問題 BM トグルが動作すること。
   - _Requirements: 11.6, 11.7, 11.9, 11.11, 11.14_
   - _Depends: 11.1, 11.5_
   - _Boundary: QuizPlayPage_
 
-- [x] 11.8 結果画面の設問BMと設問リスト次設問遷移
-  - 正誤一覧の各設問行に `QuestionBookmarkToggle` を配置する（公開親設問のみ操作可能）。
-  - `listId` かつ `question-list-session` 存在時は、クイズリスト（`quizIds`）分岐より先に設問リスト分岐を評価し、「次の設問へ」で次エントリのプレイ URL へ遷移する。最終設問後はセッションをクリアし完了メッセージとリスト詳細リンクを表示する。
+- [x] 11.8 結果画面の問題BMと問題リスト次問題遷移
+  - 正誤一覧の各問題行に `QuestionBookmarkToggle` を配置する（公開親問題のみ操作可能）。
+  - `listId` かつ `question-list-session` 存在時は、クイズリスト（`quizIds`）分岐より先に問題リスト分岐を評価し、「次の問題へ」で次エントリのプレイ URL へ遷移する。最終問題後はセッションをクリアし完了メッセージとリスト詳細リンクを表示する。
   - セッション欠落時は「リストの続きを再生できません」案内を表示する。
-  - **完了状態**: 設問リスト2問目以降へ結果画面から遷移でき、最終設問後に完了 UI が表示されること。
+  - **完了状態**: 問題リスト2問目以降へ結果画面から遷移でき、最終問題後に完了 UI が表示されること。
   - _Requirements: 11.8, 11.12_
   - _Depends: 11.1, 11.5, 11.7_
   - _Boundary: QuizResultPage_
 
 - [x] 11.9 Phase 8 統合検証
-  - 3タブブックマーク（表示・解除・設問カード→プレイ）、設問 BM トグル（プレイ・結果）、設問リスト連続プレイ（開始→1問完了→次設問→完了）、クイズリスト回帰を Jest またはコンポーネントテストで検証する。
+  - 3タブブックマーク（表示・解除・問題カード→プレイ）、問題 BM トグル（プレイ・結果）、問題リスト連続プレイ（開始→1問完了→次問題→完了）、クイズリスト回帰を Jest またはコンポーネントテストで検証する。
   - `bookmarksCount` 更新や attempt 永続化ロジックが UI 層に追加されていないことを確認する。
-  - **完了状態**: Phase 8 関連テストがグリーンであり、手動スモークで設問リスト3設問連続プレイが完走すること。
+  - **完了状態**: Phase 8 関連テストがグリーンであり、手動スモークで問題リスト3問題連続プレイが完走すること。
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.11, 11.12, 11.13, 11.14_
   - _Depends: 11.4, 11.6, 11.7, 11.8_
 
 - [ ]* 11.10 Phase 8 E2E スモーク（任意）
-  - `[data-testid="bookmarks-tabs"]` で3タブ切替、設問リスト詳細からの連続プレイ、結果画面の次設問ボタンを Playwright で検証する。
+  - `[data-testid="bookmarks-tabs"]` で3タブ切替、問題リスト詳細からの連続プレイ、結果画面の次問題ボタンを Playwright で検証する。
   - **完了状態**: E2E 記録またはチェックリストが残ること。
   - _Depends: 11.9_
   - _Requirements: 11.1, 11.10, 11.12_
@@ -284,7 +284,7 @@
 - **確定 UX**: ジャンルアイコン＝遷移のみ。ジャンル条件は `GenreSearchField` + `searchQuizzes`（フィルタ変更・デバウンス）。`playStatus` は認証後クライアント後段フィルタ。
 - `quizeum-creator-dash-ui` のエディタ動的セレクトと併せて E2E するとジャンル一貫性の受け入れが容易。
 - Phase 6 実装（2026-06-03）: `GenreNav` は遷移専用。`GenreSearchField` + `useHomeQuizFeed`（300ms debounce）+ `applyPlayStatusFilter` / `GET /api/user/played-quiz-ids` で要件 1.3 完遂。Jest 296 件・build PASS。
-- **Phase 8**: ブックマークは `getBookmarkFeed` 一括取得 + 楽観的解除。設問リスト進行は `question-list-session`（sessionStorage）。attempt 永続化・`bookmarksCount` はコアのみ（要件 11.14）。クイズリスト連続プレイ（`mode=list`）は回帰維持。
+- **Phase 8**: ブックマークは `getBookmarkFeed` 一括取得 + 楽観的解除。問題リスト進行は `question-list-session`（sessionStorage）。attempt 永続化・`bookmarksCount` はコアのみ（要件 11.14）。クイズリスト連続プレイ（`mode=list`）は回帰維持。
 - Phase 8 実装（2026-06-05）: `components/bookmark/*`, `useBookmarkFeed`, `question-list-session`。Jest 354 件・build PASS。
 - **Phase 10**: 統合検索は `UnifiedSearchField` + `useActiveTags` + `filter-search-suggestions`。タグ AND 検索は `useHomeQuizFeed` → `searchQuizzes({ tags })`（core 10.x 完了後に実装）。カードは `★ N` + ジャンル + 出題形式、探索一覧は `QuizCard` + `href` 共通化。
 - Phase 10 実装（2026-06-06）: `UnifiedSearchField`, `useActiveTags`, `quiz-format-labels`, `QuizCard` 拡張、探索一覧共通化。Jest 430 件・build PASS。
@@ -336,7 +336,7 @@
 > **前提**: `quizeum-core` Phase 10 完了（`listActiveTags`, `searchQuizzes` の `tags` 配列 AND 合成）。本スペックは UI・フィルタ状態・カード表示のみ。
 
 - [x] 13.1 (P) 出題形式ラベル共有ライブラリ
-  - クイズエディタ内のローカル形式ラベル解決を共有ライブラリへ抽出し、設問構成から推定した日本語ラベル（選択式、記述式、ウミガメのスープ等）をカードとエディタで同一規則で返す
+  - クイズエディタ内のローカル形式ラベル解決を共有ライブラリへ抽出し、問題構成から推定した日本語ラベル（選択式、記述式、ウミガメのスープ等）をカードとエディタで同一規則で返す
   - エディタは共有ライブラリを参照するよう委譲し、重複ロジックを除去する
   - **完了状態**: 共有ライブラリの単体テストがグリーンであり、エディタとカードが同一ラベル文字列を表示すること
   - _Requirements: 12.18_
@@ -552,10 +552,10 @@
   - _Boundary: difficulty-color, QuizDetailPage, QuizResultPage_
 
 - [x] 16.2 クイズプレイ画面から結果への自動遷移
-  - `src/app/quiz/[id]/play/page.tsx` において、すべての設問への解答完了時に待機用中間画面を挟まず、自動的に結果の保存処理を実行して結果画面へ直接遷移するよう変更する。
+  - `src/app/quiz/[id]/play/page.tsx` において、すべての問題への解答完了時に待機用中間画面を挟まず、自動的に結果の保存処理を実行して結果画面へ直接遷移するよう変更する。
   - `usePlayState` の完了ハンドラから自動的に結果画面（`/quiz/[id]/result?attemptId={attemptId}`）へ遷移するリダイレクト制御を構築する。
   - 連想クイズプレイ完了時、解答中に表示したヒントの一覧情報を `localStorage`（キー: `quizeum_attempt_hints_{attemptId}`）へ一時保存する。
-  - **完了状態**: 最後の設問を送信した瞬間に待機画面を挟まず結果画面へ自動遷移し、連想クイズのヒント表示情報が `localStorage` へ保存されること。
+  - **完了状態**: 最後の問題を送信した瞬間に待機画面を挟まず結果画面へ自動遷移し、連想クイズのヒント表示情報が `localStorage` へ保存されること。
   - _Requirements: 3.6, 5.6_
   - _Boundary: QuizPlayPage_
 
@@ -627,5 +627,30 @@
   - 難易度5段階化されたクイズカード、詳細、結果画面、および投票フローが一貫して動作することを確認する。
   - **完了状態**: UI 関連テストスイートおよび開発用ビルドでエラーが発生しないこと。
   - _Depends: 17.1, 17.2, 17.3_
+
+### 18. Phase 14 拡張 — 作家お礼機能の廃止および結果画面でのフォロー機能の追加（2026-06）
+
+- [ ] 18.1 作家お礼リアクションボタンの削除とフォローボタンの配置 (P)
+  - クイズ結果画面（`src/app/quiz/[id]/result/page.tsx`）から、お礼リアクション送信ボタン（`handleSendReaction` や `reactionSent` 関連のコード、お礼の JSX 記述）を削除する。
+  - 代わりに、ログインユーザー（`user.id`）とクイズ作成者（`quiz.authorId`）が異なる場合のみ表示される「作者をフォローする / フォロー解除」ボタンを配置する。自分自身の場合は非表示にする。
+  - **完了状態**: 結果画面でお礼ボタンが非表示になり、他のユーザーが作成したクイズの結果画面では「フォローする / フォロー解除」ボタンが表示されること。自分自身のクイズ結果画面ではフォローボタンが表示されないこと。
+  - _Requirements: 5.4_
+  - _Boundary: QuizResultPage_
+
+- [ ] 18.2 フォロー状態の取得とトグル操作の実装 (P)
+  - クイズ結果画面のロード時に、`isFollowing` サービス（`src/services/user.ts`）を呼び出して作成者の現在のフォロー状態を取得・保持する。
+  - フォローボタン of クリックにより、現在の状態に応じて `followUser` または `unfollowUser` を実行し、フォロー状態の表示をトグルする。
+  - オフライン時（`!online`）は、フォローボタンを無効化（`disabled`）にする。
+  - **完了状態**: ボタンクリックでフォローのオン・オフが正常にトグルされ、オフライン時はボタンが非活性になり操作できないこと。
+  - _Requirements: 5.4, 5.5_
+  - _Boundary: QuizResultPage_
+
+- [ ] 18.3 統合検証とテストの更新
+  - クイズ結果画面で作成者をフォロー・フォロー解除する動作と、自己フォロー時の非表示処理、オフライン時の非活性化処理を検証するテスト（Jest や E2E テスト）を実装・更新する。
+  - **完了状態**: テストが正常にパスし、自動・手動検証で結果画面からのフォロー機能が完全に動作すること。
+  - _Requirements: 5.4, 5.5_
+  - _Depends: 18.1, 18.2_
+  - _Boundary: Testing_
+
 
 

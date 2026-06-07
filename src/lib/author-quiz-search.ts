@@ -39,7 +39,7 @@ export function filterAuthorQuizzes(
 }
 
 /**
- * 設問データ付きで自作クイズをキーワード・タグでフィルタ
+ * 問題データ付きで自作クイズをキーワード・タグでフィルタ
  */
 export function filterAuthorQuizzesWithQuestions(
   quizzes: Quiz[],

@@ -66,7 +66,7 @@ export function ProfileListsPanel({ lists, isMyProfile }: ProfileListsPanelProps
             [
               { id: 'all' as const, label: 'すべて' },
               { id: 'quiz' as const, label: 'クイズリストのみ' },
-              { id: 'question' as const, label: '設問リストのみ' },
+              { id: 'question' as const, label: '問題リストのみ' },
             ] as const
           ).map((chip) => (
             <button

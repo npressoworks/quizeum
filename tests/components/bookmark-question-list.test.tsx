@@ -17,7 +17,7 @@ jest.mock('next/navigation', () => ({
 const sampleQuestion: Question = {
   id: 'q1',
   quizId: 'quiz-a',
-  questionText: 'サンプル設問テキストです。',
+  questionText: 'サンプル問題テキストです。',
   type: 'multiple-choice',
   explanation: '',
   imageUrl: null,
@@ -41,7 +41,7 @@ describe('BookmarkQuestionList', () => {
     expect(screen.getByTestId('bookmarks-empty-question')).toBeInTheDocument();
   });
 
-  it('設問カードクリックで親クイズプレイへ遷移する', () => {
+  it('問題カードクリックで親クイズプレイへ遷移する', () => {
     render(
       <BookmarkQuestionList
         questions={[
@@ -56,7 +56,7 @@ describe('BookmarkQuestionList', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/サンプル設問/));
+    fireEvent.click(screen.getByText(/サンプル問題/));
     expect(push).toHaveBeenCalledWith('/quiz/quiz-a/play?startAtQuestionId=q1');
   });
 });

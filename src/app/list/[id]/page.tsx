@@ -75,7 +75,7 @@ export default function QuizListDetailPage() {
 
   const handleStartQuestionListPlay = () => {
     if (questions.length === 0) {
-      alert('設問が収録されていません。');
+      alert('問題が収録されていません。');
       return;
     }
     const entries = questions.map((e) => ({
@@ -131,7 +131,7 @@ export default function QuizListDetailPage() {
             <div className={styles.metaInfo}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-accent)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' }}>
                 <Layers size={14} />
-                <span>{isQuestionList ? '設問リスト' : 'リストパッケージ'}</span>
+                <span>{isQuestionList ? '問題リスト' : 'リストパッケージ'}</span>
               </div>
               <h1 className={styles.title}>{quizList.title}</h1>
               <p className={styles.description}>{quizList.description}</p>
@@ -173,7 +173,7 @@ export default function QuizListDetailPage() {
                 data-testid="question-list-play-start"
               >
                 <Play size={16} />
-                設問リストプレイ開始
+                問題リストプレイ開始
               </button>
             ) : (
               <button
@@ -193,12 +193,12 @@ export default function QuizListDetailPage() {
       {isQuestionList ? (
         <div>
           <h2 className={styles.sectionTitle}>
-            収録設問一覧 ({questions.length}問)
+            収録問題一覧 ({questions.length}問)
           </h2>
           {questions.length === 0 ? (
             <div className={styles.emptyState}>
               <Inbox size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-              <p>設問が収録されていません。</p>
+              <p>問題が収録されていません。</p>
               {isCreator && (
                 <button
                   className="btn btn-secondary"

@@ -65,7 +65,7 @@ function makeQuiz(overrides: Partial<Quiz> = {}): Quiz {
     tags: ['javascript'],
     originalTags: ['JavaScript'],
     questions: [makeQuestion()],
-    questionIds: ['q1'], // 設問IDの配列
+    questionIds: ['q1'], // 問題IDの配列
     questionCount: 1,
     status: 'draft',
     flagsCount: 0,
@@ -459,7 +459,7 @@ describe('validateQuizForPublish', () => {
       expect(errors.some((e) => e.field === 'questions')).toBe(true);
     });
 
-    test('クイズ形式と設問タイプが不一致の場合エラーを返す（単一形式）', () => {
+    test('クイズ形式と問題タイプが不一致の場合エラーを返す（単一形式）', () => {
       const question = makeQuestion({
         type: 'text-input',
         choices: undefined,
@@ -473,7 +473,7 @@ describe('validateQuizForPublish', () => {
       expect(errors.some((e) => e.field === 'questions')).toBe(true);
     });
 
-    test('クイズ形式と設問タイプが一致している場合エラーを返さない（単一形式）', () => {
+    test('クイズ形式と問題タイプが一致している場合エラーを返さない（単一形式）', () => {
       const question = makeQuestion({
         type: 'text-input',
         choices: undefined,
@@ -487,7 +487,7 @@ describe('validateQuizForPublish', () => {
       expect(errors.some((e) => e.field === 'questions')).toBe(false);
     });
 
-    test('複合形式(mixed)で許可されていない設問形式が含まれる場合エラーを返す', () => {
+    test('複合形式(mixed)で許可されていない問題形式が含まれる場合エラーを返す', () => {
       const lateralQuestion = makeQuestion({
         type: 'lateral-thinking',
         choices: undefined,
@@ -502,7 +502,7 @@ describe('validateQuizForPublish', () => {
       expect(errors.some((e) => e.field === 'questions')).toBe(true);
     });
 
-    test('複合形式(mixed)で許可された設問形式のみが含まれる場合エラーを返さない', () => {
+    test('複合形式(mixed)で許可された問題形式のみが含まれる場合エラーを返さない', () => {
       const mcQuestion = makeQuestion({ type: 'multiple-choice' });
       const tiQuestion = makeQuestion({
         type: 'text-input',

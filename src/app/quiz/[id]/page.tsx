@@ -24,7 +24,7 @@ export default function QuizDetailPage({ params }: PageProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { genres: activeGenres } = useActiveGenres();
-  
+
   // React 19 / Next.js 15 の params 解消
   const resolvedParams = use(params);
   const quizId = resolvedParams.id;
@@ -77,12 +77,12 @@ export default function QuizDetailPage({ params }: PageProps) {
   // プレイ画面へ遷移
   const handlePlayStart = () => {
     if (!quiz) return;
-    
+
     // ウミガメスープ問題（lateral-thinking）が含まれているかを判定
     const isLateral = quiz.questions?.some((q) => q.type === 'lateral-thinking') ?? false;
     // 早押し問題が含まれているかを判定
     const isQuick = quiz.format === 'quick-press' || (quiz.questions?.some((q) => q.type === 'quick-press') ?? false);
-    
+
     if (isLateral) {
       // ウミガメスープ問題は専用のプレイ遷移（モードは lateral となる）
       // ゲストプレイアクセス制限：未ログインならログイン画面へリダイレクト
@@ -123,7 +123,7 @@ export default function QuizDetailPage({ params }: PageProps) {
   }
 
   const genreMeta = activeGenres.find((g) => g.id === quiz.genre);
-  
+
   const diffVal = typeof quiz.difficulty === 'number' ? quiz.difficulty : parseInt(quiz.difficulty as any || '0', 10);
   const diffNum = isNaN(diffVal) ? 0 : diffVal;
 
@@ -164,10 +164,10 @@ export default function QuizDetailPage({ params }: PageProps) {
               disabled={bookmarkLoading}
               title="ブックマーク"
             >
-              <Bookmark 
-                size={20} 
+              <Bookmark
+                size={20}
                 color={bookmarked ? '#00ff66' : 'var(--text-muted)'}
-                fill={bookmarked ? '#00ff66' : 'none'} 
+                fill={bookmarked ? '#00ff66' : 'none'}
               />
             </button>
           </div>
@@ -224,10 +224,10 @@ export default function QuizDetailPage({ params }: PageProps) {
           {/* 作者情報 */}
           <div className={styles.authorSection} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <Link href={`/profile/${quiz.authorId}`} className={styles.authorLink}>
-              <img 
-                src={quiz.authorAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${quiz.authorId}`} 
-                alt={quiz.authorName} 
-                className={styles.authorAvatar} 
+              <img
+                src={quiz.authorAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${quiz.authorId}`}
+                alt={quiz.authorName}
+                className={styles.authorAvatar}
               />
               <div className={styles.authorInfo}>
                 <span className={styles.authorLabel}>作成者</span>
@@ -235,12 +235,12 @@ export default function QuizDetailPage({ params }: PageProps) {
               </div>
             </Link>
             {user && quiz.authorId === user.id && (
-              <Link 
-                href={`/quiz/${quiz.id}/edit`} 
-                className="btn btn-secondary" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+              <Link
+                href={`/quiz/${quiz.id}/edit`}
+                className="btn btn-secondary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '6px',
                   padding: '8px 16px',
                   borderRadius: 'var(--radius-md)',
@@ -303,7 +303,7 @@ export default function QuizDetailPage({ params }: PageProps) {
                 1文字ずつ表示される早押し問題に対応した専用プレイモードです。
                 問題が読めた瞬間にボタンを押し、回答を記述しましょう！
               </p>
-              
+
               {/* 即時正誤トグルスイッチ */}
               <div style={{
                 display: 'flex',
@@ -358,7 +358,7 @@ export default function QuizDetailPage({ params }: PageProps) {
                   <span>模擬試験モード</span>
                 </div>
                 <p className={styles.modeDesc}>
-                  個別の時間制限はなく、全体制限時間内で自由に設問を往復して見直しができる本番形式モードです。
+                  個別の時間制限はなく、全体制限時間内で自由に問題を往復して見直しができる本番形式モードです。
                 </p>
               </div>
 

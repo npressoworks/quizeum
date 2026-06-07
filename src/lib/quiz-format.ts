@@ -19,7 +19,7 @@ const MIXED_ALLOWED_QUESTION_TYPES = new Set([
 ]);
 
 /**
- * 編集画面表示用。Firestore に format が無い旧データは設問 type から推定する。
+ * 編集画面表示用。Firestore に format が無い旧データは問題 type から推定する。
  */
 export function resolveQuizFormat(
   quiz: Pick<Quiz, 'format' | 'questions'>

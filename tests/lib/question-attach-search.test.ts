@@ -37,7 +37,7 @@ describe('question-attach-search', () => {
     expect(mergeQuestionCandidates(a, b)).toHaveLength(2);
   });
 
-  test('filterQuestionCandidatesByKeyword: 設問文で部分一致', () => {
+  test('filterQuestionCandidatesByKeyword: 問題文で部分一致', () => {
     const list = [
       candidate('q1', 'JavaScript の基礎'),
       candidate('q2', 'Python 入門'),

@@ -35,7 +35,7 @@
 ### 純関数ライブラリ (Pure Logic Libraries)
 **Location**: `/src/lib/`  
 **Purpose**: UIに依存しない表示ヘルパー、セッション状態、検証・フィルタ等の純関数。サービス層のビジネスロジックとは分離し、コンポーネントやフックから呼び出す。Firebase 初期化は `/src/lib/firebase/` に集約（クライアント `config.ts` / `auth.ts`、サーバー `admin.ts` / `auth-verify.ts`）。XSS サニタイズは `/src/lib/security/`。  
-**Example**: `/src/lib/profile-list-display.ts`（リスト種別ラベル）、`/src/lib/question-list-session.ts`（設問リストプレイ進行）、`/src/lib/firebase/firestore.ts`。
+**Example**: `/src/lib/profile-list-display.ts`（リスト種別ラベル）、`/src/lib/question-list-session.ts`（問題リストプレイ進行）、`/src/lib/firebase/firestore.ts`。
 
 ### React コンテキスト (Context)
 **Location**: `/src/context/`  

@@ -17,7 +17,7 @@
 - **Status**: 実装済み。
 
 ### リストカード種別表示（Phase 8）
-- **Context**: 要件 8 — クイズリストと設問リストの区別。
+- **Context**: 要件 8 — クイズリストと問題リストの区別。
 - **Findings**: `src/app/profile/[uid]/page.tsx` L417 が `list.quizIds?.length` のみ表示。`resolveListType` は `@/types` で後方互換定義済み。
 - **Alternatives**: (A) ページ内インライン修正のみ (B) `ProfileListCard` + 純関数抽出。
 - **Selected**: (B) — テスト容易性・`bookmark-list-grid` との文言統一・タスク境界明確化。
@@ -29,7 +29,7 @@
 - **Trade-offs**: リスト件数が極端に多い場合は将来サーバフィルタへ移行可能（Revalidation Trigger に記載済み）。
 
 ### 件数ラベル文言
-- **Selected**: クイズリスト「収録クイズ: N 件」、設問リスト「収録設問: N 件」（現状「収録問題」から種別明示へ変更）。
+- **Selected**: クイズリスト「収録クイズ: N 件」、問題リスト「収録問題: N 件」（現状「収録問題」から種別明示へ変更）。
 
 ## Design Decisions
 
@@ -42,7 +42,7 @@
 
 ## Risks & Mitigations
 - **レガシーリスト（listType 未設定）** — `resolveListType` → `quiz`、件数は `quizIds`（8.2 充足）。
-- **空 questionIds の設問リスト** — 0 件表示で正しい（作成直後は creator-dash 側でアタッチ）。
+- **空 questionIds の問題リスト** — 0 件表示で正しい（作成直後は creator-dash 側でアタッチ）。
 - **フィルタとタブ件数表示** — タブラベル `(N)` は全件数固定とし、フィルタは一覧のみに適用（UX 混乱防止）。
 
 ## References

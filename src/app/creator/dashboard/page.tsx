@@ -9,16 +9,16 @@ import { Quiz, Question, FeedbackReport } from '@/types';
 import styles from './dashboard.module.css';
 import { AnalyticsChart } from '@/components/charts/analytics-chart';
 import { SelectionPie } from '@/components/charts/selection-pie';
-import { 
-  Play, 
-  Bookmark, 
-  Star, 
-  FileText, 
-  Download, 
-  Plus, 
-  Edit3, 
-  AlertCircle, 
-  TrendingUp, 
+import {
+  Play,
+  Bookmark,
+  Star,
+  FileText,
+  Download,
+  Plus,
+  Edit3,
+  AlertCircle,
+  TrendingUp,
   ChevronRight,
   HelpCircle,
   Inbox
@@ -27,7 +27,7 @@ import {
 export default function CreatorDashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [feedbacks, setFeedbacks] = useState<FeedbackReport[]>([]);
@@ -136,7 +136,7 @@ export default function CreatorDashboardPage() {
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
         JSON.stringify(dataPackage, null, 2)
       )}`;
-      
+
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', jsonString);
       downloadAnchor.setAttribute(
@@ -153,8 +153,8 @@ export default function CreatorDashboardPage() {
 
   // 指指摘フィードバックを解決・編集画面へ遷移 (要件 2.4)
   const handleFixFeedback = (report: FeedbackReport) => {
-    // 該当クイズの編集画面へ、設問インデックス情報を持って遷移
-    // 設問IDに該当するインデックスを検索
+    // 該当クイズの編集画面へ、問題インデックス情報を持って遷移
+    // 問題IDに該当するインデックスを検索
     const quizObj = quizzes.find(q => q.id === report.quizId);
     let qIdx = 0;
     if (quizObj) {
@@ -177,24 +177,24 @@ export default function CreatorDashboardPage() {
           <p style={{ color: 'var(--text-muted)' }}>あなたの作品のパフォーマンス管理と改善を行いましょう。</p>
         </div>
         <div className={styles.actions}>
-          <button 
-            className="btn btn-secondary" 
+          <button
+            className="btn btn-secondary"
             onClick={handleExportAll}
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Download size={16} />
             クイズ一括エクスポート
           </button>
-          <button 
-            className="btn btn-outline" 
+          <button
+            className="btn btn-outline"
             onClick={() => router.push('/list/create')}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)', border: '1px solid var(--border-light)', background: 'rgba(255, 255, 255, 0.05)' }}
           >
             <Plus size={16} />
             リストを新規作成
           </button>
-          <button 
-            className="btn btn-primary" 
+          <button
+            className="btn btn-primary"
             onClick={() => router.push('/quiz/create')}
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
@@ -274,7 +274,7 @@ export default function CreatorDashboardPage() {
             <FileText size={20} />
             <span>作成したクイズ一覧 ({quizzes.length})</span>
           </div>
-          
+
           {quizzes.length === 0 ? (
             <div className={styles.emptyState}>
               <Inbox size={48} className={styles.emptyStateIcon} />
@@ -283,8 +283,8 @@ export default function CreatorDashboardPage() {
           ) : (
             <div className={styles.quizList}>
               {quizzes.map((quiz) => (
-                <div 
-                  key={quiz.id} 
+                <div
+                  key={quiz.id}
                   className={`${styles.quizRow} ${selectedQuiz?.id === quiz.id ? styles.quizRowActive : ''}`}
                   onClick={() => setSelectedQuiz(quiz)}
                   style={{ cursor: 'pointer' }}
@@ -300,7 +300,7 @@ export default function CreatorDashboardPage() {
                     </div>
                   </div>
                   <div className={styles.quizActions}>
-                    <button 
+                    <button
                       className={styles.quizDetailBtn}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -336,12 +336,11 @@ export default function CreatorDashboardPage() {
               {feedbacks.map((report) => (
                 <div key={report.id} className={styles.feedbackCard}>
                   <div className={styles.feedbackHeader}>
-                    <span className={`${styles.feedbackCategory} ${
-                      report.category === 'typo' ? styles.categoryTypo :
-                      report.category === 'fact' ? styles.categoryFact : styles.categoryAlternative
-                    }`}>
+                    <span className={`${styles.feedbackCategory} ${report.category === 'typo' ? styles.categoryTypo :
+                        report.category === 'fact' ? styles.categoryFact : styles.categoryAlternative
+                      }`}>
                       {report.category === 'typo' ? '誤字脱字' :
-                       report.category === 'fact' ? '事実誤認' : '別解・その他'}
+                        report.category === 'fact' ? '事実誤認' : '別解・その他'}
                     </span>
                     <span className={styles.feedbackDate}>解決待ち</span>
                   </div>
@@ -353,8 +352,8 @@ export default function CreatorDashboardPage() {
                       対象: {report.quizTitle}
                     </span>
                     {/* 指摘からの修正動線 (要件 2.4) */}
-                    <button 
-                      className={styles.fixBtn} 
+                    <button
+                      className={styles.fixBtn}
                       onClick={() => handleFixFeedback(report)}
                     >
                       <Edit3 size={12} />
@@ -384,7 +383,7 @@ export default function CreatorDashboardPage() {
             {selectedQuiz.questions.map((q, idx) => {
               // パイチャート用のモック解答データ生成 (データがない場合の表示崩れを防ぐ)
               let pieData: { label: string; count: number }[] = [];
-              
+
               if (q.type === 'multiple-choice' && q.choices) {
                 pieData = q.choices.map((choice) => ({
                   label: choice.choiceText,

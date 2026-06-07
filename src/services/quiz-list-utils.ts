@@ -65,7 +65,7 @@ export function buildListExportPackage(
 }
 
 /* ==========================================================================
-   設問リストの並び替え・エクスポート（Phase 8）
+   問題リストの並び替え・エクスポート（Phase 8）
    ========================================================================== */
 
 export function reorderQuestionIds(originalIds: string[], newOrder: string[]): string[] {
@@ -76,9 +76,9 @@ export function reorderQuestionIds(originalIds: string[], newOrder: string[]): s
 export interface QuestionListExportPackage {
   exportedAt: string;
   list: QuizList;
-  /** 自作設問のフルデータ */
+  /** 自作問題のフルデータ */
   ownedQuestions: Question[];
-  /** 他者設問の参照（ID + 親クイズ ID） */
+  /** 他者問題の参照（ID + 親クイズ ID） */
   externalQuestionRefs: Array<{ questionId: string; parentQuizId: string }>;
 }
 

@@ -33,7 +33,7 @@ describe('ProfileListCard', () => {
     expect(screen.getByText('収録クイズ: 2 件')).toBeInTheDocument();
   });
 
-  it('設問リストは questionIds 件数を表示', () => {
+  it('問題リストは questionIds 件数を表示', () => {
     render(
       <ProfileListCard
         list={baseList({
@@ -43,8 +43,8 @@ describe('ProfileListCard', () => {
         })}
       />
     );
-    expect(screen.getByTestId('profile-list-type-badge')).toHaveTextContent('設問リスト');
-    expect(screen.getByText('収録設問: 3 件')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-list-type-badge')).toHaveTextContent('問題リスト');
+    expect(screen.getByText('収録問題: 3 件')).toBeInTheDocument();
     expect(screen.queryByText(/収録クイズ/)).not.toBeInTheDocument();
   });
 

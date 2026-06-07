@@ -104,7 +104,7 @@ export function AuthorQuizReferencePanel({
   const handleLink = (question: Question) => {
     if (linkedQuestionIds.has(question.id)) return;
     onLinkQuestion({ ...question, linkKind: 'reference' });
-    setLinkSuccessMessage(`設問をリンクしました: ${formatExcerpt(question.questionText)}`);
+    setLinkSuccessMessage(`問題をリンクしました: ${formatExcerpt(question.questionText)}`);
   };
 
   const handleUnlink = (question: Question) => {
@@ -135,13 +135,13 @@ export function AuthorQuizReferencePanel({
         }}
       >
         <Link2 size={18} />
-        過去の自作クイズから設問を参照リンク
+        過去の自作クイズから問題を参照リンク
         <ChevronDown size={16} style={{ marginLeft: 'auto' }} />
       </summary>
 
       <div style={{ marginTop: 16 }}>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>
-          自作クイズの設問のみリンクできます。保存時に参照として記録されます。検索はタイトル・説明・問題文・正解テキストが対象です。
+          自作クイズの問題のみリンクできます。保存時に参照として記録されます。検索はタイトル・説明・問題文・正解テキストが対象です。
         </p>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -247,11 +247,11 @@ export function AuthorQuizReferencePanel({
                     >
                       {loadingQuizId === quiz.id ? (
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          設問読み込み中...
+                          問題読み込み中...
                         </span>
                       ) : displayQuestions.length === 0 ? (
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          該当する設問がありません
+                          該当する問題がありません
                         </span>
                       ) : (
                         displayQuestions.map((q) => (

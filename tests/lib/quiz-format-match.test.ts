@@ -36,7 +36,7 @@ describe('quiz-format-match', () => {
     expect(quizMatchesFormat(quiz, 'text-input')).toBe(false);
   });
 
-  test('設問 type からの推定一致', () => {
+  test('問題 type からの推定一致', () => {
     const quiz = makeQuiz({
       questions: [makeQuestion('lateral-thinking')],
     });

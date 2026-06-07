@@ -166,8 +166,8 @@ async function queryPublishedByLegacyTag(tag: string, limitCount: number): Promi
 
 /**
  * 新規クイズを作成・投稿する
- * アトミックなバッチ処理により、各設問（questions）を個別の questions/{questionId} ドキュメントとして書き出します。
- * 親クイズ（quizzes）には、questionIds 配列および非正規化された設問配列を同期保存します。
+ * アトミックなバッチ処理により、各問題（questions）を個別の questions/{questionId} ドキュメントとして書き出します。
+ * 親クイズ（quizzes）には、questionIds 配列および非正規化された問題配列を同期保存します。
  */
 export async function createQuiz(
   quiz: Omit<Quiz, 'id' | 'playCount' | 'bookmarksCount' | 'createdAt' | 'updatedAt'>
@@ -193,7 +193,7 @@ export async function createQuiz(
 
   const batch = writeBatch(db);
 
-  // 2. 設問の個別保存と ID の収集
+  // 2. 問題の個別保存と ID の収集
   const questionIds: string[] = [];
   const processedQuestions: Question[] = [];
 
@@ -256,9 +256,9 @@ export async function getQuiz(quizId: string): Promise<Quiz | null> {
 
 /**
  * クイズ情報を更新する
- * 設問（questions）が更新データに含まれる場合、古い設問との差分を検出し、
- * 削除された設問を questions コレクションからアトミックに削除、
- * 新規設問の登録、および既存設問の更新を同期処理します。
+ * 問題（questions）が更新データに含まれる場合、古い問題との差分を検出し、
+ * 削除された問題を questions コレクションからアトミックに削除、
+ * 新規問題の登録、および既存問題の更新を同期処理します。
  */
 export async function updateQuiz(
   quizId: string,
@@ -266,7 +266,7 @@ export async function updateQuiz(
 ): Promise<void> {
   const quizDocRef = doc(quizzesRef, quizId);
   const currentQuiz = await getQuiz(quizId);
-  
+
   if (!currentQuiz) {
     throw new Error('クイズが見つかりません');
   }
@@ -280,7 +280,7 @@ export async function updateQuiz(
     updatedAt: now,
   };
 
-  // もし questions が更新データに含まれている場合、設問の同期・差分削除を行う
+  // もし questions が更新データに含まれている場合、問題の同期・差分削除を行う
   if (data.questions) {
     const oldQuestionIds = currentQuiz.questionIds || [];
     const newQuestionIds: string[] = [];
@@ -311,7 +311,7 @@ export async function updateQuiz(
     for (const refId of partition.referenceOnlyIds) {
       const stored = storedById.get(refId);
       if (!stored) {
-        throw new Error(`参照設問が見つかりません: ${refId}`);
+        throw new Error(`参照問題が見つかりません: ${refId}`);
       }
       assertAuthorOwnsQuestion(currentQuiz.authorId, stored);
       newQuestionIds.push(refId);
@@ -508,7 +508,7 @@ export async function saveQuiz(
   for (const refId of partition.referenceOnlyIds) {
     const stored = storedById.get(refId);
     if (!stored) {
-      throw new Error(`参照設問が見つかりません: ${refId}`);
+      throw new Error(`参照問題が見つかりません: ${refId}`);
     }
     assertAuthorOwnsQuestion(quizData.authorId, stored);
     questionIds.push(refId);
@@ -801,12 +801,12 @@ export async function searchQuizzes(
   // 3. アプリ（サービス）層での大文字小文字を区別しない部分一致フィルタおよび詳細条件フィルターの適用
   const matchedQuizzes = hasQuery
     ? base.filter((quiz) =>
-        searchTextIncludes(quiz.title || '', trimmedQuery) ||
-        searchTextIncludes(quiz.description || '', trimmedQuery) ||
-        searchTextIncludes(quiz.authorName || '', trimmedQuery) ||
-        searchTextIncludes(quiz.genre || '', trimmedQuery) ||
-        (quiz.tags || []).some((t) => searchTextIncludes(t, trimmedQuery))
-      )
+      searchTextIncludes(quiz.title || '', trimmedQuery) ||
+      searchTextIncludes(quiz.description || '', trimmedQuery) ||
+      searchTextIncludes(quiz.authorName || '', trimmedQuery) ||
+      searchTextIncludes(quiz.genre || '', trimmedQuery) ||
+      (quiz.tags || []).some((t) => searchTextIncludes(t, trimmedQuery))
+    )
     : base;
 
   // 詳細フィルターとジャンルフィルターの適用
@@ -847,9 +847,9 @@ export async function getFollowedTimeline(followerId: string, limitCount: number
   const followQuery = query(followsRef, where('followerId', '==', followerId));
   const followSnap = await getDocs(followQuery);
   const followingIds = followSnap.docs.map((doc) => doc.data().followingId);
-  
+
   if (followingIds.length === 0) return [];
-  
+
   // 2. フォロー中ユーザーの投稿クイズを取得 (公開中のみ)
   // IN クエリの制限 (最大30件) を考慮し、最新の30フォローユーザーに制限するか、バッチに分ける
   // ここでは簡単のために最大30人のフォロー中ユーザーの新着を対象にします
@@ -861,7 +861,7 @@ export async function getFollowedTimeline(followerId: string, limitCount: number
     orderBy('createdAt', 'desc'),
     limit(limitCount)
   );
-  
+
   const snap = await getDocs(timelineQuery);
   return snap.docs.map((doc) => doc.data());
 }

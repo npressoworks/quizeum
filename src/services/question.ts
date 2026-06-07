@@ -18,7 +18,7 @@ import {
 } from '../lib/question-list-validation';
 
 /**
-  * 指定されたIDの設問を1件取得する
+  * 指定されたIDの問題を1件取得する
   */
 export async function getQuestion(id: string): Promise<Question | null> {
   const docRef = doc(questionsRef, id);
@@ -28,7 +28,7 @@ export async function getQuestion(id: string): Promise<Question | null> {
 }
 
 /**
-  * 指定されたクイズIDに紐づくすべての設問を取得する
+  * 指定されたクイズIDに紐づくすべての問題を取得する
   * （順序はクイズの `questionIds` に準拠し、最新の統計情報を含む独立コレクションから取得）
   */
 export async function getQuestionsByQuiz(quizId: string): Promise<Question[]> {
@@ -59,7 +59,7 @@ export async function getQuestionsByQuiz(quizId: string): Promise<Question[]> {
 }
 
 /**
-  * 設問を個別でブックマーク登録/解除する
+  * 問題を個別でブックマーク登録/解除する
   * @returns 変更後の状態 (true: 登録完了, false: 解除完了)
   */
 export async function toggleBookmarkQuestion(userId: string, questionId: string): Promise<boolean> {
@@ -67,7 +67,7 @@ export async function toggleBookmarkQuestion(userId: string, questionId: string)
 }
 
 /**
-  * ユーザーがブックマークしたすべての設問（Questionオブジェクト）を取得
+  * ユーザーがブックマークしたすべての問題（Questionオブジェクト）を取得
   */
 export async function getBookmarkedQuestions(userId: string): Promise<Question[]> {
   const q = query(
@@ -121,16 +121,16 @@ export async function getBookmarkedQuestions(userId: string): Promise<Question[]
 }
 
 /**
-  * ユーザーが所有するリストに特定の設問を追加する（アトミックなトランザクション）
+  * ユーザーが所有するリストに特定の問題を追加する（アトミックなトランザクション）
   */
 export async function addQuestionToList(listId: string, questionId: string): Promise<void> {
   const question = await getQuestion(questionId);
   if (!question?.quizId) {
-    throw new Error('設問が見つかりません。');
+    throw new Error('問題が見つかりません。');
   }
   const quizSnap = await getDoc(doc(quizzesRef, question.quizId));
   if (!quizSnap.exists()) {
-    throw new Error('設問が見つかりません。');
+    throw new Error('問題が見つかりません。');
   }
   const parentQuiz = quizSnap.data() as Quiz;
   assertParentQuizPublished(parentQuiz.status, QuestionNotListAddableError);
@@ -158,7 +158,7 @@ export async function addQuestionToList(listId: string, questionId: string): Pro
 }
 
 /**
-  * ユーザーが所有するリストから特定の設問を削除する（アトミックなトランザクション）
+  * ユーザーが所有するリストから特定の問題を削除する（アトミックなトランザクション）
   */
 export async function removeQuestionFromList(listId: string, questionId: string): Promise<void> {
   const listDocRef = doc(quizListsRef, listId);

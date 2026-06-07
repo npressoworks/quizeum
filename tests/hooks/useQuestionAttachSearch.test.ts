@@ -31,7 +31,7 @@ describe('useQuestionAttachSearch', () => {
     jest.clearAllMocks();
   });
 
-  it('own-published タブで公開クイズの設問候補を返す', async () => {
+  it('own-published タブで公開クイズの問題候補を返す', async () => {
     mockSearchAuthor.mockResolvedValue({
       quizzes: [
         { id: 'quiz-1', title: '公開クイズ', status: 'published' },

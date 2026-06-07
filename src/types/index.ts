@@ -66,7 +66,7 @@ export type TextInputMode = 'text' | 'numeric' | 'char-count';
 /** クイズリストの種別（未設定は読み取り時 `quiz` として扱う） */
 export type QuizListType = 'quiz' | 'question';
 
-/** エディタ送信用: 参照リンク設問か新規/所有設問か（Firestore 永続化フィールドは必須ではない） */
+/** エディタ送信用: 参照リンク問題か新規/所有問題か（Firestore 永続化フィールドは必須ではない） */
 export type QuestionLinkKind = 'owned' | 'reference';
 
 // 3. 問題 (Question)
@@ -94,7 +94,7 @@ export interface Question {
   sourceUrl?: string | null; // 出典・参考URLリンク
   correctCount: number;   // 正解した累計回数
   incorrectCount: number; // 不正解だった累計回数
-  bookmarksCount?: number; // 設問単体がブックマーク登録された総数
+  bookmarksCount?: number; // 問題単体がブックマーク登録された総数
 }
 
 export interface LeaderboardRecord {
@@ -118,7 +118,7 @@ export interface Quiz {
   genre: string;          // ジャンル (例: 'programming', 'history' など)
   tags: string[];         // 標準化されたタグの配列
   originalTags: string[]; // 入力された生のタグの配列
-  questionIds: string[];  // 設問ドキュメントのID配列 (順序保持)
+  questionIds: string[];  // 問題ドキュメントのID配列 (順序保持)
   questions: Question[];  // 問題の配列 (表示高速化用・非正規化コピー)
   questionCount: number;  // 問題数
   status: 'draft' | 'published' | 'suspended'; // ステータス
@@ -156,7 +156,7 @@ export interface QuizList {
   description: string;
   coverImageUrl?: string; // カバー画像URL
   quizIds: string[];      // 含まれるクイズIDの配列
-  questionIds: string[];  // 含まれる設問IDの配列
+  questionIds: string[];  // 含まれる問題IDの配列
   /** リスト種別。既存ドキュメント未設定時は `quiz` として解釈 */
   listType?: QuizListType;
   isPublished: boolean;   // 公開フラグ
@@ -177,7 +177,7 @@ export interface Follow {
 export interface Bookmark {
   id: string;             // userId_targetId の形式
   userId: string;         // ブックマークしたユーザー
-  targetId: string;       // クイズID、リストID、または設問ID
+  targetId: string;       // クイズID、リストID、または問題ID
   targetType: 'quiz' | 'list' | 'question'; // 対象のタイプ
   createdAt: Date;
 }
@@ -204,14 +204,14 @@ export interface Attempt {
   listId?: string | null;
   /**
    * プレイモード。
-   * `question-list`: 設問リスト連続プレイ（設問ごとに1 attempt、`listId` + 親 `quizId`、`totalQuestions: 1`）
+   * `question-list`: 問題リスト連続プレイ（問題ごとに1 attempt、`listId` + 親 `quizId`、`totalQuestions: 1`）
    */
   mode: 'normal' | 'exam' | 'flashcard' | 'review' | 'list' | 'question-list' | 'test-play';
   score: number;          // 正解数
   totalQuestions: number; // 全問題数
   elapsedSeconds: number; // 経過秒数
   failedQuestionIds: string[]; // 間違えた問題ID配列
-  questionAnswers?: QuestionAnswerRecord[]; // 設問ごとのユーザー回答（表示用）
+  questionAnswers?: QuestionAnswerRecord[]; // 問題ごとのユーザー回答（表示用）
   difficultyVote?: number | null; // 難易度投票値
   aiQuestionsHistory?: AiQuestion[]; // AI対話履歴
   aiTurnCount: number;    // 質問ターン数
@@ -235,7 +235,7 @@ export interface PlayHistoryPage {
   nextCursor: string | null;
 }
 
-/** ブックマークした設問1件（親クイズメタ付き） */
+/** ブックマークした問題1件（親クイズメタ付き） */
 export interface BookmarkedQuestionEntry {
   question: Question;
   parentQuizId: string;
@@ -243,7 +243,7 @@ export interface BookmarkedQuestionEntry {
   bookmarkedAt: Date;
 }
 
-/** 分類ブックマーク一覧（クイズ・リスト・設問） */
+/** 分類ブックマーク一覧（クイズ・リスト・問題） */
 export interface BookmarkFeed {
   quizzes: Quiz[];
   lists: QuizList[];
@@ -255,7 +255,7 @@ export function resolveListType(list: Pick<QuizList, 'listType'>): QuizListType 
   return list.listType ?? 'quiz';
 }
 
-/** 設問リストプレイ attempt の契約を満たすか */
+/** 問題リストプレイ attempt の契約を満たすか */
 export function satisfiesQuestionListAttemptContract(
   attempt: Pick<Attempt, 'mode' | 'listId' | 'quizId' | 'totalQuestions'>
 ): boolean {

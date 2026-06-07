@@ -23,8 +23,8 @@ export function BookmarkQuestionList({ questions, onRemove }: BookmarkQuestionLi
   if (questions.length === 0) {
     return (
       <div className={styles.emptyState} data-testid="bookmarks-empty-question">
-        <h2 style={{ color: 'var(--text-main)', marginBottom: '8px' }}>ブックマークした設問がありません</h2>
-        <p style={{ color: 'var(--text-muted)' }}>プレイ中や結果画面から設問をブックマークできます。</p>
+        <h2 style={{ color: 'var(--text-main)', marginBottom: '8px' }}>ブックマークした問題がありません</h2>
+        <p style={{ color: 'var(--text-muted)' }}>プレイ中や結果画面から問題をブックマークできます。</p>
       </div>
     );
   }

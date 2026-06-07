@@ -9,7 +9,7 @@
 
 **Phase 6（2026-06）**: 探索 UI を `metadata_genres` 駆動に切り替える。`listActiveGenres` / `getQuizzesByGenre`（C2）/ `getQuizzesByTag` / `searchQuizzes` を UI から呼び出し、ハードコード `GENRES` を除去する。
 
-**Phase 8（2026-06）**: ブックマーク画面をクイズ・リスト・設問の3タブに拡張し、プレイ／結果画面からの設問ブックマーク、および設問リスト（`listType: 'question'`）の連続プレイ導線を追加する。データ取得・`attempts` 永続化は `quizeum-core`（実装済み）に依存し、本スペックは UI・セッション状態・遷移のみを担当する。
+**Phase 8（2026-06）**: ブックマーク画面をクイズ・リスト・問題の3タブに拡張し、プレイ／結果画面からの問題ブックマーク、および問題リスト（`listType: 'question'`）の連続プレイ導線を追加する。データ取得・`attempts` 永続化は `quizeum-core`（実装済み）に依存し、本スペックは UI・セッション状態・遷移のみを担当する。
 
 **Phase 9（2026-06）**: トップページレイアウトのスタイリッシュ化、統合検索バーの上部配置、ピル形式の横スクロールカテゴリー、サムネイル・プレイボタン付きのクイズカード、検索中スケルトン、ネオン調インタラクションを UI スペックの要件として追加・更新します。
 
@@ -23,16 +23,16 @@
 - 複合検索フィルタ、タブ切替タイムラインを備えた軽快なホーム画面の構築。
 - プレイ中のブラウザ再読み込みや切断をカバーする、`localStorage` を用いた解答セッションのクライアントサイド一時保護と同期。
 - ウミガメのスーププレイにおける、2カラムレイアウトおよびAI回答生成中の「・・・AIが質問を分析中です」（グレー文字表示）を含むリッチなチャットインタラクション。
-- クイズ完了後の👍/👎評価、難易度投票、クローズド間違い指摘、作家への感謝のリアクションUIの実装。
+- クイズ完了後の👍/👎評価、難易度投票、クローズド間違い指摘、作成者フォローボタン表示UIの実装。
 - オフライン時におけるプレイ進行・結果確認のフォールバック処理。
 - クイズ作成者本人に対する編集動線UIの提供、および他ユーザーによる直接編集URLアクセス時の認可保護（ガード）。
 - **Phase 5**: クイズ詳細における初回プレイ／リプレイ二系統リーダーボードのタブUI、列表示（正解数・合計時間・達成日）、`data-testid` 契約、E2Eの旧仕様（ハイスコア／最速）からの更新。
 - **Phase 6**: ホームの動的ジャンルナビ、`searchQuizzes` 連携、ジャンル／タグ一覧のソートタブ、弱点克服のマスタ駆動ジャンル選択。
-- **Phase 8**: `/bookmarks` の3分類タブ、`getBookmarkFeed` 駆動の一覧、プレイ／結果画面の設問ブックマークトグル、設問リスト詳細の連続プレイ（`question-list` セッション + 次設問遷移）。
+- **Phase 8**: `/bookmarks` の3分類タブ、`getBookmarkFeed` 駆動の一覧、プレイ／結果画面の問題ブックマークトグル、問題リスト詳細の連続プレイ（`question-list` セッション + 次問題遷移）。
 - **Phase 9**: ホーム画面のファーストビュー最適化、検索バー上部優先、1行横スクロールジャンルピル、主要ジャンル以外の「すべて見る」折りたたみ、サムネイル・評価スター・「プレイする」ボタン付きクイズカードグリッド表示、検索中スケルトンプレースホルダー、クリアボタン・ネオン発光エフェクト付き統合検索。
 - **Phase 10**: `UnifiedSearchField` によるタグチップ＋タグ／ジャンルサジェスト、クイックサーチチップからのタグチップ追加、`QuizCard` の `★ N` 難易度・ジャンル・出題形式表示、探索一覧ページでのカード統一。
 - **Phase 11**: ホームのアコーディオン＋ジャンル／形式カルーセル（ホーム内フィルタ）、`GenreNav` ホーム参照の除去、探索フィルタ状態の一元管理（`format` 含む）、ジャンルページ scoped 検索（`ExploreSearchSection` 再利用）。
-- **Phase 12**: プレイ終了画面の削除と最後の設問解答時の自動遷移、難易度（★）の等幅ゲージのグラデーションカラー表示（詳細・結果）、結果画面でのヒント・質問回数表示、もう一度プレイするボタン、作者へのリンクと他のクイズおすすめ表示、結果ヘッダーでのクイズブックマーク、指摘カテゴリ別解除外、指摘ボタン横の通報ボタン表示と送信機能。
+- **Phase 12**: プレイ終了画面の削除と最後の問題解答時の自動遷移、難易度（★）の等幅ゲージのグラデーションカラー表示（詳細・結果）、結果画面でのヒント・質問回数表示、もう一度プレイするボタン、作者へのリンクと他のクイズおすすめ表示、結果ヘッダーでのクイズブックマーク、指摘カテゴリ別解除外、指摘ボタン横の通報ボタン表示と送信機能。
 - **Phase 13**: 難易度の5段階化（1〜10から1〜5への変更）に合わせて、詳細画面・結果画面・クイズカードの星ゲージ表示と難易度投票の選択肢を1〜5に変更し、HSLカラー算出も5分割に適合させます。
 
 
@@ -41,7 +41,7 @@
 - 管理者モデレーション、タグ・ジャンル仮想マージなどの自治ガバナンスUI（`quizeum-moderation-governance-ui`が担当）。
 - **Phase 5**: `leaderboardFirstPlay` / `leaderboardReplay` の更新・マージ・順位判定（`quizeum-core`）。マイページのプレイ履歴UI（`quizeum-auth-profile-ui`）。プラットフォーム総合 `/leaderboard` の集計ロジック変更。
 - **Phase 6**: `metadata-resolution`・Firestore Rules・canonical 書き込み（`quizeum-core`）。クイズエディタのジャンルセレクト（`quizeum-creator-dash-ui`）。
-- **Phase 8**: リスト作成・`listType` 選択・設問のリストへの追加 UI（`quizeum-creator-dash-ui`）。`bookmarksCount` 更新・`attempts` 書き込みロジック（`quizeum-core`）。プロフィールのリストタイプ表示（`quizeum-auth-profile-ui`）。
+- **Phase 8**: リスト作成・`listType` 選択・問題のリストへの追加 UI（`quizeum-creator-dash-ui`）。`bookmarksCount` 更新・`attempts` 書き込みロジック（`quizeum-core`）。プロフィールのリストタイプ表示（`quizeum-auth-profile-ui`）。
 - **Phase 10**: `listActiveTags`（存続タグのみ・`quizeum-core` 要件 16）・`searchQuizzes.tags` AND 合成（`quizeum-core` 要件 16）。ジャンル／タグ一覧ページへの検索バー新設。クイズ詳細・プレイ画面の難易度表示変更。タグ新設申請・マージ UI（`quizeum-moderation-governance-ui`）。
 - **Phase 11**: 出題形式専用一覧ルート（`/formats/[format]`）、URL クエリによるフィルタ共有可能化、タグ別一覧への検索バー追加、カルーセル自動スライド・外部 carousel ライブラリ導入。`searchQuizzes` の形式照合ロジック（`quizeum-core`）。
 - **Phase 12**: 指摘フィードバック・通報・ブックマークのFirestoreへの物理的な保存・カウントアップ・自動審査（`quizeum-core` が担当）。
@@ -56,18 +56,18 @@
 - **UIルーティング設計**: `/`, `/quiz/[id]`, `/quiz/[id]/play`, `/quiz/[id]/result`, `/quiz/review`, `/leaderboard`, `/bookmarks`, `/tags/[tagName]`, `/genres/[genreName]`, `/quiz/[id]/edit` の各ページコンポーネント。
 - **クライアントサイドセッション保護**: プレイ進捗の `localStorage` シリアライズ・復元・オンライン復帰時のバックグラウンド自動同期。
 - **AI対話インタラクション**: ウミガメチャットUI、ターン制限・キャッシュバッジ、および回答生成待機メッセージのグレー文字表示制御。
-- **評価フィードバックUI**: 良問評価投票、難易度投票、指摘フォームモーダル、作家感謝リアクション。
+- **評価フィードバックUI**: 良問評価投票、難易度投票、指摘フォームモーダル、作成者フォロー機能。
 - **クイズ編集認可ガード**: 編集画面（`/quiz/[id]/edit`）における、ログイン状態および作成者所有権（`quiz.authorId === user.id`）に基づく直接アクセスの制限とアクセス拒否UI表示の制御。
 - **クイズ単位リーダーボード表示（Phase 5）**: `QuizDualLeaderboard` コンポーネントによる初回／リプレイの読み取り専用表示、タブ切替、空状態、E2E用 `data-testid`。
 - **ジャンルマスタ駆動探索（Phase 6）**: `GenreNav` / `useActiveGenres`、ホーム・ジャンル一覧・弱点克服のマスタ連携、探索ソート UI。
-- **分類ブックマーク UI（Phase 8）**: `/bookmarks` の3タブ、`BookmarkFeed` 表示、設問カードの親クイズメタ表示、ブックマーク解除トグル。
-- **設問ブックマーク操作（Phase 8）**: プレイ画面・結果画面の設問行トグル（`toggleBookmark` `targetType: 'question'`）。
-- **設問リストプレイ導線（Phase 8）**: リスト詳細の `listType` 分岐、設問リスト開始ボタン、`question-list` セッション保持、結果画面からの次設問遷移。
+- **分類ブックマーク UI（Phase 8）**: `/bookmarks` の3タブ、`BookmarkFeed` 表示、問題カードの親クイズメタ表示、ブックマーク解除トグル。
+- **問題ブックマーク操作（Phase 8）**: プレイ画面・結果画面の問題行トグル（`toggleBookmark` `targetType: 'question'`）。
+- **問題リストプレイ導線（Phase 8）**: リスト詳細の `listType` 分岐、問題リスト開始ボタン、`question-list` セッション保持、結果画面からの次問題遷移。
 - **ホーム画面・クイズ探索 UI の最適化（Phase 9）**: 検索バー上部配置、1行横スクロールジャンルナビ（ピル形式）、主要以外の折りたたみ（すべて見る）、サムネイル・評価スター・「プレイ」ボタン付き `QuizCard` コンポーネント、ローディング時の `SkeletonCard`、統合検索入力・クリア・フォーカス時のネオンエフェクトおよびクイックサーチチップ。
 - **統合検索のタグチップ化とサジェスト（Phase 10）**: `UnifiedSearchField`、タグチップ状態管理、`useActiveTags`、探索一覧での `QuizCard` 共通化とメタ表示拡張。
 - **探索アコーディオン・カルーセル（Phase 11）**: `ExploreAccordionsPanel`、`GenreCarousel`、`FormatCarousel`、ホーム内フィルタ型ジャンル／形式選択、`GenreNav` ホームからの除去。
 - **ジャンルページ scoped 検索 UI（Phase 11）**: `ExploreSearchSection`（`lockedGenreId` 付き）、`useExploreQuizFeed`、ソートタブと scoped 検索の分岐。
-- **自動結果遷移 (Phase 12)**: プレイ画面（`/play`）での最後の設問解答時、全問終了待ち画面を挟まずに `handlePlayComplete` に自動リダイレクト。
+- **自動結果遷移 (Phase 12)**: プレイ画面（`/play`）での最後の問題解答時、全問終了待ち画面を挟まずに `handlePlayComplete` に自動リダイレクト。
 - **難易度★グラデーションカラー表示 (Phase 12)**: クイズ詳細画面および結果画面（難易度表示、難易度投票）の★ゲージの色を難易度の値に応じて動的変更。
 - **結果詳細情報の拡充 (Phase 12)**: 連想クイズのヒント一覧（開示数）、ウミガメスープの質問回数の表示。
 - **結果画面の各種ナビゲーション・おすすめ (Phase 12)**: もう一度プレイするボタン、作者のプロフィールリンク、作者の他の公開クイズを取得して `QuizCard` で最大3件表示するおすすめセクション。
@@ -89,7 +89,7 @@
 - `AttemptService` のデータ格納スキーマ変更。
 - `LeaderboardRecord` のフィールド追加・意味変更、または `leaderboard` レガシーフォールバック廃止。
 - **Phase 6**: `GenreMetadata` フィールド変更、`getQuizzesByGenre` の C2 契約変更、`listActiveGenres` のフィルタ条件変更。
-- **Phase 8**: `BookmarkFeed` / `BookmarkedQuestionEntry` 形状変更、`QuestionInListEntry` 契約変更、`question-list` attempt フィールド追加、設問リストセッションキー仕様変更。
+- **Phase 8**: `BookmarkFeed` / `BookmarkedQuestionEntry` 形状変更、`QuestionInListEntry` 契約変更、`question-list` attempt フィールド追加、問題リストセッションキー仕様変更。
 - **Phase 10**: `TagMetadata` フィールド変更、`listActiveTags` フィルタ条件変更、`searchQuizzes` の `tags` AND 契約変更、`normalizeTag` 規則変更。
 - **Phase 11**: `SearchFilters.format` 許容値変更、`resolveQuizFormat` / `getFormatLabel` 規則変更（カルーセルラベルと連動）、要件 1.2 / 10.3 のホームジャンル遷移ルール改定（`GenreNav` 非表示）。
 
@@ -134,7 +134,7 @@ src/
 │   │   └── bookmarks.module.css
 │   ├── list/
 │   │   └── [id]/
-│   │       └── page.tsx           # リスト詳細 (クイズ/設問分岐) (11.7–11.9)
+│   │       └── page.tsx           # リスト詳細 (クイズ/問題分岐) (11.7–11.9)
 │   ├── leaderboard/
 │   │   ├── page.tsx               # 総合リーダーボード画面 (7.1)
 │   │   └── leaderboard.module.css
@@ -161,11 +161,11 @@ src/
 │               └── result.module.css
 components/
 ├── bookmark/
-│   ├── bookmarks-tabs.tsx         # クイズ/リスト/設問タブ (11.1)
+│   ├── bookmarks-tabs.tsx         # クイズ/リスト/問題タブ (11.1)
 │   ├── bookmark-quiz-grid.tsx     # 既存グリッドの抽出 (11.2)
 │   ├── bookmark-list-grid.tsx     # リストカード (11.3)
-│   ├── bookmark-question-list.tsx # 設問カード一覧 (11.4, 11.5)
-│   └── question-bookmark-toggle.tsx # 設問BMトグル (11.6)
+│   ├── bookmark-question-list.tsx # 問題カード一覧 (11.4, 11.5)
+│   └── question-bookmark-toggle.tsx # 問題BMトグル (11.6)
 components/
 ├── quiz/
 │   ├── quiz-card.tsx              # サムネイル・スター評価・プレイボタン付きクイズカード (1.5) 【Phase 9 新規】
@@ -192,7 +192,7 @@ hooks/
 ├── useHomeQuizFeed.ts             # タブ取得 vs searchQuizzes（フィルタ変更・デバウンス）
 └── usePlayedQuizIds.ts            # 認証ユーザーのプレイ済み quizId 集合（1.3 playStatus）
 lib/
-├── question-list-session.ts       # 設問リスト連続プレイ sessionStorage (11.8–11.13)
+├── question-list-session.ts       # 問題リスト連続プレイ sessionStorage (11.8–11.13)
 ├── filter-tag-suggestions.ts      # タグサジェスト (12.x) 【Phase 10 新規】
 ├── filter-search-suggestions.ts   # 統合検索サジェスト (12.x) 【Phase 10 新規】
 └── quiz-format-labels.ts          # 出題形式ラベル共有 (12.18) 【Phase 10 新規】
@@ -206,9 +206,9 @@ hooks/
 
 ### Modified Files（Phase 8）
 - `src/app/bookmarks/page.tsx` — `getBookmarkedQuizzes` を `getBookmarkFeed` + `BookmarksTabs` に置換。3タブ空状態・解除トグル。
-- `src/app/list/[id]/page.tsx` — `resolveListType` で分岐。設問リストは `getQuestionsInList` 表示 + 連続プレイ開始（`question-list` セッション初期化）。
-- `src/app/quiz/[id]/play/page.tsx` — `mode=question-list` / `questionId` / `qIndex` クエリ対応。単一設問プレイ、`saveAttempt` の `mode: 'question-list'`、`totalQuestions: 1`。設問行に `QuestionBookmarkToggle`。
-- `src/app/quiz/[id]/result/page.tsx` — 設問リスト次設問判定（`question-list-session`）。`QuestionBookmarkToggle`。ブックマークからの `startAtQuestionId` 再プレイ導線。
+- `src/app/list/[id]/page.tsx` — `resolveListType` で分岐。問題リストは `getQuestionsInList` 表示 + 連続プレイ開始（`question-list` セッション初期化）。
+- `src/app/quiz/[id]/play/page.tsx` — `mode=question-list` / `questionId` / `qIndex` クエリ対応。単一問題プレイ、`saveAttempt` の `mode: 'question-list'`、`totalQuestions: 1`。問題行に `QuestionBookmarkToggle`。
+- `src/app/quiz/[id]/result/page.tsx` — 問題リスト次問題判定（`question-list-session`）。`QuestionBookmarkToggle`。ブックマークからの `startAtQuestionId` 再プレイ導線。
 - `src/lib/question-list-session.ts`（新規）— `read` / `write` / `advance` / `clear` 純関数。
 - `src/hooks/useBookmarkFeed.ts`（新規）— フィード取得とタブ別楽観更新。
 - `src/components/bookmark/*`（新規）— タブ・カード・トグル UI。
@@ -371,13 +371,13 @@ sequenceDiagram
     Home->>Home: playStatus でクライアント絞り込み
 ```
 
-### 設問リスト連続プレイフロー（Phase 8）
+### 問題リスト連続プレイフロー（Phase 8）
 
 **UX 方針（確定）**
-- 設問リストは**収録設問ごとに1 attempt**（`mode: 'question-list'`, `totalQuestions: 1`）。コア契約に準拠。
+- 問題リストは**収録問題ごとに1 attempt**（`mode: 'question-list'`, `totalQuestions: 1`）。コア契約に準拠。
 - 連続プレイの進行状態は `sessionStorage` キー `quizeum_question_list_session` に保持（タブ閉鎖まで有効。`localStorage` の通常プレイ復元とは別キー）。
 - プレイ URL: `/quiz/{parentQuizId}/play?listId={listId}&mode=question-list&questionId={qId}&qIndex={n}`。
-- 結果 URL: 既存 `listId` クエリを維持し、結果画面がセッションから次エントリを解決して「次の設問へ」を表示。
+- 結果 URL: 既存 `listId` クエリを維持し、結果画面がセッションから次エントリを解決して「次の問題へ」を表示。
 
 ```mermaid
 sequenceDiagram
@@ -391,13 +391,13 @@ sequenceDiagram
     Core-->>List: QuestionInListEntry[]
     List->>Session: initSession(listId, entries)
     List->>Play: router push (qIndex=0)
-    Play->>Play: 単一設問に絞り込み表示
+    Play->>Play: 単一問題に絞り込み表示
     Play->>Core: saveAttempt(mode=question-list, totalQuestions=1)
     Play->>Result: attemptId + listId
     Result->>Session: getNextEntry()
-    alt 次設問あり
+    alt 次問題あり
         Result->>Play: 次の parentQuizId + questionId
-    else 最終設問
+    else 最終問題
         Result->>Result: リスト完了メッセージ + /list/{id} へ
     end
 ```
@@ -548,102 +548,102 @@ sequenceDiagram
 
 ## Requirements Traceability
 
-| Requirement | Summary                                                                                         | Components                                                                          | Interfaces                                       | Flows                                      |
-| ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
-| 1.1         | ファーストビューの最適化 (バナー縮小・検索バー最上部配置)                                       | `/` Page                                                                            | CSS / DOM layout                                 | -                                          |
-| 1.2         | カテゴリー表示（Phase 11 で `GenreNav` 非表示。ジャンル探索はアコーディオン・カルーセルが正本） | `ExploreAccordionsPanel`, `GenreCarousel`                                           | `listActiveGenres`                               | ホーム探索アコーディオン・カルーセルフロー |
-| 1.3         | コンテンツ優先レイアウト (グリッド表示・タブ視認性)                                             | `/` Page                                                                            | CSS grid layout                                  | -                                          |
-| 1.4         | 統合検索機能および UI/UX (検索クリア・ネオン・クイックサーチ・スケルトン)                       | `/` Page, `GenreSearchField`, `SkeletonCard`                                        | `searchQuizzes`, `useHomeQuizFeed`               | ホーム・ジャンル探索フロー                 |
-| 1.5         | クイズカード魅力向上 (サムネイル・プレイボタン・情報整理)                                       | `QuizCard`                                                                          | `Quiz` data representation                       | -                                          |
-| 2.1         | クイズ詳細メタ情報表示                                                                          | `/quiz/[id]` Page                                                                   | `QuizService`                                    | -                                          |
-| 2.2         | 良問評価バッジとマスク制御                                                                      | `/quiz/[id]` Page                                                                   | `ReviewService`                                  | -                                          |
-| 2.3         | 3つのプレイモード選択UI                                                                         | `/quiz/[id]` Page                                                                   | Mode Panel                                       | -                                          |
-| 2.4         | プレイ画面へのリダイレクト遷移                                                                  | `/quiz/[id]` Page                                                                   | `useRouter`                                      | -                                          |
-| 2.5         | 作成者本人用「クイズ編集」ボタンの表示                                                          | `/quiz/[id]` Page                                                                   | `useAuth`                                        | -                                          |
-| 2.6         | 編集ボタンクリック時のクイズ編集画面遷移                                                        | `/quiz/[id]` Page                                                                   | `useRouter`                                      | -                                          |
-| 3.1         | 個別/全体カウントダウンタイマー                                                                 | `/quiz/[id]/play` Page                                                              | Timer Hook                                       | -                                          |
-| 3.2         | ヒント表示ポップアップ                                                                          | `/quiz/[id]/play` Page                                                              | Dialog UI                                        | -                                          |
-| 3.3         | `localStorage` セッション保護と復元                                                             | `/quiz/[id]/play` Page                                                              | `usePlayState`                                   | -                                          |
-| 3.4         | オフライン時のローカル解答進行                                                                  | `/quiz/[id]/play` Page                                                              | `AttemptService`                                 | -                                          |
-| 4.1         | ウミガメスープ2カラムレイアウト                                                                 | `/quiz/[id]/play` Page                                                              | AI Component                                     | -                                          |
-| 4.2         | 未ログイン時のウミガメスープ制限リダイレクト                                                    | `/quiz/[id]/play` Page                                                              | Auth Guard                                       | -                                          |
-| 4.3         | AI回答生成中待機「・・・AIが質問を分析中です」表示                                              | `/quiz/[id]/play` Page                                                              | `useAiPlayState`                                 | インタラクションフロー                     |
-| 4.4         | 同一質問キャッシュバッジ表示                                                                    | `/quiz/[id]/play` Page                                                              | AI Component                                     | -                                          |
-| 4.5         | 無料ユーザーのターン制限表示と無効化                                                            | `/quiz/[id]/play` Page                                                              | AI Component                                     | -                                          |
-| 4.6         | 真相回答と自動真相判定・クリア演出                                                              | `/quiz/[id]/play` Page                                                              | `verify-truth`                                   | -                                          |
-| 5.1         | プレイ結果表示と解説マークダウン                                                                | `/quiz/[id]/result` Page                                                            | Result Component                                 | -                                          |
-| 5.2         | 👍/👎良問評価および難易度投票                                                                     | `/quiz/[id]/result` Page                                                            | `ReviewService`                                  | -                                          |
-| 5.3         | 問題の間違い指摘フォーム                                                                        | `/quiz/[id]/result` Page                                                            | Feedback Dialog                                  | -                                          |
-| 5.4         | 作家感謝リアクション送信                                                                        | `/quiz/[id]/result` Page                                                            | `ReactionService`                                | -                                          |
-| 5.5         | オフライン結果画面表示と機能制限                                                                | `/quiz/[id]/result` Page                                                            | Offline Handler                                  | -                                          |
-| 6.1         | 弱点克服ジャンルフィルタ選択                                                                    | `/quiz/review` Page                                                                 | Genre Selector                                   | -                                          |
-| 6.2         | 間違い設問のフェッチと復習プレイ                                                                | `/quiz/review` Page                                                                 | `AttemptService`                                 | -                                          |
-| 6.3         | 復習完了時の誤答リストアトミック削除                                                            | `/quiz/review` Page                                                                 | `AttemptService`                                 | -                                          |
-| 7.1         | 総合リーダーボード各種ランキング                                                                | `/leaderboard` Page                                                                 | Ranking Tab                                      | -                                          |
-| 7.2         | タグ別・ジャンル別クイズ一覧表示                                                                | `/tags/[tagName]`, `/genres/[genreName]`                                            | Quiz Card Grid                                   | -                                          |
-| 7.3         | ブックマーク一覧とお気に入り解除                                                                | `/bookmarks` Page                                                                   | `BookmarkService`                                | -                                          |
-| 8.1         | 未ログイン時のクイズ編集画面リダイレクト制限                                                    | `QuizEditor` / `QuizEditPage`                                                       | `useAuth`, `useRouter`                           | -                                          |
-| 8.2         | 非所有者のクイズ編集画面アクセス制限                                                            | `QuizEditor` / `QuizEditPage`                                                       | `useAuth`, `QuizService`                         | -                                          |
-| 9.1         | 初回／リプレイの別表示（タブ）                                                                  | `QuizDualLeaderboard`                                                               | Tab state                                        | クイズLB表示フロー                         |
-| 9.2         | 順位・表示名・正解数・時間・達成日                                                              | `QuizDualLeaderboard`                                                               | Table markup                                     | -                                          |
-| 9.3         | 表示順（サーバー保存順を信頼）                                                                  | `QuizDualLeaderboard`                                                               | `getLeaderboard*` + slice                        | -                                          |
-| 9.4         | 空状態                                                                                          | `QuizDualLeaderboard`                                                               | Empty UI                                         | -                                          |
-| 9.5         | 初回: `leaderboardFirstPlay` + legacy fallback                                                  | `QuizDualLeaderboard`                                                               | `getLeaderboardFirstPlay`                        | -                                          |
-| 9.6         | リプレイ: `leaderboardReplay` のみ                                                              | `QuizDualLeaderboard`                                                               | `getLeaderboardReplay`                           | -                                          |
-| 9.7         | E2E `data-testid`                                                                               | `QuizDualLeaderboard`                                                               | test ids                                         | -                                          |
-| 9.8         | 更新・マージなし（表示のみ）                                                                    | `QuizDualLeaderboard`                                                               | —                                                | Out of boundary                            |
-| 10.1        | 動的ジャンルナビ（Phase 11: ホームは `GenreCarousel`。`GenreNav` は非正本）                     | `GenreCarousel`, `useActiveGenres`                                                  | `listActiveGenres`                               | ホーム探索アコーディオン・カルーセルフロー |
-| 10.2        | ハードコード GENRES 廃止                                                                        | `HomePage`, `GenreCarousel`                                                         | —                                                | —                                          |
-| 10.3        | ジャンル探索（Phase 11: ホームカルーセルは遷移せずフィルタ）                                    | `GenreCarousel`                                                                     | —                                                | ホーム探索アコーディオン・カルーセルフロー |
-| 10.4        | `searchQuizzes`（フィルタ変更）                                                                 | `useHomeQuizFeed`                                                                   | `searchQuizzes`                                  | —                                          |
-| 10.4b       | ジャンルサジェスト                                                                              | `GenreSearchField`                                                                  | `useActiveGenres`                                | —                                          |
-| 10.4c       | プレイ状況                                                                                      | `usePlayedQuizIds`                                                                  | `listUserPlayedQuizIds`                          | —                                          |
-| 10.5        | ジャンル一覧メタ表示                                                                            | `GenreExplorePage`                                                                  | `listActiveGenres`                               | —                                          |
-| 10.6        | ジャンル一覧ソート                                                                              | `GenreExplorePage`                                                                  | `getQuizzesByGenre`                              | —                                          |
-| 10.7        | タグ一覧 canonical + sort                                                                       | `TagExplorePage`                                                                    | `getQuizzesByTag`                                | —                                          |
-| 10.8        | 弱点克服ジャンル選択                                                                            | `ReviewPage`                                                                        | `listActiveGenres`                               | —                                          |
-| 10.9        | 空・エラー状態                                                                                  | `GenreNav`, `HomePage`                                                              | —                                                | —                                          |
-| 10.10       | ハードコードへサイレントフォールバック禁止                                                      | 全探索 UI                                                                           | —                                                | Out of boundary                            |
-| 11.1        | ブックマーク画面3タブ                                                                           | `BookmarksTabs`, `BookmarksPage`                                                    | `useBookmarkFeed`                                | ブックマーク3タブフロー                    |
-| 11.2        | 未認証時 `/login` リダイレクト                                                                  | `BookmarksPage`                                                                     | `useAuth`                                        | —                                          |
-| 11.3        | クイズタブ（feed + 解除 + 詳細遷移）                                                            | `BookmarkQuizGrid`                                                                  | `getBookmarkFeed`                                | —                                          |
-| 11.4        | リストタブ（解除 + `/list/[id]`）                                                               | `BookmarkListGrid`                                                                  | `BookmarkFeed.lists`                             | —                                          |
-| 11.5        | 設問タブ（抜粋・親タイトル・日時降順）                                                          | `BookmarkQuestionList`                                                              | `BookmarkFeed.questions`                         | —                                          |
-| 11.6        | 設問カード → 親クイズプレイ開始                                                                 | `BookmarkQuestionList`                                                              | `startAtQuestionId`                              | —                                          |
-| 11.7        | プレイ中の設問BMトグル                                                                          | `QuestionBookmarkToggle` on `QuizPlayPage`                                          | `toggleBookmark('question')`                     | —                                          |
-| 11.8        | 結果画面の設問行BMトグル                                                                        | `QuestionBookmarkToggle` on `QuizResultPage`                                        | `toggleBookmark('question')`                     | —                                          |
-| 11.9        | 未認証の設問BM → `/login`                                                                       | `QuestionBookmarkToggle`                                                            | `useAuth`                                        | —                                          |
-| 11.10       | 設問リスト詳細（順序一覧 + 開始ボタン）                                                         | `ListDetailPage`                                                                    | `getQuestionsInList`                             | 設問リスト連続プレイフロー                 |
-| 11.11       | 設問リストプレイ開始（セッション保持）                                                          | `ListDetailPage`                                                                    | `question-list-session`                          | 設問リスト連続プレイフロー                 |
-| 11.12       | 結果後の次設問遷移／完了                                                                        | `QuizResultPage`                                                                    | `advanceQuestionListSession`                     | 設問リスト連続プレイフロー                 |
-| 11.13       | クイズリストは従来のリストプレイ                                                                | `ListDetailPage`                                                                    | `getQuizzesInList`, `mode=list`                  | —                                          |
-| 11.14       | BM カウント・attempt 永続化なし                                                                 | 全 Phase 8 UI                                                                       | コアサービス呼び出しのみ                         | Out of boundary                            |
-| 12.1–12.6   | タグチップ入力・確定・削除・クリア                                                              | `UnifiedSearchField`, `HomePage`                                                    | `normalizeTag`                                   | ホーム統合検索フロー                       |
-| 12.7–12.10  | タグ／ジャンルサジェスト・エラー                                                                | `UnifiedSearchField`, `useActiveTags`, `useActiveGenres`                            | `filter-search-suggestions`                      | ホーム統合検索フロー                       |
-| 12.11       | クイックサーチ→タグチップ                                                                       | `HomePage`, `UnifiedSearchField`                                                    | —                                                | —                                          |
-| 12.12–12.15 | チップ＋キーワード＋フィルタ AND 検索                                                           | `useHomeQuizFeed`, `home-feed-filters`                                              | `searchQuizzes`                                  | ホーム統合検索フロー                       |
-| 12.16–12.18 | カード難易度★N・ジャンル・出題形式                                                              | `QuizCard`, `quiz-format-labels`                                                    | `resolveQuizFormat`, `useActiveGenres`           | —                                          |
-| 12.19       | 探索一覧で QuizCard 統一                                                                        | `GenreExplorePage`, `TagExplorePage`                                                | `QuizCard`                                       | —                                          |
-| 12.20       | 読み込み中スケルトン                                                                            | `SkeletonCard`                                                                      | —                                                | —                                          |
-| 12.21–12.22 | a11y・data-testid                                                                               | `UnifiedSearchField`, `QuizCard`                                                    | —                                                | —                                          |
-| 13.1–13.3   | アコーディオン2セクション独立開閉                                                               | `ExploreAccordion`, `ExploreAccordionsPanel`                                        | —                                                | ホーム探索アコーディオン・カルーセルフロー |
-| 13.4–13.8   | ジャンルカルーセル・ホーム内フィルタ・同期                                                      | `GenreCarousel`, `HomePage`                                                         | `filterGenreId`                                  | ホーム探索アコーディオン・カルーセルフロー |
-| 13.9–13.12  | 形式カルーセル・ホーム内フィルタ                                                                | `FormatCarousel`, `explore-formats`                                                 | `filterFormat`, `searchQuizzes.format`           | ホーム探索アコーディオン・カルーセルフロー |
-| 13.13–13.14 | GenreNav 非表示・カルーセル遷移禁止                                                             | `HomePage`                                                                          | —                                                | —                                          |
-| 13.15–13.18 | フィルタ状態共有・AND 検索・クリア連動                                                          | `ExploreSearchSection`, `useExploreQuizFeed`, `home-feed-filters`                   | `searchQuizzes`                                  | ホーム統合検索フロー                       |
-| 13.19–13.23 | ジャンルページ scoped 検索 UI                                                                   | `GenreExplorePage`, `ExploreSearchSection`                                          | `lockedGenreId`, `hasActiveScopedExploreFilters` | ジャンルページ scoped 検索フロー           |
-| 13.24–13.25 | Out of boundary（形式専用ルート・サーバー照合なし）                                             | —                                                                                   | `quizeum-core`                                   | —                                          |
-| 13.26–13.27 | testid 契約                                                                                     | `ExploreAccordionsPanel`, `GenreCarousel`, `FormatCarousel`, `ExploreSearchSection` | —                                                | —                                          |
-| 2.1b-1      | 難易度に応じた星（★）の等幅ゲージグラデーションカラー表示                                       | `QuizDetailPage`                                                                    | `getDifficultyColor`                             | —                                          |
-| 3.6         | 解答完了時の自動結果画面遷移                                                                    | `QuizPlayPage`                                                                      | `handlePlayComplete`                             | —                                          |
-| 5.2a        | 結果画面難易度表示・投票星（★）のグラデーションカラー表示                                       | `QuizResultPage`                                                                    | `getDifficultyColor`                             | —                                          |
-| 5.3a        | クイズ全体指摘時の「別解の追加」カテゴリ非表示                                                   | `QuizResultPage`, 指摘ダイアログ                                                    | category filter                                  | —                                          |
-| 5.6         | 結果画面のヒント一覧表示（連想）および質問回数表示（ウミガメ）                                  | `QuizResultPage`                                                                    | `localStorage` 連携, `attempt.aiTurnCount`       | 連想クイズヒント履歴永続化バイパスフロー   |
-| 5.7 / 5.7a  | 結果画面「もう一度プレイする」ボタン (詳細画面遷移)                                              | `QuizResultPage`                                                                    | `useRouter`                                      | —                                          |
-| 5.8         | 結果画面作者プロフィールリンク表示                                                             | `QuizResultPage`                                                                    | `Link`                                           | —                                          |
-| 5.9         | 同じ作者の他クイズおすすめ表示                                                                  | `QuizResultPage`, `QuizCard`                                                        | `getQuizzesByAuthor`                             | —                                          |
-| 5.10        | 結果「お疲れ様でした」カードのクイズブックマークボタン                                           | `QuizResultPage`                                                                    | `toggleBookmark`                                 | —                                          |
-| 5.11 / 5.11a | 指摘横の通報ボタン表示と通報モーダル連携                                                         | `QuizResultPage`, `ReportModal`                                                     | `flagContent`                                    | コンテンツ通報フロー                       |
+| Requirement  | Summary                                                                                         | Components                                                                          | Interfaces                                       | Flows                                      |
+| ------------ | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| 1.1          | ファーストビューの最適化 (バナー縮小・検索バー最上部配置)                                       | `/` Page                                                                            | CSS / DOM layout                                 | -                                          |
+| 1.2          | カテゴリー表示（Phase 11 で `GenreNav` 非表示。ジャンル探索はアコーディオン・カルーセルが正本） | `ExploreAccordionsPanel`, `GenreCarousel`                                           | `listActiveGenres`                               | ホーム探索アコーディオン・カルーセルフロー |
+| 1.3          | コンテンツ優先レイアウト (グリッド表示・タブ視認性)                                             | `/` Page                                                                            | CSS grid layout                                  | -                                          |
+| 1.4          | 統合検索機能および UI/UX (検索クリア・ネオン・クイックサーチ・スケルトン)                       | `/` Page, `GenreSearchField`, `SkeletonCard`                                        | `searchQuizzes`, `useHomeQuizFeed`               | ホーム・ジャンル探索フロー                 |
+| 1.5          | クイズカード魅力向上 (サムネイル・プレイボタン・情報整理)                                       | `QuizCard`                                                                          | `Quiz` data representation                       | -                                          |
+| 2.1          | クイズ詳細メタ情報表示                                                                          | `/quiz/[id]` Page                                                                   | `QuizService`                                    | -                                          |
+| 2.2          | 良問評価バッジとマスク制御                                                                      | `/quiz/[id]` Page                                                                   | `ReviewService`                                  | -                                          |
+| 2.3          | 3つのプレイモード選択UI                                                                         | `/quiz/[id]` Page                                                                   | Mode Panel                                       | -                                          |
+| 2.4          | プレイ画面へのリダイレクト遷移                                                                  | `/quiz/[id]` Page                                                                   | `useRouter`                                      | -                                          |
+| 2.5          | 作成者本人用「クイズ編集」ボタンの表示                                                          | `/quiz/[id]` Page                                                                   | `useAuth`                                        | -                                          |
+| 2.6          | 編集ボタンクリック時のクイズ編集画面遷移                                                        | `/quiz/[id]` Page                                                                   | `useRouter`                                      | -                                          |
+| 3.1          | 個別/全体カウントダウンタイマー                                                                 | `/quiz/[id]/play` Page                                                              | Timer Hook                                       | -                                          |
+| 3.2          | ヒント表示ポップアップ                                                                          | `/quiz/[id]/play` Page                                                              | Dialog UI                                        | -                                          |
+| 3.3          | `localStorage` セッション保護と復元                                                             | `/quiz/[id]/play` Page                                                              | `usePlayState`                                   | -                                          |
+| 3.4          | オフライン時のローカル解答進行                                                                  | `/quiz/[id]/play` Page                                                              | `AttemptService`                                 | -                                          |
+| 4.1          | ウミガメスープ2カラムレイアウト                                                                 | `/quiz/[id]/play` Page                                                              | AI Component                                     | -                                          |
+| 4.2          | 未ログイン時のウミガメスープ制限リダイレクト                                                    | `/quiz/[id]/play` Page                                                              | Auth Guard                                       | -                                          |
+| 4.3          | AI回答生成中待機「・・・AIが質問を分析中です」表示                                              | `/quiz/[id]/play` Page                                                              | `useAiPlayState`                                 | インタラクションフロー                     |
+| 4.4          | 同一質問キャッシュバッジ表示                                                                    | `/quiz/[id]/play` Page                                                              | AI Component                                     | -                                          |
+| 4.5          | 無料ユーザーのターン制限表示と無効化                                                            | `/quiz/[id]/play` Page                                                              | AI Component                                     | -                                          |
+| 4.6          | 真相回答と自動真相判定・クリア演出                                                              | `/quiz/[id]/play` Page                                                              | `verify-truth`                                   | -                                          |
+| 5.1          | プレイ結果表示と解説マークダウン                                                                | `/quiz/[id]/result` Page                                                            | Result Component                                 | -                                          |
+| 5.2          | 👍/👎良問評価および難易度投票                                                                     | `/quiz/[id]/result` Page                                                            | `ReviewService`                                  | -                                          |
+| 5.3          | 問題の間違い指摘フォーム                                                                        | `/quiz/[id]/result` Page                                                            | Feedback Dialog                                  | -                                          |
+| 5.4          | 作家フォローボタン表示およびトグル制御                                                          | `/quiz/[id]/result` Page                                                            | `UserService`                                    | -                                          |
+| 5.5          | オフライン結果画面表示と機能制限（フォロー操作含む）                                            | `/quiz/[id]/result` Page                                                            | Offline Handler                                  | -                                          |
+| 6.1          | 弱点克服ジャンルフィルタ選択                                                                    | `/quiz/review` Page                                                                 | Genre Selector                                   | -                                          |
+| 6.2          | 間違い問題のフェッチと復習プレイ                                                                | `/quiz/review` Page                                                                 | `AttemptService`                                 | -                                          |
+| 6.3          | 復習完了時の誤答リストアトミック削除                                                            | `/quiz/review` Page                                                                 | `AttemptService`                                 | -                                          |
+| 7.1          | 総合リーダーボード各種ランキング                                                                | `/leaderboard` Page                                                                 | Ranking Tab                                      | -                                          |
+| 7.2          | タグ別・ジャンル別クイズ一覧表示                                                                | `/tags/[tagName]`, `/genres/[genreName]`                                            | Quiz Card Grid                                   | -                                          |
+| 7.3          | ブックマーク一覧とお気に入り解除                                                                | `/bookmarks` Page                                                                   | `BookmarkService`                                | -                                          |
+| 8.1          | 未ログイン時のクイズ編集画面リダイレクト制限                                                    | `QuizEditor` / `QuizEditPage`                                                       | `useAuth`, `useRouter`                           | -                                          |
+| 8.2          | 非所有者のクイズ編集画面アクセス制限                                                            | `QuizEditor` / `QuizEditPage`                                                       | `useAuth`, `QuizService`                         | -                                          |
+| 9.1          | 初回／リプレイの別表示（タブ）                                                                  | `QuizDualLeaderboard`                                                               | Tab state                                        | クイズLB表示フロー                         |
+| 9.2          | 順位・表示名・正解数・時間・達成日                                                              | `QuizDualLeaderboard`                                                               | Table markup                                     | -                                          |
+| 9.3          | 表示順（サーバー保存順を信頼）                                                                  | `QuizDualLeaderboard`                                                               | `getLeaderboard*` + slice                        | -                                          |
+| 9.4          | 空状態                                                                                          | `QuizDualLeaderboard`                                                               | Empty UI                                         | -                                          |
+| 9.5          | 初回: `leaderboardFirstPlay` + legacy fallback                                                  | `QuizDualLeaderboard`                                                               | `getLeaderboardFirstPlay`                        | -                                          |
+| 9.6          | リプレイ: `leaderboardReplay` のみ                                                              | `QuizDualLeaderboard`                                                               | `getLeaderboardReplay`                           | -                                          |
+| 9.7          | E2E `data-testid`                                                                               | `QuizDualLeaderboard`                                                               | test ids                                         | -                                          |
+| 9.8          | 更新・マージなし（表示のみ）                                                                    | `QuizDualLeaderboard`                                                               | —                                                | Out of boundary                            |
+| 10.1         | 動的ジャンルナビ（Phase 11: ホームは `GenreCarousel`。`GenreNav` は非正本）                     | `GenreCarousel`, `useActiveGenres`                                                  | `listActiveGenres`                               | ホーム探索アコーディオン・カルーセルフロー |
+| 10.2         | ハードコード GENRES 廃止                                                                        | `HomePage`, `GenreCarousel`                                                         | —                                                | —                                          |
+| 10.3         | ジャンル探索（Phase 11: ホームカルーセルは遷移せずフィルタ）                                    | `GenreCarousel`                                                                     | —                                                | ホーム探索アコーディオン・カルーセルフロー |
+| 10.4         | `searchQuizzes`（フィルタ変更）                                                                 | `useHomeQuizFeed`                                                                   | `searchQuizzes`                                  | —                                          |
+| 10.4b        | ジャンルサジェスト                                                                              | `GenreSearchField`                                                                  | `useActiveGenres`                                | —                                          |
+| 10.4c        | プレイ状況                                                                                      | `usePlayedQuizIds`                                                                  | `listUserPlayedQuizIds`                          | —                                          |
+| 10.5         | ジャンル一覧メタ表示                                                                            | `GenreExplorePage`                                                                  | `listActiveGenres`                               | —                                          |
+| 10.6         | ジャンル一覧ソート                                                                              | `GenreExplorePage`                                                                  | `getQuizzesByGenre`                              | —                                          |
+| 10.7         | タグ一覧 canonical + sort                                                                       | `TagExplorePage`                                                                    | `getQuizzesByTag`                                | —                                          |
+| 10.8         | 弱点克服ジャンル選択                                                                            | `ReviewPage`                                                                        | `listActiveGenres`                               | —                                          |
+| 10.9         | 空・エラー状態                                                                                  | `GenreNav`, `HomePage`                                                              | —                                                | —                                          |
+| 10.10        | ハードコードへサイレントフォールバック禁止                                                      | 全探索 UI                                                                           | —                                                | Out of boundary                            |
+| 11.1         | ブックマーク画面3タブ                                                                           | `BookmarksTabs`, `BookmarksPage`                                                    | `useBookmarkFeed`                                | ブックマーク3タブフロー                    |
+| 11.2         | 未認証時 `/login` リダイレクト                                                                  | `BookmarksPage`                                                                     | `useAuth`                                        | —                                          |
+| 11.3         | クイズタブ（feed + 解除 + 詳細遷移）                                                            | `BookmarkQuizGrid`                                                                  | `getBookmarkFeed`                                | —                                          |
+| 11.4         | リストタブ（解除 + `/list/[id]`）                                                               | `BookmarkListGrid`                                                                  | `BookmarkFeed.lists`                             | —                                          |
+| 11.5         | 問題タブ（抜粋・親タイトル・日時降順）                                                          | `BookmarkQuestionList`                                                              | `BookmarkFeed.questions`                         | —                                          |
+| 11.6         | 問題カード → 親クイズプレイ開始                                                                 | `BookmarkQuestionList`                                                              | `startAtQuestionId`                              | —                                          |
+| 11.7         | プレイ中の問題BMトグル                                                                          | `QuestionBookmarkToggle` on `QuizPlayPage`                                          | `toggleBookmark('question')`                     | —                                          |
+| 11.8         | 結果画面の問題行BMトグル                                                                        | `QuestionBookmarkToggle` on `QuizResultPage`                                        | `toggleBookmark('question')`                     | —                                          |
+| 11.9         | 未認証の問題BM → `/login`                                                                       | `QuestionBookmarkToggle`                                                            | `useAuth`                                        | —                                          |
+| 11.10        | 問題リスト詳細（順序一覧 + 開始ボタン）                                                         | `ListDetailPage`                                                                    | `getQuestionsInList`                             | 問題リスト連続プレイフロー                 |
+| 11.11        | 問題リストプレイ開始（セッション保持）                                                          | `ListDetailPage`                                                                    | `question-list-session`                          | 問題リスト連続プレイフロー                 |
+| 11.12        | 結果後の次問題遷移／完了                                                                        | `QuizResultPage`                                                                    | `advanceQuestionListSession`                     | 問題リスト連続プレイフロー                 |
+| 11.13        | クイズリストは従来のリストプレイ                                                                | `ListDetailPage`                                                                    | `getQuizzesInList`, `mode=list`                  | —                                          |
+| 11.14        | BM カウント・attempt 永続化なし                                                                 | 全 Phase 8 UI                                                                       | コアサービス呼び出しのみ                         | Out of boundary                            |
+| 12.1–12.6    | タグチップ入力・確定・削除・クリア                                                              | `UnifiedSearchField`, `HomePage`                                                    | `normalizeTag`                                   | ホーム統合検索フロー                       |
+| 12.7–12.10   | タグ／ジャンルサジェスト・エラー                                                                | `UnifiedSearchField`, `useActiveTags`, `useActiveGenres`                            | `filter-search-suggestions`                      | ホーム統合検索フロー                       |
+| 12.11        | クイックサーチ→タグチップ                                                                       | `HomePage`, `UnifiedSearchField`                                                    | —                                                | —                                          |
+| 12.12–12.15  | チップ＋キーワード＋フィルタ AND 検索                                                           | `useHomeQuizFeed`, `home-feed-filters`                                              | `searchQuizzes`                                  | ホーム統合検索フロー                       |
+| 12.16–12.18  | カード難易度★N・ジャンル・出題形式                                                              | `QuizCard`, `quiz-format-labels`                                                    | `resolveQuizFormat`, `useActiveGenres`           | —                                          |
+| 12.19        | 探索一覧で QuizCard 統一                                                                        | `GenreExplorePage`, `TagExplorePage`                                                | `QuizCard`                                       | —                                          |
+| 12.20        | 読み込み中スケルトン                                                                            | `SkeletonCard`                                                                      | —                                                | —                                          |
+| 12.21–12.22  | a11y・data-testid                                                                               | `UnifiedSearchField`, `QuizCard`                                                    | —                                                | —                                          |
+| 13.1–13.3    | アコーディオン2セクション独立開閉                                                               | `ExploreAccordion`, `ExploreAccordionsPanel`                                        | —                                                | ホーム探索アコーディオン・カルーセルフロー |
+| 13.4–13.8    | ジャンルカルーセル・ホーム内フィルタ・同期                                                      | `GenreCarousel`, `HomePage`                                                         | `filterGenreId`                                  | ホーム探索アコーディオン・カルーセルフロー |
+| 13.9–13.12   | 形式カルーセル・ホーム内フィルタ                                                                | `FormatCarousel`, `explore-formats`                                                 | `filterFormat`, `searchQuizzes.format`           | ホーム探索アコーディオン・カルーセルフロー |
+| 13.13–13.14  | GenreNav 非表示・カルーセル遷移禁止                                                             | `HomePage`                                                                          | —                                                | —                                          |
+| 13.15–13.18  | フィルタ状態共有・AND 検索・クリア連動                                                          | `ExploreSearchSection`, `useExploreQuizFeed`, `home-feed-filters`                   | `searchQuizzes`                                  | ホーム統合検索フロー                       |
+| 13.19–13.23  | ジャンルページ scoped 検索 UI                                                                   | `GenreExplorePage`, `ExploreSearchSection`                                          | `lockedGenreId`, `hasActiveScopedExploreFilters` | ジャンルページ scoped 検索フロー           |
+| 13.24–13.25  | Out of boundary（形式専用ルート・サーバー照合なし）                                             | —                                                                                   | `quizeum-core`                                   | —                                          |
+| 13.26–13.27  | testid 契約                                                                                     | `ExploreAccordionsPanel`, `GenreCarousel`, `FormatCarousel`, `ExploreSearchSection` | —                                                | —                                          |
+| 2.1b-1       | 難易度に応じた星（★）の等幅ゲージグラデーションカラー表示                                       | `QuizDetailPage`                                                                    | `getDifficultyColor`                             | —                                          |
+| 3.6          | 解答完了時の自動結果画面遷移                                                                    | `QuizPlayPage`                                                                      | `handlePlayComplete`                             | —                                          |
+| 5.2a         | 結果画面難易度表示・投票星（★）のグラデーションカラー表示                                       | `QuizResultPage`                                                                    | `getDifficultyColor`                             | —                                          |
+| 5.3a         | クイズ全体指摘時の「別解の追加」カテゴリ非表示                                                  | `QuizResultPage`, 指摘ダイアログ                                                    | category filter                                  | —                                          |
+| 5.6          | 結果画面のヒント一覧表示（連想）および質問回数表示（ウミガメ）                                  | `QuizResultPage`                                                                    | `localStorage` 連携, `attempt.aiTurnCount`       | 連想クイズヒント履歴永続化バイパスフロー   |
+| 5.7 / 5.7a   | 結果画面「もう一度プレイする」ボタン (詳細画面遷移)                                             | `QuizResultPage`                                                                    | `useRouter`                                      | —                                          |
+| 5.8          | 結果画面作者プロフィールリンク表示                                                              | `QuizResultPage`                                                                    | `Link`                                           | —                                          |
+| 5.9          | 同じ作者の他クイズおすすめ表示                                                                  | `QuizResultPage`, `QuizCard`                                                        | `getQuizzesByAuthor`                             | —                                          |
+| 5.10         | 結果「お疲れ様でした」カードのクイズブックマークボタン                                          | `QuizResultPage`                                                                    | `toggleBookmark`                                 | —                                          |
+| 5.11 / 5.11a | 指摘横の通報ボタン表示と通報モーダル連携                                                        | `QuizResultPage`, `ReportModal`                                                     | `flagContent`                                    | コンテンツ通報フロー                       |
 
 ---
 
@@ -671,17 +671,17 @@ sequenceDiagram
 | `QuizDualLeaderboard`    | UI / Component | 初回／リプレイLBのタブ表示（読み取り専用）                                | 9.1–9.8                                          | `getLeaderboardFirstPlay`, `getLeaderboardReplay` (P0)                                                                  | State      |
 | `QuizPlayPage`           | UI / Page      | クイズ解答画面（通常タイマー、ヒント、ウミガメスープチャット）            | 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 | `usePlayState`, `useAiPlayState`                                                                                        | State, API |
 | `QuizEditor`             | UI / Component | クイズ編集の認可ガード処理およびエディタUIの保護                          | 8.1, 8.2                                         | `useAuth`, `QuizService`, `useRouter`                                                                                   | State      |
-| `QuizResultPage`         | UI / Page      | 正誤解説、評価・難易度投票、指摘フォーム、お礼送信                        | 5.1, 5.2, 5.3, 5.4, 5.5                          | `ReviewService`, `ReactionService`                                                                                      | State, API |
-| `ReviewPage`             | UI / Page      | 間違えた設問の復習プレイとフィルタ制御                                    | 6.1, 6.2, 6.3                                    | `AttemptService`                                                                                                        | State      |
+| `QuizResultPage`         | UI / Page      | 正誤解説、評価・難易度投票、指摘フォーム、作成者フォローボタン            | 5.1, 5.2, 5.3, 5.4, 5.5                          | `ReviewService`, `UserService`                                                                                          | State, API |
+| `ReviewPage`             | UI / Page      | 間違えた問題の復習プレイとフィルタ制御                                    | 6.1, 6.2, 6.3                                    | `AttemptService`                                                                                                        | State      |
 | `LeaderboardPage`        | UI / Page      | プラットフォームランキングの可視化                                        | 7.1                                              | `QuizService`                                                                                                           | State      |
 | `BookmarksPage`          | UI / Page      | 3分類ブックマークの表示と解除                                             | 7.3, 11.1–11.6                                   | `useBookmarkFeed`, `BookmarkService`                                                                                    | State      |
-| `BookmarksTabs`          | UI / Component | クイズ／リスト／設問タブ切替                                              | 11.1                                             | `useBookmarkFeed`                                                                                                       | State      |
+| `BookmarksTabs`          | UI / Component | クイズ／リスト／問題タブ切替                                              | 11.1                                             | `useBookmarkFeed`                                                                                                       | State      |
 | `BookmarkQuizGrid`       | UI / Component | クイズカードグリッド（既存UI再利用）                                      | 11.3                                             | `toggleBookmark`                                                                                                        | State      |
 | `BookmarkListGrid`       | UI / Component | リストカード + `/list/[id]` リンク                                        | 11.4                                             | `toggleBookmark`                                                                                                        | State      |
-| `BookmarkQuestionList`   | UI / Component | 設問カード（親タイトル・日時・プレイ導線）                                | 11.5, 11.6                                       | `toggleBookmark`                                                                                                        | State      |
-| `QuestionBookmarkToggle` | UI / Component | 設問行のBMオン／オフ                                                      | 11.7, 11.8, 11.9                                 | `toggleBookmark`, `useAuth`                                                                                             | State      |
-| `ListDetailPage`         | UI / Page      | クイズリスト／設問リスト詳細とプレイ開始                                  | 11.10–11.13                                      | `resolveListType`, `getQuestionsInList`                                                                                 | State      |
-| `question-list-session`  | Lib            | 設問リスト連続プレイの sessionStorage                                     | 11.11, 11.12                                     | —                                                                                                                       | Service    |
+| `BookmarkQuestionList`   | UI / Component | 問題カード（親タイトル・日時・プレイ導線）                                | 11.5, 11.6                                       | `toggleBookmark`                                                                                                        | State      |
+| `QuestionBookmarkToggle` | UI / Component | 問題行のBMオン／オフ                                                      | 11.7, 11.8, 11.9                                 | `toggleBookmark`, `useAuth`                                                                                             | State      |
+| `ListDetailPage`         | UI / Page      | クイズリスト／問題リスト詳細とプレイ開始                                  | 11.10–11.13                                      | `resolveListType`, `getQuestionsInList`                                                                                 | State      |
+| `question-list-session`  | Lib            | 問題リスト連続プレイの sessionStorage                                     | 11.11, 11.12                                     | —                                                                                                                       | Service    |
 | `useBookmarkFeed`        | Hook           | `getBookmarkFeed` 取得と楽観更新                                          | 11.1–11.6                                        | `BookmarkService`                                                                                                       | State      |
 
 #### `QuizCard`（Phase 9 + Phase 10）
@@ -984,7 +984,7 @@ interface QuizDualLeaderboardProps {
 
 **Responsibilities & Constraints**
 - マウント時に `getBookmarkFeed(userId)` を1回呼び出す。タブ変更で再フェッチしない（解除時は楽観的に該当配列から除去）。
-- 空タブには要件どおりの案内文（「ブックマークしたクイズ／リスト／設問がありません」）を表示。
+- 空タブには要件どおりの案内文（「ブックマークしたクイズ／リスト／問題がありません」）を表示。
 - 未ログインは既存どおり `/login` へリダイレクト。
 
 **Contracts**: State [x]
@@ -1007,19 +1007,19 @@ interface UseBookmarkFeedResult {
 | タブバー       | `bookmarks-tabs`           |
 | クイズタブ     | `bookmarks-tab-quiz`       |
 | リストタブ     | `bookmarks-tab-list`       |
-| 設問タブ       | `bookmarks-tab-question`   |
-| 空状態（設問） | `bookmarks-empty-question` |
+| 問題タブ       | `bookmarks-tab-question`   |
+| 空状態（問題） | `bookmarks-empty-question` |
 
 #### `QuestionBookmarkToggle`（Phase 8）
 
 | Field        | Detail                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------- |
-| Intent       | 設問行に星アイコンを表示し、ログイン時のみ `toggleBookmark(userId, questionId, 'question')` |
+| Intent       | 問題行に星アイコンを表示し、ログイン時のみ `toggleBookmark(userId, questionId, 'question')` |
 | Requirements | 11.7, 11.8, 11.9                                                                            |
 
 **Responsibilities & Constraints**
 - 未ログイン時は非表示または disabled + ツールチップ（ホーム BM と同方針）。
-- 親クイズが非公開化された設問はコア側で BM 解除済みのため、一覧に出ない。プレイ中に検出した場合はトグル失敗をトースト表示。
+- 親クイズが非公開化された問題はコア側で BM 解除済みのため、一覧に出ない。プレイ中に検出した場合はトグル失敗をトースト表示。
 - 初期状態は `getBookmarkFeed` の `questionIds` Set または `isQuestionBookmarked`（コアに単体 API がなければ feed 由来の props で渡す）。
 
 **Contracts**: State [x]
@@ -1036,7 +1036,7 @@ interface QuestionBookmarkToggleProps {
 
 | Field        | Detail                                                         |
 | ------------ | -------------------------------------------------------------- |
-| Intent       | 設問リスト連続プレイの進行インデックスを sessionStorage で保持 |
+| Intent       | 問題リスト連続プレイの進行インデックスを sessionStorage で保持 |
 | Requirements | 11.11, 11.12                                                   |
 
 **Contracts**: Service [x]
@@ -1065,21 +1065,21 @@ function buildQuestionListPlayUrl(session: QuestionListSession, index: number): 
 **Implementation Notes**
 - `ListDetailPage` の「連続プレイ開始」で `initQuestionListSession` → `buildQuestionListPlayUrl(..., 0)` へ遷移。
 - `QuizPlayPage` は `mode=question-list` 時、`questionId` に一致する1問のみを `usePlayState` に渡す（`totalQuestions` 表示も 1）。
-- `QuizResultPage` は `listId` かつセッション存在時、クイズリスト（`quizIds`）分岐より**先に**設問リスト分岐を評価。`advanceQuestionListSession` で次 URL を生成。最終設問後は `clearQuestionListSession` + 完了 UI。
-- ブックマーク設問からの単体プレイ（11.6）: `/quiz/{parentQuizId}/play?startAtQuestionId={id}`。セッションは作成しない。
+- `QuizResultPage` は `listId` かつセッション存在時、クイズリスト（`quizIds`）分岐より**先に**問題リスト分岐を評価。`advanceQuestionListSession` で次 URL を生成。最終問題後は `clearQuestionListSession` + 完了 UI。
+- ブックマーク問題からの単体プレイ（11.6）: `/quiz/{parentQuizId}/play?startAtQuestionId={id}`。セッションは作成しない。
 - `QuizPlayPage` は `mode=question-list` 時に `saveAttempt` で `mode: 'question-list'`, `totalQuestions: 1` を送信（11.12 の attempt 記録はコア契約に従いプレイ完了ハンドラで実施）。
 
-#### `ListDetailPage` 設問リスト分岐（Phase 8）
+#### `ListDetailPage` 問題リスト分岐（Phase 8）
 
 | Field        | Detail                                                                            |
 | ------------ | --------------------------------------------------------------------------------- |
-| Intent       | `resolveListType(quizList)` が `'question'` のとき設問一覧と連続プレイ CTA を表示 |
+| Intent       | `resolveListType(quizList)` が `'question'` のとき問題一覧と連続プレイ CTA を表示 |
 | Requirements | 11.10, 11.11, 11.13                                                               |
 
 **Responsibilities & Constraints**
 - `listType === 'quiz'`（または未設定の legacy）は既存 `getQuizzesInList` フローを維持。
-- 設問行は `QuestionInListEntry` の `questionText`（先頭80文字）、親 `quizTitle`、`genre` を表示。
-- 空リスト時は「設問が収録されていません」と編集画面へのリンク（作成者のみ）。
+- 問題行は `QuestionInListEntry` の `questionText`（先頭80文字）、親 `quizTitle`、`genre` を表示。
+- 空リスト時は「問題が収録されていません」と編集画面へのリンク（作成者のみ）。
 
 ---
 
@@ -1092,9 +1092,9 @@ function buildQuestionListPlayUrl(session: QuestionListSession, index: number): 
   - オフラインでのプレイ中、結果画面に遷移した際は、「現在オフラインのため、良問評価や間違い指摘、作家リアクションは送信できません。オンライン復帰後に自動同期されます。」と優しいトーンで警告ヘッダーを表示し、関連ボタンを非活性化（disabled）します。
 - **非作成者によるクイズ編集画面への直接アクセス保護**:
   - ログイン中ユーザーが対象クイズの作成者ではない場合（`user.id !== quiz.authorId`）、編集コンポーネント（`QuizEditor`）は編集フォームをレンダリングせず、「アクセス権限がありません。このクイズは他のユーザーが作成したものです。」という警告メッセージUIを表示して操作を完全にブロックします。
-- **設問ブックマーク／設問リストプレイの失敗（Phase 8）**:
+- **問題ブックマーク／問題リストプレイの失敗（Phase 8）**:
   - `toggleBookmark` 失敗時はトグルを元に戻し、「ブックマークの更新に失敗しました」と表示。親クイズ非公開などコア検証エラーはそのままメッセージを表示。
-  - 設問リストセッション欠落時（直接 URL アクセス等）は結果画面で「リストの続きを再生できません」とリスト詳細へのリンクを表示。`saveAttempt` 失敗時は既存オフラインフォールバックを維持。
+  - 問題リストセッション欠落時（直接 URL アクセス等）は結果画面で「リストの続きを再生できません」とリスト詳細へのリンクを表示。`saveAttempt` 失敗時は既存オフラインフォールバックを維持。
 
 ---
 
@@ -1102,7 +1102,7 @@ function buildQuestionListPlayUrl(session: QuestionListSession, index: number): 
 
 ### Unit Tests
 - **`localStorage` セッションの保存と復旧**:
-  - `usePlayState` フックが、指定の解答データ（設問ID、解答インデックス、経過秒数）を正しく `localStorage` にシリアライズし、ページ初期化時に正確にデシリアライズできるかをテスト。
+  - `usePlayState` フックが、指定の解答データ（問題ID、解答インデックス、経過秒数）を正しく `localStorage` にシリアライズし、ページ初期化時に正確にデシリアライズできるかをテスト。
 
 ### Integration Tests
 - **ウミガメスープ AI回答中の状態監視**:
@@ -1132,13 +1132,13 @@ function buildQuestionListPlayUrl(session: QuestionListSession, index: number): 
   - 検索実行中、`[data-testid="skeleton-card"]` が表示されること。
 
 - **ブックマーク3タブ（Phase 8）**:
-  - `[data-testid="bookmarks-tabs"]` で3タブが表示され、設問タブで親クイズタイトルがカードに含まれること。
-  - 設問タブで解除後、当該カードが一覧から消えること（楽観更新）。
-- **設問リスト連続プレイ（Phase 8）**:
-  - 設問リスト詳細からプレイ開始 → 1問完了 → 結果画面に「次の設問へ」→ 次の親クイズのプレイ画面へ遷移すること。
-  - 最終設問完了後にリスト完了メッセージが表示されること。
-- **設問ブックマークトグル（Phase 8）**:
-  - 結果画面の設問行でトグル操作後、`/bookmarks` の設問タブに反映されること（再読み込み後）。
+  - `[data-testid="bookmarks-tabs"]` で3タブが表示され、問題タブで親クイズタイトルがカードに含まれること。
+  - 問題タブで解除後、当該カードが一覧から消えること（楽観更新）。
+- **問題リスト連続プレイ（Phase 8）**:
+  - 問題リスト詳細からプレイ開始 → 1問完了 → 結果画面に「次の問題へ」→ 次の親クイズのプレイ画面へ遷移すること。
+  - 最終問題完了後にリスト完了メッセージが表示されること。
+- **問題ブックマークトグル（Phase 8）**:
+  - 結果画面の問題行でトグル操作後、`/bookmarks` の問題タブに反映されること（再読み込み後）。
 
 - **統合検索タグチップ・サジェスト（Phase 10）**:
   - 検索欄で `JavaScript` + Space 後、`[data-testid="search-tag-chip"]` にチップが表示されること。
@@ -1163,7 +1163,7 @@ function buildQuestionListPlayUrl(session: QuestionListSession, index: number): 
 
 - **プレイ・結果画面および難易度UI改善（Phase 12）**:
   - `[data-testid="quiz-card-difficulty"]` 等の星（★）ゲージに、難易度に応じたグラデーションカラー（`getDifficultyColor` 算出値）が適用されていること。
-  - 最後の設問解答時に「全問終了しました！」待機画面を挟まずに自動で結果画面（`/result`）へ遷移すること。
+  - 最後の問題解答時に「全問終了しました！」待機画面を挟まずに自動で結果画面（`/result`）へ遷移すること。
   - 結果画面で連想クイズのヒント一覧（開示されたもの）、またはウミガメスープの質問回数が正しく表示されていること。
   - 「もう一度プレイする」ボタンを押したときに `/quiz/[id]` に遷移すること。
   - 作者のプロフィールページへのリンクおよびおすすめクイズ（最大3件）が正しく表示されること。
@@ -1314,7 +1314,7 @@ export function filterGenreSuggestions<T extends Pick<GenreMetadata, 'id' | 'dis
   * クイズカード ([quiz-card.tsx](file:///d:/quizeum/src/components/quiz/quiz-card.tsx)) 内の難易度星アイコン (任意で適用)
 
 ### 2. クイズプレイ画面から結果への自動遷移
-通常プレイ ([play/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/play/page.tsx)) において、最後の設問解答を送信したタイミングで、「全問終了しました！」といった待機用の中間画面をレンダリングせず、自動的に結果の保存処理を実行して結果画面 (`/quiz/[id]/result?attemptId={attemptId}`) へ遷移させます。
+通常プレイ ([play/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/play/page.tsx)) において、最後の問題解答を送信したタイミングで、「全問終了しました！」といった待機用の中間画面をレンダリングせず、自動的に結果の保存処理を実行して結果画面 (`/quiz/[id]/result?attemptId={attemptId}`) へ遷移させます。
 * 状態管理:
   `usePlayState` の完了ハンドラ `handlePlayComplete` が発火した際、即座に保存APIのレスポンス完了（またはクライアント側完了処理）を待って `router.replace` で結果画面へリダイレクトします。
 
@@ -1342,7 +1342,7 @@ export function filterGenreSuggestions<T extends Pick<GenreMetadata, 'id' | 'dis
 * **お疲れ様でしたカードのブックマーク**:
   結果サマリーカード領域に、クイズ全体のブックマークトグルボタンを配置します。`toggleBookmark` (コアAPI) を利用して、登録/解除を切り替えます。
 * **指摘カテゴリ制限**:
-  間違い指摘モーダルを開く際、対象が「クイズ全体への指摘」の場合のみ、カテゴリから「別解の追加要望」を除外または非表示にします (設問個別への指摘時のみ表示)。
+  間違い指摘モーダルを開く際、対象が「クイズ全体への指摘」の場合のみ、カテゴリから「別解の追加要望」を除外または非表示にします (問題個別への指摘時のみ表示)。
 * **通報ボタンと通報モーダル**:
   指摘ボタンの横に通報用のボタン (`data-testid="quiz-report-btn"`) を新設します。
   * ボタン押下で `ReportModal` ([report-modal.tsx](file:///d:/quizeum/src/components/quiz/report-modal.tsx)) を開きます。

@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { getQuizzesByAuthor } from '@/services/quiz';
-import { 
-  createQuizList, 
-  getQuizList, 
-  updateQuizList, 
-  getQuizzesInList, 
+import {
+  createQuizList,
+  getQuizList,
+  updateQuizList,
+  getQuizzesInList,
   exportQuizList,
   exportQuestionList,
   getQuestionsInList,
@@ -18,14 +18,14 @@ import { QuizList, Quiz, QuizListType, resolveListType } from '@/types';
 import { ListTypeSelector } from '@/components/quiz-list/list-type-selector';
 import { QuestionListAttachPanel } from '@/components/quiz-list/question-list-attach-panel';
 import styles from '@/app/list/create/edit.module.css';
-import { 
-  Save, 
-  Download, 
-  Plus, 
-  Trash2, 
-  Search, 
-  GripVertical, 
-  Image, 
+import {
+  Save,
+  Download,
+  Plus,
+  Trash2,
+  Search,
+  GripVertical,
+  Image,
   ArrowLeft,
   Layers,
   Info
@@ -151,7 +151,7 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId }) => {
     const nextAttached = [...attachedQuizzes];
     const [draggedItem] = nextAttached.splice(draggedIndex, 1);
     nextAttached.splice(targetIndex, 0, draggedItem);
-    
+
     setAttachedQuizzes(nextAttached);
     setDraggedIndex(null);
   };
@@ -217,12 +217,12 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId }) => {
   // パッケージエクスポート (要件 4.3)
   const handleExportList = async () => {
     if (!user) return;
-    
+
     try {
       let exportData;
       if (listType === 'question') {
         if (!listId) {
-          alert('設問リストは保存後にエクスポートできます。');
+          alert('問題リストは保存後にエクスポートできます。');
           return;
         }
         exportData = await exportQuestionList(listId, user.id);
@@ -251,7 +251,7 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId }) => {
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
         JSON.stringify(exportData, null, 2)
       )}`;
-      
+
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', jsonString);
       downloadAnchor.setAttribute(
@@ -335,10 +335,10 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId }) => {
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ONにすると全プレイヤーに公開されます。</span>
             </div>
             <label className={styles.toggleSwitch}>
-              <input 
-                type="checkbox" 
-                checked={isPublished} 
-                onChange={(e) => setIsPublished(e.target.checked)} 
+              <input
+                type="checkbox"
+                checked={isPublished}
+                onChange={(e) => setIsPublished(e.target.checked)}
               />
               <span className={styles.slider}></span>
             </label>
@@ -356,7 +356,7 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId }) => {
           {listType === 'question' ? (
             <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--border-light)' }}>
               <span className={styles.label} style={{ marginBottom: '12px', display: 'block' }}>
-                設問をアタッチする
+                問題をアタッチする
               </span>
               <QuestionListAttachPanel
                 listId={listId ?? ''}
@@ -367,98 +367,98 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId }) => {
               />
             </div>
           ) : (
-          /* クイズ検索・アタッチパネル (要件 4.1) */
-          <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--border-light)' }}>
-            <span className={styles.label} style={{ marginBottom: '12px', display: 'block' }}>クイズをアタッチする</span>
-            <form onSubmit={handleSearch} className={styles.searchBar}>
-              <input
-                type="text"
-                className={styles.input}
-                placeholder="自作クイズをタイトル検索"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ padding: '10px 14px', fontSize: '0.9rem' }}
-              />
-              <button type="submit" className="btn btn-secondary" style={{ padding: '10px' }}>
-                <Search size={16} />
-              </button>
-            </form>
+            /* クイズ検索・アタッチパネル (要件 4.1) */
+            <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--border-light)' }}>
+              <span className={styles.label} style={{ marginBottom: '12px', display: 'block' }}>クイズをアタッチする</span>
+              <form onSubmit={handleSearch} className={styles.searchBar}>
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="自作クイズをタイトル検索"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ padding: '10px 14px', fontSize: '0.9rem' }}
+                />
+                <button type="submit" className="btn btn-secondary" style={{ padding: '10px' }}>
+                  <Search size={16} />
+                </button>
+              </form>
 
-            <div className={styles.searchList}>
-              {searchResults.length === 0 ? (
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', display: 'block', padding: '20px' }}>
-                  該当するクイズが見つかりません。
-                </span>
-              ) : (
-                searchResults.map((quiz) => (
-                  <div key={quiz.id} className={styles.searchItem}>
-                    <div className={styles.searchItemInfo}>
-                      <span className={styles.searchItemTitle}>{quiz.title}</span>
-                      <span className={styles.searchItemMeta}>問題数: {quiz.questionCount}問 / 難易度: {quiz.difficulty}</span>
+              <div className={styles.searchList}>
+                {searchResults.length === 0 ? (
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', display: 'block', padding: '20px' }}>
+                    該当するクイズが見つかりません。
+                  </span>
+                ) : (
+                  searchResults.map((quiz) => (
+                    <div key={quiz.id} className={styles.searchItem}>
+                      <div className={styles.searchItemInfo}>
+                        <span className={styles.searchItemTitle}>{quiz.title}</span>
+                        <span className={styles.searchItemMeta}>問題数: {quiz.questionCount}問 / 難易度: {quiz.difficulty}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.attachBtn}
+                        onClick={() => handleAttachQuiz(quiz)}
+                      >
+                        追加
+                      </button>
                     </div>
-                    <button 
-                      type="button" 
-                      className={styles.attachBtn}
-                      onClick={() => handleAttachQuiz(quiz)}
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {listType === 'quiz' && (
+          <div className={styles.card} style={{ minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+            <div className={styles.cardTitle}>
+              <GripVertical size={20} />
+              <span>収録クイズの順序並べ替え (ドラッグして移動)</span>
+            </div>
+
+            <div className={styles.attachedList}>
+              {attachedQuizzes.length === 0 ? (
+                <div className={styles.emptyListState}>
+                  <Layers size={32} style={{ opacity: 0.3 }} />
+                  <span>収録クイズがありません。左のパネルからクイズを追加してください。</span>
+                </div>
+              ) : (
+                attachedQuizzes.map((quiz, idx) => (
+                  <div
+                    key={quiz.id}
+                    className={`${styles.attachedItem} ${draggedIndex === idx ? styles.attachedItemDragging : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={(e) => handleDrop(e, idx)}
+                  >
+                    <div className={styles.attachedItemLeft}>
+                      <div className={styles.dragHandle}>
+                        <GripVertical size={16} />
+                      </div>
+                      <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.9rem' }}>#{idx + 1}</span>
+                      <span className={styles.attachedItemTitle}>{quiz.title}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.detachBtn}
+                      onClick={() => handleDetachQuiz(quiz.id)}
+                      title="リストから除外"
                     >
-                      追加
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 ))
               )}
             </div>
-          </div>
-          )}
-        </div>
 
-        {listType === 'quiz' && (
-        <div className={styles.card} style={{ minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-          <div className={styles.cardTitle}>
-            <GripVertical size={20} />
-            <span>収録クイズの順序並べ替え (ドラッグして移動)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '16px', background: 'rgba(255, 255, 255, 0.01)', padding: '10px', borderRadius: '4px' }}>
+              <Info size={14} style={{ flexShrink: 0 }} />
+              <span>カードをドラッグして放すことで、リスト内の並び順をいつでもスムーズに入れ替えられます。</span>
+            </div>
           </div>
-
-          <div className={styles.attachedList}>
-            {attachedQuizzes.length === 0 ? (
-              <div className={styles.emptyListState}>
-                <Layers size={32} style={{ opacity: 0.3 }} />
-                <span>収録クイズがありません。左のパネルからクイズを追加してください。</span>
-              </div>
-            ) : (
-              attachedQuizzes.map((quiz, idx) => (
-                <div
-                  key={quiz.id}
-                  className={`${styles.attachedItem} ${draggedIndex === idx ? styles.attachedItemDragging : ''}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, idx)}
-                  onDragOver={(e) => handleDragOver(e, idx)}
-                  onDrop={(e) => handleDrop(e, idx)}
-                >
-                  <div className={styles.attachedItemLeft}>
-                    <div className={styles.dragHandle}>
-                      <GripVertical size={16} />
-                    </div>
-                    <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.9rem' }}>#{idx + 1}</span>
-                    <span className={styles.attachedItemTitle}>{quiz.title}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.detachBtn}
-                    onClick={() => handleDetachQuiz(quiz.id)}
-                    title="リストから除外"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '16px', background: 'rgba(255, 255, 255, 0.01)', padding: '10px', borderRadius: '4px' }}>
-            <Info size={14} style={{ flexShrink: 0 }} />
-            <span>カードをドラッグして放すことで、リスト内の並び順をいつでもスムーズに入れ替えられます。</span>
-          </div>
-        </div>
         )}
 
         {/* アクションバー (要件 4.3 エクスポート, 保存) */}
@@ -476,7 +476,7 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId }) => {
             <Download size={18} />
             リストパッケージエクスポート
           </button>
-          
+
           <button
             type="button"
             className="btn btn-primary"

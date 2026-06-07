@@ -53,7 +53,7 @@ export function syncQuestionListSessionIndex(index: number): void {
   writeQuestionListSession(session);
 }
 
-/** インデックスを進め、次のエントリを返す。最終設問後は null */
+/** インデックスを進め、次のエントリを返す。最終問題後は null */
 export function advanceQuestionListSession(): QuestionListSessionEntry | null {
   const session = readQuestionListSession();
   if (!session) return null;

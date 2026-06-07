@@ -113,8 +113,8 @@
 - [x] 8.2 (P) `ProfileListCard` コンポーネント
   - 種別バッジ（`profile-list-type-badge`）、正しい収録件数ラベル、`/list/[id]` リンク、`data-testid="profile-list-card"` を実装する。
   - `getProfileListTypeLabel(resolveListType(list))` のみでバッジ文言を決定する（`bookmark-list-grid` の直比較パターンはコピーしない）。
-  - RTL でクイズ／設問リストのバッジ・件数表示・レガシー未設定リストを検証する。
-  - **完了状態**: 設問リストで `quizIds` 件数が表示されないこと。
+  - RTL でクイズ／問題リストのバッジ・件数表示・レガシー未設定リストを検証する。
+  - **完了状態**: 問題リストで `quizIds` 件数が表示されないこと。
   - _Requirements: 8.2, 8.3, 8.4, 8.5, 8.9_
   - _Depends: 8.1_
   - _Boundary: ProfileListCard_
@@ -139,12 +139,12 @@
 - [x] 8.5 Phase 8 統合検証
   - `profile-list-display` / `ProfileListCard` / `ProfileListsPanel` のテストと、クイズ・プレイ履歴タブの回帰スモークを実施する。
   - `npm test` / `npm run build` がグリーンであること。
-  - **完了状態**: Phase 8 関連テストがグリーンであり、手動スモークでクイズ／設問リストの種別・件数が正しいこと。
+  - **完了状態**: Phase 8 関連テストがグリーンであり、手動スモークでクイズ／問題リストの種別・件数が正しいこと。
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9_
   - _Depends: 8.4_
 
 - [ ]* 8.6 Phase 8 E2E スモーク（任意）
-  - `profile-list-card` / `profile-list-type-badge` の表示、設問リストの `questionIds` ベース件数、フィルタ空状態を Playwright またはチェックリストで記録する。
+  - `profile-list-card` / `profile-list-type-badge` の表示、問題リストの `questionIds` ベース件数、フィルタ空状態を Playwright またはチェックリストで記録する。
   - _Depends: 8.5_
   - _Requirements: 8.2, 8.9_
 

@@ -112,7 +112,7 @@ function TestPlayResultContent() {
 
       <section className={styles.questionsList}>
         <h2 style={{ fontSize: '1.3rem', fontWeight: '700', color: 'var(--text-main)' }}>
-          設問ごとの解説
+          問題ごとの解説
         </h2>
 
         {(quiz.questions ?? []).map((q, idx) => {

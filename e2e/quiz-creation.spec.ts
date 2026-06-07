@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('クイズ作成・管理 E2Eテスト', () => {
 
-  test('ユーザーはクイズの新規作成、設問エディタでの問題設定、下書き保存、および公開申請を行えること', async ({ page }) => {
+  test('ユーザーはクイズの新規作成、問題エディタでの問題設定、下書き保存、および公開申請を行えること', async ({ page }) => {
     await page.goto('/');
     let dialogMessage = '';
     page.on('dialog', async dialog => {
@@ -14,7 +14,7 @@ test.describe('クイズ作成・管理 E2Eテスト', () => {
     const createQuizBtn = page.locator('text=作問する');
     await expect(createQuizBtn).toBeVisible();
     await createQuizBtn.click();
-    
+
     // 3. クイズ新規作成画面にいることを確認
     await expect(page).toHaveURL(/\/quiz\/create/);
     await expect(page.locator('h1:has-text("クイズを新規作成")')).toBeVisible();
@@ -29,7 +29,7 @@ test.describe('クイズ作成・管理 E2Eテスト', () => {
     await expect(tagInput).toBeVisible();
     await tagInput.fill('react');
     await tagInput.press('Enter');
-    
+
     // タグが登録されたことを確認
     await expect(page.locator('text=#react')).toBeVisible();
 
@@ -47,7 +47,7 @@ test.describe('クイズ作成・管理 E2Eテスト', () => {
     await choiceInputs.nth(2).fill('useContext');
     await choiceInputs.nth(3).fill('useRef');
 
-    // 設問解説の入力
+    // 問題解説の入力
     const explanationTextarea = page.locator('textarea[placeholder="正解した/間違えた挑戦者へ表示する解説文を入力してください。"]').first();
     await expect(explanationTextarea).toBeVisible();
     await explanationTextarea.fill('ステート管理には useState を使用します。useEffectは副作用用、useContextはContext取得用です。');
@@ -60,7 +60,7 @@ test.describe('クイズ作成・管理 E2Eテスト', () => {
     // アラートの表示とダッシュボードへの遷移を確認
     await expect.poll(() => dialogMessage).toContain('下書きを保存しました');
     await expect(page).toHaveURL(/\/creator\/dashboard/);
-    
+
     // ダッシュボード内に保存した下書きクイズが表示されていることを確認
     await expect(page.locator(`text=${quizTitle}`)).toBeVisible();
   });
