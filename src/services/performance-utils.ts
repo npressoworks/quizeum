@@ -40,7 +40,7 @@ export function renderOgpHtml(quiz: Quiz): string {
     <p>${description}</p>
     <p>作者: ${quiz.authorName}</p>
     <p>問題数: ${quiz.questionCount}</p>
-    <p>難易度: ${quiz.difficulty}/10</p>
+    <p>難易度: ${quiz.difficulty}/5</p>
   </div>
 </body>
 </html>

@@ -17,25 +17,25 @@ export interface DifficultyVote {
   id?: string;
   userId: string | null;
   quizId: string;
-  vote: number; // 1〜10
+  vote: number; // 1〜5
   createdAt: Date;
 }
 
 /**
- * 体感難易度（1〜10）をアトミックに保存する。
+ * 体感難易度（1〜5）をアトミックに保存する。
  * 同一ユーザーは最新値で上書き保存され、クイズの難易度分布データにアトミック反映される。
  *
  * @param quizId 投票対象のクイズID
  * @param userId 投票ユーザーのID（nullの場合は匿名投票）
- * @param difficultyVote 投票する難易度（1〜10）
+ * @param difficultyVote 投票する難易度（1〜5）
  */
 export async function submitDifficultyVote(
   quizId: string,
   userId: string | null,
   difficultyVote: number
 ): Promise<void> {
-  if (difficultyVote < 1 || difficultyVote > 10) {
-    throw new Error('難易度投票は1から10の範囲で指定してください。');
+  if (difficultyVote < 1 || difficultyVote > 5) {
+    throw new Error('難易度投票は1から5の範囲で指定してください。');
   }
 
   const quizDocRef = doc(quizzesRef, quizId);

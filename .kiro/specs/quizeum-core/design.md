@@ -34,6 +34,7 @@
 - **Phase 10**: タグマスタ一覧 API（`listActiveTags`）と、タグチップ配列による複数タグ AND 複合検索の一貫実装。
 - **Phase 11**: 出題形式（`format`）フィルタ付き複合検索。ジャンル固定 scoped 検索（`genreId` + 他条件 AND）の一貫実装。形式判定は `quiz-format-match` + `resolveQuizFormat` に集約。
 - **Phase 10 スマートサジェスト**: `search_logs` コレクションへの検索ログ fire-and-forget 実装、週間ジャンル Top5 / 週間ワード·タグ Top5 集計 API Route の提供。
+- **Phase 13 難易度5段階化**: `Quiz` 型の `difficulty`（1〜5）、`Attempt` 型の `difficultyVote`（1〜5）のデータモデル変更、公開バリデーションおよび難易度投票サービスの更新。
 
 ### Non-Goals
 - 外部システムや外部ファイルからのクイズ・クイズリストの一括インポート機能の実装。
@@ -60,6 +61,7 @@
 - **Phase 10 — タグマスタ一覧とタグ AND 検索**: `listActiveTags`、`quiz-tag-match` 純関数、`searchQuizzes` の `filters.tags` 拡張。
 - **Phase 11 — 出題形式フィルタと scoped 検索**: `SearchFilters.format`、`quiz-format-match` 純関数、`searchQuizzes` 後段形式フィルタ（`resolveQuizFormat` 一致）。ジャンル固定 scoped 検索は既存 `genreId` + `expandGenreIdsForQuery` を維持。
 - **Phase 10 スマートサジェスト（2026-06-06 追記）**: `search_logs` コレクションのスキーマ（`userId`, `queryText`, `tags[]`, `genreId`, `loggedAt`）および TTL、`searchQuizzes` 内での fire-and-forget ログ書き込み。`GET /api/genres/weekly-top` / `GET /api/search/weekly-top` の集計 API Route（server-side Firestore Admin SDK、Next.js revalidate: 1800）。ユーザー個人履歴の保存は UI 側 `localStorage` のみ（Core に記録しない）。
+- **Phase 13 — 難易度5段階化（2026-06）**: `Quiz.difficulty`（1〜5の整数）および `Attempt.difficultyVote`（1〜5の整数）の範囲制限、ならびに `submitDifficultyVote` および `validateQuizForPublish` におけるバリデーション範囲の更新。
 
 ### Out of Boundary
 - 外部APIへの直接のクライアント通信（AI呼び出しなど）はSecurity Rulesで拒否され、すべてNext.js API Routeを経由します。
@@ -91,6 +93,7 @@
 - **Phase 10**: `SearchFilters.tags` の意味変更、`listActiveTags` の存続タグ定義（`canonicalId == null`）変更、`quiz-tag-match` 照合規則変更。
 - **Phase 11**: `SearchFilters.format` の許容値集合変更、`quiz-format-match` / `resolveQuizFormat` 推定規則変更（`quizeum-play-flow-ui` のカード・カルーセル表示と連動再検証）。
 - **Phase 10 スマートサジェスト**: `search_logs` コレクションの TTL・スキーマ変更、`GET /api/genres/weekly-top` / `GET /api/search/weekly-top` のレスポンス形状変更、`searchQuizzes` の fire-and-forget ログ書き込み報啄ルール変更。
+- **Phase 13**: `Quiz.difficulty` および `Attempt.difficultyVote` のデータ型変更、公開バリデーション (`validateQuizForPublish`) および投票バリデーション (`submitDifficultyVote`) の上限範囲変更（10から5へ）。
 
 ---
 
@@ -1020,7 +1023,7 @@ export interface Quiz {
   title: string;
   description: string;
   thumbnailUrl: string | null;
-  difficulty: number; // 1〜10 の整数
+  difficulty: number; // 1〜5 の整数
   genre: string;
   tags: string[];
   originalTags: string[];

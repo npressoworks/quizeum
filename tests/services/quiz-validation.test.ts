@@ -174,8 +174,8 @@ describe('validateQuizForPublish', () => {
       expect(validateQuizForPublish(makeQuiz({ difficulty: 1 }))).toHaveLength(0);
     });
 
-    test('難易度が境界値10でも通過する', () => {
-      expect(validateQuizForPublish(makeQuiz({ difficulty: 10 }))).toHaveLength(0);
+    test('難易度が境界値5でも通過する', () => {
+      expect(validateQuizForPublish(makeQuiz({ difficulty: 5 }))).toHaveLength(0);
     });
   });
 
@@ -211,8 +211,8 @@ describe('validateQuizForPublish', () => {
       expect(errors.some((e) => e.field === 'difficulty')).toBe(true);
     });
 
-    test('難易度が11の場合エラーを返す', () => {
-      const quiz = makeQuiz({ difficulty: 11 });
+    test('難易度が6の場合エラーを返す', () => {
+      const quiz = makeQuiz({ difficulty: 6 });
       const errors = validateQuizForPublish(quiz);
       expect(errors.some((e) => e.field === 'difficulty')).toBe(true);
     });

@@ -114,7 +114,7 @@ export interface Quiz {
   title: string;
   description: string;
   thumbnailUrl: string | null;
-  difficulty: number;     // 1〜10の整数
+  difficulty: number;     // 1〜5の整数
   genre: string;          // ジャンル (例: 'programming', 'history' など)
   tags: string[];         // 標準化されたタグの配列
   originalTags: string[]; // 入力された生のタグの配列

@@ -27,13 +27,13 @@ describe('RatingService - submitDifficultyVote', () => {
   // ── 異常系バリデーション ──────────────────────────────────────
   test('投票値が1未満の場合はエラーをスローする', async () => {
     await expect(submitDifficultyVote(quizId, userId, 0)).rejects.toThrow(
-      '難易度投票は1から10の範囲で指定してください。'
+      '難易度投票は1から5の範囲で指定してください。'
     );
   });
 
-  test('投票値が10を超える場合はエラーをスローする', async () => {
-    await expect(submitDifficultyVote(quizId, userId, 11)).rejects.toThrow(
-      '難易度投票は1から10の範囲で指定してください。'
+  test('投票値が5を超える場合はエラーをスローする', async () => {
+    await expect(submitDifficultyVote(quizId, userId, 6)).rejects.toThrow(
+      '難易度投票は1から5の範囲で指定してください。'
     );
   });
 
@@ -62,7 +62,7 @@ describe('RatingService - submitDifficultyVote', () => {
       return callback(mockTransaction);
     });
 
-    await submitDifficultyVote(quizId, userId, 8);
+    await submitDifficultyVote(quizId, userId, 4);
 
     expect(mockTransaction.get).toHaveBeenCalledTimes(2);
     expect(mockTransaction.set).toHaveBeenCalledTimes(1);
@@ -72,7 +72,7 @@ describe('RatingService - submitDifficultyVote', () => {
     expect(mockTransaction.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: quizId }),
       expect.objectContaining({
-        difficultyVotesSum: 8,
+        difficultyVotesSum: 4,
         difficultyVotesCount: 1,
       })
     );
@@ -85,10 +85,10 @@ describe('RatingService - submitDifficultyVote', () => {
       data: () => ({ difficulty: 5 }),
     };
 
-    // 前回の投票は 5 点
+    // 前回の投票は 2 点
     const mockVoteSnap = {
       exists: () => true,
-      data: () => ({ userId, quizId, vote: 5 }),
+      data: () => ({ userId, quizId, vote: 2 }),
     };
 
     const mockTransaction = {
@@ -104,8 +104,8 @@ describe('RatingService - submitDifficultyVote', () => {
       return callback(mockTransaction);
     });
 
-    // 新たに 8 点を投票（差分 +3 点）
-    await submitDifficultyVote(quizId, userId, 8);
+    // 新たに 4 点を投票（差分 +2 点）
+    await submitDifficultyVote(quizId, userId, 4);
 
     expect(mockTransaction.get).toHaveBeenCalledTimes(2);
     expect(mockTransaction.set).not.toHaveBeenCalled();
@@ -115,7 +115,7 @@ describe('RatingService - submitDifficultyVote', () => {
     expect(mockTransaction.update).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({ id: `${userId}_${quizId}` }),
-      expect.objectContaining({ vote: 8 })
+      expect.objectContaining({ vote: 4 })
     );
 
     // quizDoc に対する差分更新の検証
@@ -123,7 +123,7 @@ describe('RatingService - submitDifficultyVote', () => {
       2,
       expect.objectContaining({ id: quizId }),
       expect.objectContaining({
-        difficultyVotesSum: 3, // 8 - 5 = 3
+        difficultyVotesSum: 2, // 4 - 2 = 2
       })
     );
   });
@@ -145,7 +145,7 @@ describe('RatingService - submitDifficultyVote', () => {
       return callback(mockTransaction);
     });
 
-    await submitDifficultyVote(quizId, null, 7);
+    await submitDifficultyVote(quizId, null, 4);
 
     // 匿名投票は quizSnap のみ get
     expect(mockTransaction.get).toHaveBeenCalledTimes(1);
@@ -157,7 +157,7 @@ describe('RatingService - submitDifficultyVote', () => {
     expect(mockTransaction.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: quizId }),
       expect.objectContaining({
-        difficultyVotesSum: 7,
+        difficultyVotesSum: 4,
         difficultyVotesCount: 1,
       })
     );

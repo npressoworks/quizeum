@@ -17,7 +17,7 @@ export const DEFAULT_HOME_FEED_FILTERS: HomeFeedFilters = {
   searchQuery: '',
   tagChips: [],
   difficultyMin: 1,
-  difficultyMax: 10,
+  difficultyMax: 5,
   minQuestions: 1,
   maxQuestions: 50,
 };

@@ -416,9 +416,9 @@ export function validateQuizForPublish(quiz: Quiz): QuizPublishValidationError[]
   if (
     !Number.isInteger(quiz.difficulty) ||
     quiz.difficulty < 1 ||
-    quiz.difficulty > 10
+    quiz.difficulty > 5
   ) {
-    errors.push({ field: 'difficulty', message: '難易度は1〜10の整数で設定してください' });
+    errors.push({ field: 'difficulty', message: '難易度は1〜5の整数で設定してください' });
   }
 
   // ── ジャンル ──────────────────────────────────────────
