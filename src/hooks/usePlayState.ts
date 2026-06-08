@@ -306,7 +306,7 @@ export function usePlayState({
         if (currentIdx < questions.length - 1) {
           setCurrentIdx((prev) => prev + 1);
         } else {
-          setCurrentIdx(questions.length);
+          setShowAnswer(false);
         }
       }
     },
@@ -367,6 +367,8 @@ export function usePlayState({
   }, [mode, answeredIds, questions, manualAdvance, handleAnswerSubmit, feedbackPending, elapsedPolicyTickKey]);
 
   useEffect(() => {
+    setShowAnswer(false);
+
     if (questions.length === 0 || currentIdx >= questions.length) return;
 
     const currentQuestion = questions[currentIdx];
@@ -379,7 +381,6 @@ export function usePlayState({
     } else {
       setTimeLeft(null);
     }
-    setShowAnswer(false);
   }, [currentIdx, questions, mode]);
 
   const clearSession = () => {

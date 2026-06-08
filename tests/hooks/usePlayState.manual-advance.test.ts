@@ -114,3 +114,37 @@ describe('usePlayState manualAdvance', () => {
     expect(result.current.score).toBe(0);
   });
 });
+
+describe('usePlayState flashcard', () => {
+  beforeEach(() => {
+    localStorageMock.clear();
+    jest.clearAllMocks();
+  });
+
+  test('最終問回答後は showAnswer がリセットされ currentIdx は最終問のまま', () => {
+    const singleQuestion = [questions[0]];
+    const { result } = renderHook(() =>
+      usePlayState({
+        quizId: 'quiz-1',
+        userId: 'user-1',
+        mode: 'flashcard',
+        questions: singleQuestion,
+        persistSession: false,
+      })
+    );
+
+    act(() => {
+      result.current.setShowAnswer(true);
+    });
+
+    expect(result.current.showAnswer).toBe(true);
+
+    act(() => {
+      result.current.handleAnswerSubmit('correct');
+    });
+
+    expect(result.current.currentIdx).toBe(singleQuestion.length - 1);
+    expect(result.current.showAnswer).toBe(false);
+    expect(result.current.isFinished).toBe(true);
+  });
+});

@@ -971,6 +971,10 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
 
   const showSkipInCard = showSkipQuestion && !showQuickPressDock;
 
+  if (!isNormalFeedbackFlow && (isFinished || completing)) {
+    return <PlaySkeleton data-testid="quiz-play-completing" />;
+  }
+
   return (
     <div
       className={`${styles.container} ${showQuickPressDock ? styles.containerWithQuickPressDock : ''}`}
@@ -1199,7 +1203,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
         )}
 
         {/* 3. フラッシュカードのフリップ動作 */}
-        {effectivePlayMode === 'flashcard' && (
+        {effectivePlayMode === 'flashcard' && currentQuestion && (
           <div className={styles.flashcardArea}>
             {!showAnswer ? (
               <button className="btn btn-accent" onClick={() => setShowAnswer(true)} data-analytics="quiz-flashcard-reveal">
