@@ -10,6 +10,15 @@ import styles from '@/app/page.module.css';
 
 const QUICK_CHIPS = ['#ウミガメのスープ', '#JavaScript', '#雑学', '#難問', '#初心者向け'];
 
+/** 難易度ラベルマップ */
+const DIFFICULTY_LABELS: Record<number, string> = {
+  1: 'かんたん',
+  2: 'やや易しい',
+  3: '普通',
+  4: 'やや難しい',
+  5: 'むずかしい',
+};
+
 export interface ExploreSearchSectionProps {
   filters: HomeFeedFilters;
   onFiltersChange: (patch: Partial<HomeFeedFilters>) => void;
@@ -96,58 +105,144 @@ export function ExploreSearchSection({
 
       {showFilters && (
         <div className={styles.filterPanel}>
-          <div className={styles.filterGroup}>
-            <span className={styles.filterLabel}>難易度範囲 (1 - 10)</span>
-            <div className={styles.rangeInputs}>
+
+          {/* ── 難易度スライダー ── */}
+          <div className={styles.filterGroupFull}>
+            <div className={styles.filterLabelRow}>
+              <span className={styles.filterLabel}>難易度</span>
+              <span className={styles.filterValue}>
+                {filters.difficultyMin === filters.difficultyMax
+                  ? `Lv.${filters.difficultyMin}（${DIFFICULTY_LABELS[filters.difficultyMin]}）`
+                  : `Lv.${filters.difficultyMin} 〜 Lv.${filters.difficultyMax}`}
+              </span>
+            </div>
+
+            <div className={styles.dualSliderWrapper}>
+              {/* トラック背景（選択範囲のハイライト用） */}
+              <div
+                className={styles.sliderTrackHighlight}
+                style={{
+                  left: `${((filters.difficultyMin - 1) / 4) * 100}%`,
+                  right: `${((5 - filters.difficultyMax) / 4) * 100}%`,
+                }}
+              />
+
+              {/* Min スライダー */}
               <input
-                type="number"
-                min="1"
-                max="10"
-                className={styles.filterSelect}
+                type="range"
+                min={1}
+                max={5}
+                step={1}
                 value={filters.difficultyMin}
-                onChange={(e) =>
-                  onFiltersChange({ difficultyMin: Number(e.target.value) })
-                }
+                className={styles.rangeSlider}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  onFiltersChange({
+                    difficultyMin: v,
+                    difficultyMax: Math.max(v, filters.difficultyMax),
+                  });
+                }}
+                aria-label="難易度最小値"
               />
-              <span>〜</span>
+
+              {/* Max スライダー */}
               <input
-                type="number"
-                min="1"
-                max="10"
-                className={styles.filterSelect}
+                type="range"
+                min={1}
+                max={5}
+                step={1}
                 value={filters.difficultyMax}
-                onChange={(e) =>
-                  onFiltersChange({ difficultyMax: Number(e.target.value) })
-                }
+                className={styles.rangeSlider}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  onFiltersChange({
+                    difficultyMax: v,
+                    difficultyMin: Math.min(v, filters.difficultyMin),
+                  });
+                }}
+                aria-label="難易度最大値"
               />
+            </div>
+
+            {/* 目盛りラベル */}
+            <div className={styles.sliderTicks}>
+              {[1, 2, 3, 4, 5].map((lv) => (
+                <span key={lv} className={styles.sliderTick}>
+                  {lv}
+                </span>
+              ))}
             </div>
           </div>
 
-          <div className={styles.filterGroup}>
-            <span className={styles.filterLabel}>問題数</span>
-            <div className={styles.rangeInputs}>
+          {/* ── 問題数 ── */}
+          <div className={styles.filterGroupFull}>
+            <div className={styles.filterLabelRow}>
+              <span className={styles.filterLabel}>問題数</span>
+              <span className={styles.filterValue}>
+                {filters.minQuestions === filters.maxQuestions
+                  ? `${filters.minQuestions} 問`
+                  : `${filters.minQuestions} 〜 ${filters.maxQuestions} 問`}
+              </span>
+            </div>
+
+            <div className={styles.dualSliderWrapper}>
+              {/* 選択範囲のハイライトトラック */}
+              <div
+                className={styles.sliderTrackHighlight}
+                style={{
+                  left: `${((filters.minQuestions - 1) / 49) * 100}%`,
+                  right: `${((50 - filters.maxQuestions) / 49) * 100}%`,
+                }}
+              />
+
+              {/* Min スライダー */}
               <input
-                type="number"
-                min="1"
-                className={styles.filterSelect}
+                type="range"
+                min={1}
+                max={50}
+                step={1}
                 value={filters.minQuestions}
-                onChange={(e) =>
-                  onFiltersChange({ minQuestions: Number(e.target.value) })
-                }
+                className={styles.rangeSlider}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  onFiltersChange({
+                    minQuestions: v,
+                    maxQuestions: Math.max(v, filters.maxQuestions),
+                  });
+                }}
+                aria-label="最小問題数"
               />
-              <span>〜</span>
+
+              {/* Max スライダー */}
               <input
-                type="number"
-                min="1"
-                className={styles.filterSelect}
+                type="range"
+                min={1}
+                max={50}
+                step={1}
                 value={filters.maxQuestions}
-                onChange={(e) =>
-                  onFiltersChange({ maxQuestions: Number(e.target.value) })
-                }
+                className={styles.rangeSlider}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  onFiltersChange({
+                    maxQuestions: v,
+                    minQuestions: Math.min(v, filters.minQuestions),
+                  });
+                }}
+                aria-label="最大問題数"
               />
+            </div>
+
+            {/* 目盛りラベル（10問刻み） */}
+            <div className={styles.sliderTicks}>
+              {[1, 10, 20, 30, 40, 50].map((n) => (
+                <span key={n} className={styles.sliderTick}>
+                  {n}
+                </span>
+              ))}
             </div>
           </div>
 
+          {/* ── プレイ状況 ── */}
           <div className={styles.filterGroup}>
             <span className={styles.filterLabel}>プレイ状況</span>
             <select
@@ -171,6 +266,7 @@ export function ExploreSearchSection({
               </p>
             )}
           </div>
+
         </div>
       )}
     </section>
