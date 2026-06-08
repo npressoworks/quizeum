@@ -16,28 +16,21 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { collection, doc, getDoc, updateDoc, setDoc, arrayUnion, increment, runTransaction } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { FieldValue } from 'firebase-admin/firestore';
+import { getAdminFirestore } from '@/lib/firebase/admin';
 import {
   findCachedAnswer,
   isAiTurnLimitExceeded,
-  buildAiPrompt,
   parseAiResponse,
   mapHistoryToGeminiContents,
   buildAiSystemInstruction,
 } from '@/services/ask-ai-utils';
 import { AiQuestion, Attempt, Quiz } from '@/types';
 import { extractBearerToken, verifyFirebaseIdToken } from '@/lib/firebase/auth-verify';
-import { computeUserEntitlements } from '@/services/entitlement';
+import { resolveUserEntitlements } from '@/services/entitlement';
 
 /** Gemini API クライアント（サーバーサイドでのみ使用） */
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
-
-/** Attempts コレクション参照 */
-const attemptsCollection = collection(db, 'attempts');
-
-/** Quizzes コレクション参照 */
-const quizzesCollection = collection(db, 'quizzes');
 
 /**
  * 日本時間の今日の日付文字列 (YYYY-MM-DD) を取得するヘルパー
@@ -90,24 +83,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    const db = getAdminFirestore();
+
     // ── 認証済み UID からサーバー側でエンタイトルメントを解決（クライアント送信値は信頼しない）──
     let hasUnlimitedAiQuestions = false;
     try {
-      const userDocRef = doc(db, 'users', verifiedUid);
-      const userSnap = await getDoc(userDocRef);
-      if (userSnap.exists()) {
-        const entitlements = computeUserEntitlements(userSnap.data());
-        hasUnlimitedAiQuestions = entitlements.hasUnlimitedAiQuestions;
-      }
+      const entitlements = await resolveUserEntitlements(verifiedUid);
+      hasUnlimitedAiQuestions = entitlements.hasUnlimitedAiQuestions;
     } catch (dbErr) {
       console.error('[ask-ai] ユーザーエンタイトルメント解決エラー (非致命的):', dbErr);
     }
 
     // ── Attempt ドキュメントを取得 ──────────────────────────
-    const attemptRef = doc(attemptsCollection, attemptId);
-    const attemptSnap = await getDoc(attemptRef);
+    const attemptRef = db.collection('attempts').doc(attemptId);
+    const attemptSnap = await attemptRef.get();
 
-    if (!attemptSnap.exists()) {
+    if (!attemptSnap.exists) {
       return NextResponse.json(
         { error: 'attempt-not-found', message: '対象 of プレイ記録が見つかりません' },
         { status: 404 }
@@ -139,11 +130,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // ── 1日同一クイズ20回制限チェック ────────────────────────
     const todayStr = getTodayString();
-    const dailyCountDocRef = doc(db, 'users', userId, 'dailyAiTurnCounts', attempt.quizId);
-    const dailyCountSnap = await getDoc(dailyCountDocRef);
+    const dailyCountDocRef = db
+      .collection('users')
+      .doc(userId)
+      .collection('dailyAiTurnCounts')
+      .doc(attempt.quizId);
+    const dailyCountSnap = await dailyCountDocRef.get();
 
     let currentDailyCount = 0;
-    if (dailyCountSnap.exists()) {
+    if (dailyCountSnap.exists) {
       const dailyData = dailyCountSnap.data() as { count: number; lastUpdatedDate: string };
       if (dailyData.lastUpdatedDate === todayStr) {
         currentDailyCount = dailyData.count;
@@ -161,10 +156,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // ── クイズの裏設定を取得 ────────────────────────────────
-    const quizRef = doc(quizzesCollection, attempt.quizId);
-    const quizSnap = await getDoc(quizRef);
+    const quizRef = db.collection('quizzes').doc(attempt.quizId);
+    const quizSnap = await quizRef.get();
 
-    if (!quizSnap.exists()) {
+    if (!quizSnap.exists) {
       return NextResponse.json(
         { error: 'quiz-not-found', message: 'クイズが見つかりません' },
         { status: 404 }
@@ -225,18 +220,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       createdAt: new Date(),
     };
 
-    await runTransaction(db, async (transaction) => {
+    await db.runTransaction(async (transaction) => {
       // 1. attempt の対話履歴と質問数インクリメント
       transaction.update(attemptRef, {
-        aiQuestionsHistory: arrayUnion(newEntry),
-        aiTurnCount: increment(1),
+        aiQuestionsHistory: FieldValue.arrayUnion(newEntry),
+        aiTurnCount: FieldValue.increment(1),
       });
 
       // 2. 1日20回制限のカウンタをインクリメント・本日日付に更新
       transaction.set(
         dailyCountDocRef,
         {
-          count: increment(1),
+          count: FieldValue.increment(1),
           lastUpdatedDate: todayStr,
         },
         { merge: true }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AiQuestion } from '@/types';
 import { auth } from '@/lib/firebase/config';
 
@@ -22,7 +22,10 @@ export function useAiPlayState({
   const [history, setHistory] = useState<AiQuestion[]>(initialHistory);
   const [turnCount, setTurnCount] = useState<number>(initialTurnCount);
   const [pending, setPending] = useState<boolean>(false);
+  /** API応答待ち中にチャットへ即時表示する送信済み質問文 */
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
   // 質問のキャッシュ検索 (全角半角/スペース等のブレを吸収するため正規化して比較)
   const findCachedAnswer = (text: string): AiQuestion | null => {
@@ -35,7 +38,7 @@ export function useAiPlayState({
 
   // 質問送信
   const askQuestion = async (questionText: string) => {
-    if (!questionText.trim() || pending) return;
+    if (!questionText.trim() || pending || inFlightRef.current) return;
     setErrorMsg(null);
 
     // 1. 同一質問のキャッシュ照合
@@ -59,6 +62,8 @@ export function useAiPlayState({
       return;
     }
 
+    inFlightRef.current = true;
+    setPendingQuestion(questionText);
     setPending(true);
 
     try {
@@ -116,9 +121,13 @@ export function useAiPlayState({
       };
       setHistory((prev) => [...prev, errorEntry]);
     } finally {
+      inFlightRef.current = false;
       setPending(false);
+      setPendingQuestion(null);
     }
   };
+
+  const isAwaitingResponse = pending || pendingQuestion !== null;
 
   return {
     history,
@@ -126,6 +135,8 @@ export function useAiPlayState({
     turnCount,
     setTurnCount,
     pending,
+    pendingQuestion,
+    isAwaitingResponse,
     errorMsg,
     askQuestion,
   };

@@ -304,12 +304,21 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     initialTurnCount: 0,
   });
 
+  const chatHistoryEndRef = useRef<HTMLDivElement>(null);
+
+  // 送信・回答表示時にチャット末尾へスクロール
+  useEffect(() => {
+    if (playMode !== 'lateral') return;
+    chatHistoryEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [playMode, aiPlay.history, aiPlay.pending, aiPlay.pendingQuestion, truthPassed]);
+
   // ウミガメ 質問送信
   const handleQuestionSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!questionInput.trim() || aiPlay.pending) return;
-    await aiPlay.askQuestion(questionInput);
+    if (!questionInput.trim() || aiPlay.isAwaitingResponse) return;
+    const text = questionInput.trim();
     setQuestionInput('');
+    await aiPlay.askQuestion(text);
   };
 
   // ウミガメ 真相回答判定送信
@@ -503,6 +512,13 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
               </React.Fragment>
             ))}
 
+            {/* 送信直後のユーザー質問（API応答待ち中） */}
+            {aiPlay.pendingQuestion && (
+              <div className={`${styles.chatBubble} ${styles.bubbleUser}`}>
+                {aiPlay.pendingQuestion}
+              </div>
+            )}
+
             {/* AIが質問を分析中の表示 (Task 4.2) */}
             {aiPlay.pending && (
               <div className={styles.chatPending}>
@@ -516,6 +532,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
                 🎉 【合格】素晴らしい！見事に真相を解き明かしました！結果画面へ遷移します...
               </div>
             )}
+            <div ref={chatHistoryEndRef} aria-hidden="true" />
           </div>
 
           {/* 入力欄 */}
@@ -532,12 +549,13 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
                 placeholder={aiPlay.turnCount >= 20 ? "質問の上限に達しました" : "AIに質問する (例: 男は一人でしたか？)..."}
                 value={questionInput}
                 onChange={(e) => setQuestionInput(e.target.value)}
-                disabled={aiPlay.pending || aiPlay.turnCount >= 20 || truthPassed}
+                disabled={aiPlay.isAwaitingResponse || aiPlay.turnCount >= 20 || truthPassed}
               />
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={aiPlay.pending || !questionInput.trim() || aiPlay.turnCount >= 20 || truthPassed}
+                disabled={aiPlay.isAwaitingResponse || !questionInput.trim() || aiPlay.turnCount >= 20 || truthPassed}
+                aria-busy={aiPlay.isAwaitingResponse}
                 data-analytics="quiz-lateral-question-send"
               >
                 <Send size={16} />
