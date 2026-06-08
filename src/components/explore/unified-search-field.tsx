@@ -40,7 +40,7 @@ export function UnifiedSearchField({
   const [highlight, setHighlight] = useState(0);
 
   const { recentKeywords, addRecentKeyword } = useSearchHistory();
-  const { keywords: weeklyKeywords, tags: weeklyTags, loading: loadingWeekly, error: errorWeekly } = useWeeklyTopSearch();
+  const { keywords: weeklyKeywords, loading: loadingWeekly, error: errorWeekly } = useWeeklyTopSearch();
 
   const suggestions = useMemo(
     () => filterTagSuggestions(tags, keyword),
@@ -202,31 +202,6 @@ export function UnifiedSearchField({
 
           {!errorWeekly && (
             <>
-              <div data-testid="weekly-top-tags-section" className={styles.section}>
-                <div className={styles.sectionTitle}>今週の人気タグ</div>
-                {loadingWeekly ? (
-                  <div className={styles.loading}>読み込み中...</div>
-                ) : (
-                  <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                    {weeklyTags.map((tagId) => (
-                      <li
-                        key={tagId}
-                        role="option"
-                        className={styles.option}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          addRecentKeyword(tagId);
-                          pickTag(tagId);
-                        }}
-                      >
-                        <span className={styles.optionKind}>タグ</span>
-                        {tagLabelById.get(tagId) ?? tagId}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
               <div data-testid="weekly-top-keywords-section" className={styles.section}>
                 <div className={styles.sectionTitle}>今週の人気キーワード</div>
                 {loadingWeekly ? (

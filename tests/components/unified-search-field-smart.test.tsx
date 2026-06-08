@@ -78,7 +78,7 @@ describe('UnifiedSearchField - Smart Suggest', () => {
 
     expect(screen.getByTestId('search-smart-suggest')).toBeInTheDocument();
     expect(screen.getByTestId('recent-keywords-section')).toBeInTheDocument();
-    expect(screen.getByTestId('weekly-top-tags-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('weekly-top-tags-section')).not.toBeInTheDocument();
     expect(screen.getByTestId('weekly-top-keywords-section')).toBeInTheDocument();
   });
 
@@ -150,30 +150,4 @@ describe('UnifiedSearchField - Smart Suggest', () => {
     expect(screen.queryByTestId('search-smart-suggest')).not.toBeInTheDocument();
   });
 
-  test('週間人気タグの選択時に、履歴追加・タグチップ追加・ドロップダウン閉鎖が機能すること', () => {
-    render(
-      <UnifiedSearchField
-        tagChips={[]}
-        onTagChipsChange={mockOnTagChipsChange}
-        keyword=""
-        onKeywordChange={mockOnKeywordChange}
-        tags={mockTags}
-        tagsLoading={false}
-        tagsError={null}
-        tagLabelById={tagLabelById}
-        onClearAll={mockOnClearAll}
-      />
-    );
-
-    const input = screen.getByPlaceholderText('タイトル、説明文、作成者、タグでクイズを検索...');
-    fireEvent.focus(input);
-
-    const option = screen.getByText('JavaScript');
-    fireEvent.mouseDown(option);
-
-    expect(mockAddRecentKeyword).toHaveBeenCalledWith('tag-js');
-    expect(mockOnTagChipsChange).toHaveBeenCalledWith(['tag-js']);
-    expect(mockOnKeywordChange).toHaveBeenCalledWith('');
-    expect(screen.queryByTestId('search-smart-suggest')).not.toBeInTheDocument();
-  });
 });

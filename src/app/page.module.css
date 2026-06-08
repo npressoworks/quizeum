@@ -108,6 +108,11 @@
   font-weight: 600;
 }
 
+.quickSearchLoading {
+  font-size: 0.8rem;
+  color: #718096;
+}
+
 .quickChip {
   background: rgba(157, 78, 221, 0.08);
   border: 1px solid rgba(157, 78, 221, 0.25);

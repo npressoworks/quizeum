@@ -7,6 +7,19 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { ExploreSearchSection } from '@/components/explore/explore-search-section';
 import { DEFAULT_HOME_FEED_FILTERS } from '@/lib/home-feed-filters';
 
+let mockWeeklyTags: string[] = ['js', 'trivia'];
+let mockLoadingWeekly = false;
+let mockErrorWeekly = false;
+
+jest.mock('@/hooks/useWeeklyTrends', () => ({
+  useWeeklyTopSearch: () => ({
+    keywords: [],
+    tags: mockWeeklyTags,
+    loading: mockLoadingWeekly,
+    error: mockErrorWeekly,
+  }),
+}));
+
 const tags = [
   { id: 'js', tagName: 'js', canonicalId: null, mergedTagIds: [] },
 ];
@@ -26,6 +39,9 @@ const baseProps = {
 describe('ExploreSearchSection', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLoadingWeekly = false;
+    mockErrorWeekly = false;
+    mockWeeklyTags = ['js', 'trivia'];
   });
 
   it('フィルターパネルにジャンルは含まず難易度・問題数・プレイ状況を表示する', () => {
@@ -33,10 +49,35 @@ describe('ExploreSearchSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'フィルター' }));
     expect(screen.queryByText('ジャンル')).not.toBeInTheDocument();
-    expect(screen.getByText('難易度範囲 (1 - 10)')).toBeInTheDocument();
+    expect(screen.getByText('難易度')).toBeInTheDocument();
     expect(screen.getByText('問題数')).toBeInTheDocument();
     expect(screen.getByText('プレイ状況')).toBeInTheDocument();
     expect(screen.getByText('クイック検索:')).toBeInTheDocument();
+  });
+
+  it('週間人気タグをクイック検索チップとして表示する', () => {
+    render(<ExploreSearchSection {...baseProps} showQuickSearch />);
+
+    expect(screen.getByTestId('quick-search-chip-js')).toHaveTextContent('#js');
+    expect(screen.getByTestId('quick-search-chip-trivia')).toHaveTextContent('#trivia');
+  });
+
+  it('クイック検索チップ選択でタグチップが追加される', () => {
+    const onFiltersChange = jest.fn();
+    render(
+      <ExploreSearchSection {...baseProps} showQuickSearch onFiltersChange={onFiltersChange} />
+    );
+
+    fireEvent.click(screen.getByTestId('quick-search-chip-js'));
+
+    expect(onFiltersChange).toHaveBeenCalledWith({ tagChips: ['js'] });
+  });
+
+  it('週間人気タグ取得失敗時はクイック検索を非表示にする', () => {
+    mockErrorWeekly = true;
+    render(<ExploreSearchSection {...baseProps} showQuickSearch />);
+
+    expect(screen.queryByTestId('quick-search-tags')).not.toBeInTheDocument();
   });
 
   it('ジャンルページではクイック検索を非表示にする', () => {

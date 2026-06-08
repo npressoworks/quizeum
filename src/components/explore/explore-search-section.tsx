@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { UnifiedSearchField } from '@/components/explore/unified-search-field';
+import { useWeeklyTopSearch } from '@/hooks/useWeeklyTrends';
 import { normalizeTag } from '@/services/quiz-validation';
 import type { TagMetadata } from '@/types';
 import type { HomeFeedFilters } from '@/lib/home-feed-filters';
 import styles from '@/app/page.module.css';
-
-const QUICK_CHIPS = ['#ウミガメのスープ', '#JavaScript', '#雑学', '#難問', '#初心者向け'];
 
 /** 難易度ラベルマップ */
 const DIFFICULTY_LABELS: Record<number, string> = {
@@ -51,9 +50,15 @@ export function ExploreSearchSection({
   testId,
 }: ExploreSearchSectionProps) {
   const [showFilters, setShowFilters] = useState(false);
+  const { tags: weeklyTags, loading: loadingWeekly, error: errorWeekly } = useWeeklyTopSearch();
 
-  const handleQuickChip = (label: string) => {
-    const normalized = normalizeTag(label.replace(/^#/, ''));
+  const quickTags = useMemo(
+    () => weeklyTags.filter((tagId) => !filters.tagChips.includes(tagId)).slice(0, 5),
+    [weeklyTags, filters.tagChips]
+  );
+
+  const handleQuickChip = (tagId: string) => {
+    const normalized = normalizeTag(tagId);
     if (!normalized || filters.tagChips.includes(normalized)) return;
     onFiltersChange({ tagChips: [...filters.tagChips, normalized] });
   };
@@ -87,19 +92,24 @@ export function ExploreSearchSection({
         </button>
       </div>
 
-      {showQuickSearch && (
-        <div className={styles.quickSearch}>
+      {showQuickSearch && !errorWeekly && (loadingWeekly || quickTags.length > 0) && (
+        <div className={styles.quickSearch} data-testid="quick-search-tags">
           <span className={styles.quickSearchLabel}>クイック検索:</span>
-          {QUICK_CHIPS.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className={styles.quickChip}
-              onClick={() => handleQuickChip(tag)}
-            >
-              {tag}
-            </button>
-          ))}
+          {loadingWeekly ? (
+            <span className={styles.quickSearchLoading}>読み込み中...</span>
+          ) : (
+            quickTags.map((tagId) => (
+              <button
+                key={tagId}
+                type="button"
+                className={styles.quickChip}
+                data-testid={`quick-search-chip-${tagId}`}
+                onClick={() => handleQuickChip(tagId)}
+              >
+                #{tagLabelById.get(tagId) ?? tagId}
+              </button>
+            ))
+          )}
         </div>
       )}
 
