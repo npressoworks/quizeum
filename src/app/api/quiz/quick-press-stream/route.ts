@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase/config';
 import { quizzesRef } from '@/lib/firebase/firestore';
 import {
   parseMarkdownToQuickPressTokens,
+  serializeQuickPressStreamLayout,
   serializeQuickPressStreamToken,
 } from '@/lib/quick-press-plain-text';
 import { QUICK_PRESS_BODY_CHAR_MS, sleep } from '@/lib/quick-press-stream-config';
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          controller.enqueue(encoder.encode(serializeQuickPressStreamLayout(tokens)));
           for (const token of tokens) {
             controller.enqueue(encoder.encode(serializeQuickPressStreamToken(token)));
             await sleep(QUICK_PRESS_BODY_CHAR_MS);

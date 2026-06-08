@@ -1,12 +1,10 @@
 'use client';
 
 import { getTextInputFieldProps } from '@/services/text-answer-utils';
-import React, { useEffect, useState, useRef, Suspense } from 'react';
+import React, { useCallback, useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
-  CheckCircle,
-  AlertTriangle,
   Check,
   X,
   ShieldAlert,
@@ -16,8 +14,10 @@ import { QuestionTextDisplay } from '@/components/quiz/question-text-display';
 import { useQuickPressStream } from '@/hooks/useQuickPressStream';
 import { decodeStoredQuestionText } from '@/lib/question-text';
 import { useAuth } from '@/context/auth-context';
-import { usePlayState } from '@/hooks/usePlayState';
-import { toQuestionAnswerRecords } from '@/services/attempt-answer-display';
+import { usePlayState, type QuestionElapsedPolicy } from '@/hooks/usePlayState';
+import { toQuestionAnswerRecords, formatCorrectAnswer } from '@/services/attempt-answer-display';
+import { PostAnswerFeedback } from '@/components/quiz/post-answer-feedback';
+import { formatPlayElapsedSeconds } from '@/lib/format-play-elapsed';
 import { Quiz, Question } from '@/types';
 import {
   TEST_PLAY_QUIZ_ID,
@@ -29,7 +29,6 @@ import {
   TestPlayResult,
   buildTestPlayReturnUrl,
 } from '@/lib/test-play';
-import { obfuscateQuickPressQuiz } from '@/lib/quick-press-obfuscate';
 import { PlaySkeleton } from '@/components/quiz/play-skeleton';
 import styles from '@/app/quiz/[id]/play/play.module.css';
 import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
@@ -67,9 +66,13 @@ function TestPlayClient() {
     }
 
     setSourcePath(payload.sourcePath);
-    setQuiz(obfuscateQuickPressQuiz(prepareQuizForTestPlay(payload.quizDraft)));
+    setQuiz(prepareQuizForTestPlay(payload.quizDraft));
     setLoading(false);
   }, [user, authLoading, playMode, router]);
+
+  const [elapsedPolicy, setElapsedPolicy] = useState<QuestionElapsedPolicy>({
+    kind: 'standard',
+  });
 
   const {
     currentIdx,
@@ -79,8 +82,13 @@ function TestPlayClient() {
     score,
     elapsedSeconds,
     timeLeft,
+    recordAnswer,
+    advanceToNext,
+    completePlay,
     handleAnswerSubmit,
-    isFinished,
+    feedbackPending,
+    lastAnswerResult,
+    beginLimitCountdown,
   } = usePlayState({
     quizId: TEST_PLAY_QUIZ_ID,
     userId: user?.id || 'guest',
@@ -88,6 +96,8 @@ function TestPlayClient() {
     questions: quiz?.questions || [],
     persistSession: false,
     skipJudgmentWhenIncomplete: true,
+    manualAdvance: true,
+    elapsedPolicy,
   });
 
   const handlePlayComplete = () => {
@@ -106,9 +116,8 @@ function TestPlayClient() {
 
   const [isReadingStarted, setIsReadingStarted] = useState(false);
   const [isQuickPressed, setIsQuickPressed] = useState(false);
-  const [instantFeedback, setInstantFeedback] = useState<'correct' | 'incorrect' | null>(null);
-  const [userAnswer, setUserAnswer] = useState('');
   const [currentQuickPressTime, setCurrentQuickPressTime] = useState(0);
+  const [quickPressTimes, setQuickPressTimes] = useState<Record<string, number>>({});
   const quickPressStartTimeRef = useRef<number | null>(null);
   const quickInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -122,17 +131,43 @@ function TestPlayClient() {
       ? decodeStoredQuestionText(quickPressQuestion.questionText, 'quick-press')
       : '';
 
-  const { displayTokens: quickPressDisplayTokens, cancelStream: cancelQuickPressStream } =
-    useQuickPressStream({
-      enabled: Boolean(quickPressQuestion && isReadingStarted),
-      mode: 'local',
-      quizId: TEST_PLAY_QUIZ_ID,
-      questionId: quickPressQuestion?.id ?? '',
-      localBodyMarkdown: quickPressLocalBody,
-      onBodyTimingStart: () => {
-        quickPressStartTimeRef.current = Date.now();
-      },
-    });
+  const handleQuickPressReadingComplete = useCallback(() => {
+    beginLimitCountdown();
+  }, [beginLimitCountdown]);
+
+  const {
+    displayTokens: quickPressDisplayTokens,
+    reservedTokens: quickPressReservedTokens,
+    cancelStream: cancelQuickPressStream,
+    isReadingComplete,
+  } = useQuickPressStream({
+    enabled: Boolean(quickPressQuestion && isReadingStarted),
+    mode: 'local',
+    quizId: TEST_PLAY_QUIZ_ID,
+    questionId: quickPressQuestion?.id ?? '',
+    localBodyMarkdown: quickPressLocalBody,
+    onBodyTimingStart: () => {
+      quickPressStartTimeRef.current = Date.now();
+    },
+    onReadingComplete: handleQuickPressReadingComplete,
+  });
+
+  useEffect(() => {
+    const q = quiz?.questions[currentIdx];
+    if (q?.type !== 'quick-press') {
+      setElapsedPolicy({ kind: 'standard' });
+      return;
+    }
+    if (feedbackPending) {
+      setElapsedPolicy({ kind: 'quick-press', phase: 'feedback' });
+    } else if (!isReadingStarted) {
+      setElapsedPolicy({ kind: 'quick-press', phase: 'pre_reading' });
+    } else if (isQuickPressed) {
+      setElapsedPolicy({ kind: 'quick-press', phase: 'post_reading' });
+    } else {
+      setElapsedPolicy({ kind: 'quick-press', phase: 'reading' });
+    }
+  }, [quiz, currentIdx, isReadingStarted, isQuickPressed, feedbackPending]);
 
   const [sortingItems, setSortingItems] = useState<{ id: string; text: string; correctOrder: number }[]>([]);
   const [activeHintIdx, setActiveHintIdx] = useState(0);
@@ -144,8 +179,6 @@ function TestPlayClient() {
   useEffect(() => {
     setIsReadingStarted(false);
     setIsQuickPressed(false);
-    setInstantFeedback(null);
-    setUserAnswer('');
     setCurrentQuickPressTime(0);
     setLateralTruth('');
     setLateralFeedback(null);
@@ -169,6 +202,24 @@ function TestPlayClient() {
       setActiveHintIdx(0);
     }
   }, [currentIdx, quiz]);
+
+  const submitAnswer = (answer: string) => {
+    recordAnswer(answer);
+  };
+
+  const handleSkipQuestion = () => {
+    if (feedbackPending) return;
+    recordAnswer('');
+  };
+
+  const handleNextQuestion = () => {
+    advanceToNext();
+  };
+
+  const handleViewResults = () => {
+    completePlay();
+    handlePlayComplete();
+  };
 
   const handleQuickPress = () => {
     if (isQuickPressed) return;
@@ -224,23 +275,24 @@ function TestPlayClient() {
     );
   }
 
-  if (isFinished && currentIdx >= (quiz.questions ?? []).length) {
-    return (
-      <div className={styles.container} style={{ textAlign: 'center', padding: '100px 0' }}>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>全問終了しました！</p>
-        <button type="button" className="btn btn-primary" onClick={handlePlayComplete}>
-          結果を確認する
-        </button>
-      </div>
-    );
-  }
-
   const currentQuestion = quiz.questions[currentIdx];
   const progressPercent = (quiz.questions ?? []).length > 0 ? (answeredIds.length / quiz.questions.length) * 100 : 0;
+  const isLastQuestion = currentIdx >= (quiz.questions ?? []).length - 1;
   const judgeable = canJudgeQuestion(currentQuestion);
+  const showFeedback = judgeable && feedbackPending && lastAnswerResult;
+  const showQuickPressDock =
+    judgeable && !feedbackPending && currentQuestion?.type === 'quick-press';
+  const showSkipQuestion =
+    judgeable &&
+    !feedbackPending &&
+    (currentQuestion?.type !== 'quick-press' ||
+      (isReadingStarted && (isReadingComplete || isQuickPressed)));
+  const showSkipInCard = showSkipQuestion && !showQuickPressDock;
 
   return (
-    <div className={styles.container}>
+    <div
+      className={`${styles.container} ${showQuickPressDock ? styles.containerWithQuickPressDock : ''}`}
+    >
       <div
         style={{
           background: 'rgba(127, 0, 255, 0.08)',
@@ -275,7 +327,7 @@ function TestPlayClient() {
         </div>
         <div className={styles.progressText}>
           <span>解答済み: {answeredIds.length} / {(quiz.questions ?? []).length} 問</span>
-          <span>経過時間: {elapsedSeconds} 秒</span>
+          <span>経過時間: {formatPlayElapsedSeconds(elapsedSeconds)}</span>
         </div>
       </div>
 
@@ -317,15 +369,36 @@ function TestPlayClient() {
           question={currentQuestion}
           className={styles.questionText}
           quickPressDisplayTokens={quickPressDisplayTokens}
+          quickPressReservedTokens={quickPressReservedTokens}
           isQuickPressReading={isReadingStarted}
         />
 
+        {showFeedback ? (
+          <PostAnswerFeedback
+            isCorrect={lastAnswerResult.isCorrect}
+            explanation={currentQuestion.explanation}
+            correctAnswerDisplay={
+              !lastAnswerResult.isCorrect && currentQuestion.type !== 'quick-press'
+                ? formatCorrectAnswer(currentQuestion) || undefined
+                : undefined
+            }
+            isLastQuestion={isLastQuestion}
+            onNext={handleNextQuestion}
+            onViewResults={handleViewResults}
+            quickPressTime={
+              currentQuestion.type === 'quick-press'
+                ? quickPressTimes[currentQuestion.id] ?? currentQuickPressTime
+                : undefined
+            }
+          />
+        ) : (
+          <>
         {(currentQuestion.type === 'multiple-choice' || currentQuestion.type === 'true-false') && (
           <ChoiceAnswerPanel
             question={currentQuestion}
-            onConfirm={handleAnswerSubmit}
+            onConfirm={submitAnswer}
             initialAnswer={questionAnswers[currentQuestion.id]}
-            disabled={answeredIds.includes(currentQuestion.id)}
+            disabled={feedbackPending}
           />
         )}
 
@@ -336,7 +409,7 @@ function TestPlayClient() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const input = (e.currentTarget.elements.namedItem('textAnswer') as HTMLInputElement).value;
-                handleAnswerSubmit(input);
+                submitAnswer(input);
                 e.currentTarget.reset();
               }}
               className={styles.inputForm}
@@ -356,149 +429,6 @@ function TestPlayClient() {
             </form>
           );
         })()}
-
-        {currentQuestion.type === 'quick-press' && (
-          <div className={styles.quickPressArea}>
-            {!isReadingStarted ? (
-              <button
-                type="button"
-                className={`${styles.startReadingBtn} btn`}
-                onClick={() => setIsReadingStarted(true)}
-                style={{
-                  width: '100%',
-                  padding: '24px',
-                  fontSize: '1.4rem',
-                  fontWeight: 'bold',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #00f5d4, #00bbf9)',
-                  color: '#111',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                🔊 問読みを開始する
-              </button>
-            ) : !isQuickPressed ? (
-              <button
-                type="button"
-                className={`${styles.quickPressBtn} btn`}
-                onClick={handleQuickPress}
-                style={{
-                  width: '100%',
-                  padding: '24px',
-                  fontSize: '1.4rem',
-                  fontWeight: 'bold',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #ff007f, #7f00ff)',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                🔴 押して回答する！
-              </button>
-            ) : instantFeedback === null ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const input = (e.currentTarget.elements.namedItem('quickAnswer') as HTMLInputElement).value;
-                  setUserAnswer(input);
-                  let isCorrect = false;
-                  try {
-                    const decodedAnswers = currentQuestion.correctTextAnswerList?.map((ans) =>
-                      decodeURIComponent(escape(atob(ans))).trim().toLowerCase().replace(/\s+/g, '')
-                    ) || [];
-                    const cleanInput = input.trim().toLowerCase().replace(/\s+/g, '');
-                    isCorrect = decodedAnswers.includes(cleanInput);
-                  } catch {
-                    /* ignore */
-                  }
-                  setInstantFeedback(isCorrect ? 'correct' : 'incorrect');
-                  e.currentTarget.reset();
-                }}
-                className={styles.inputForm}
-              >
-                <input
-                  type="text"
-                  name="quickAnswer"
-                  ref={quickInputRef}
-                  className={styles.textInput}
-                  placeholder="答えを入力してください..."
-                  required
-                  autoComplete="off"
-                  disabled={!isQuickPressed}
-                />
-                <button type="submit" className="btn btn-primary">送信</button>
-              </form>
-            ) : (
-              <div className={styles.feedbackArea} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '16px',
-                    borderRadius: '8px',
-                    background: instantFeedback === 'correct' ? 'rgba(0, 245, 212, 0.08)' : 'rgba(255, 0, 127, 0.08)',
-                    border: `1px solid ${instantFeedback === 'correct' ? '#00f5d4' : '#ff007f'}`,
-                  }}
-                >
-                  {instantFeedback === 'correct' ? (
-                    <>
-                      <CheckCircle size={32} color="#00f5d4" />
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#00f5d4' }}>正解！</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                          早押しタイム: <strong style={{ color: '#00f5d4' }}>{currentQuickPressTime}</strong> 秒
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle size={32} color="#ff007f" />
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#ff007f' }}>不正解...</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                          正解:{' '}
-                          {currentQuestion.correctTextAnswerList?.map((ans) => {
-                            try {
-                              return decodeURIComponent(escape(atob(ans)));
-                            } catch {
-                              return '不明';
-                            }
-                          }).join(', ')}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-                {currentQuestion.explanation && (
-                  <div
-                    style={{
-                      padding: '16px',
-                      borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid var(--border-light)',
-                      fontSize: '0.95rem',
-                      lineHeight: '1.6',
-                    }}
-                  >
-                    <strong style={{ display: 'block', marginBottom: '8px' }}>💡 解説:</strong>
-                    <div dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.explanation) }} />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ width: '100%', padding: '14px' }}
-                  onClick={() => handleAnswerSubmit(userAnswer)}
-                >
-                  次の問題へ ➔
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {currentQuestion.type === 'sorting' && (
           <div className={styles.sortingArea}>
@@ -525,7 +455,7 @@ function TestPlayClient() {
               style={{ width: '100%', marginTop: '20px' }}
               onClick={() => {
                 const sortedIds = sortingItems.map((item) => item.id).join(',');
-                handleAnswerSubmit(sortedIds);
+                submitAnswer(sortedIds);
               }}
             >
               並び替えを確定して解答する
@@ -559,7 +489,7 @@ function TestPlayClient() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const input = (e.currentTarget.elements.namedItem('associationAnswer') as HTMLInputElement).value;
-                handleAnswerSubmit(input);
+                submitAnswer(input);
                 e.currentTarget.reset();
               }}
               className={styles.inputForm}
@@ -661,6 +591,20 @@ function TestPlayClient() {
             判定をスキップして次へ
           </button>
         )}
+
+        {showSkipInCard && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            data-testid="play-skip-question"
+            style={{ width: '100%', marginTop: '16px' }}
+            onClick={handleSkipQuestion}
+          >
+            わからない（スキップ）
+          </button>
+        )}
+          </>
+        )}
       </div>
 
       <div className={styles.actionsBar}>
@@ -670,6 +614,87 @@ function TestPlayClient() {
           </button>
         )}
       </div>
+
+      {showQuickPressDock && currentQuestion.type === 'quick-press' && (
+        <div className={styles.quickPressDock}>
+          <div className={styles.quickPressDockInner}>
+            {showSkipQuestion && (
+              <div className={styles.quickPressDockSkipSlot}>
+                <button
+                  type="button"
+                  className={`btn btn-secondary ${styles.quickPressSkipBtn}`}
+                  data-testid="play-skip-question"
+                  onClick={handleSkipQuestion}
+                >
+                  わからない（スキップ）
+                </button>
+              </div>
+            )}
+            <div className={styles.quickPressDockActionSlot}>
+              {!isReadingStarted ? (
+                <button
+                  type="button"
+                  className={`${styles.startReadingBtn} btn`}
+                  onClick={() => setIsReadingStarted(true)}
+                >
+                  🔊 問読みを開始する
+                </button>
+              ) : !isQuickPressed ? (
+                <button
+                  type="button"
+                  className={`${styles.quickPressBtn} btn`}
+                  onClick={handleQuickPress}
+                >
+                  🔴 押して回答する！
+                </button>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = (e.currentTarget.elements.namedItem('quickAnswer') as HTMLInputElement).value;
+
+                    let isCorrect = false;
+                    try {
+                      const decodedAnswers =
+                        currentQuestion.correctTextAnswerList?.map((ans) =>
+                          decodeURIComponent(escape(atob(ans))).trim().toLowerCase().replace(/\s+/g, '')
+                        ) || [];
+                      const cleanInput = input.trim().toLowerCase().replace(/\s+/g, '');
+                      isCorrect = decodedAnswers.includes(cleanInput);
+                    } catch {
+                      /* ignore */
+                    }
+
+                    if (isCorrect) {
+                      setQuickPressTimes((prev) => ({
+                        ...prev,
+                        [currentQuestion.id]: currentQuickPressTime,
+                      }));
+                    }
+
+                    submitAnswer(input);
+                    e.currentTarget.reset();
+                  }}
+                  className={styles.quickPressDockForm}
+                >
+                  <input
+                    type="text"
+                    name="quickAnswer"
+                    ref={quickInputRef}
+                    className={styles.textInput}
+                    placeholder="答えを入力してください..."
+                    required
+                    autoComplete="off"
+                  />
+                  <button type="submit" className="btn btn-primary">
+                    送信
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showHint && (
         <div className={styles.modalOverlay} onClick={() => setShowHint(false)}>

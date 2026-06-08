@@ -1991,4 +1991,305 @@ sequenceDiagram
 
 **Effort**: M（2〜3 日）— hook 分離 + コンポーネント + 楽観的遷移 + 結果 Client 統合
 
+---
+
+## Phase 16: 早押し形式の区間累計経過時間・制限時間・フィードバック・レイアウト設計（2026-06-09）
+
+### 1. 概要
+
+通常モード（`mode=normal`）で早押し形式（`quick-press`）の問題をプレイする際、画面上部の経過時間（⏱️）を **壁時計ではなく各問題区間の累計** として計測・表示する。問読み開始前・制限時間終了後・不正解／正解確定後のフィードバック中は加算を停止する。制限時間（`limitTime`）カウントダウンは問読み修了後に開始する。不正解フィードバックでは正解を表示せず、問題カードは問読み前から十分な横幅で表示する。
+
+**対象外**: 早押しタイム（押下〜回答秒数）、テストプレイ、exam / flashcard / lateral / question-list、復習プレイ、`saveAttempt` スキーマ変更。
+
+### 2. Boundary Commitments
+
+| 境界 | 所有者 | 責務 |
+|------|--------|------|
+| `play-elapsed.ts`（lib） | Play-flow UI | 区間累計の純関数（確定秒数 + 進行中区間の算出） |
+| `usePlayState` | Play-flow UI | 区間累計タイマーの tick 制御、`limitTime` の遅延開始 API、セッション永続化への `elapsedSeconds` 反映 |
+| `useQuickPressStream` | Play-flow UI | 問読み修了イベントの親への通知（`onReadingComplete`） |
+| `QuizPlayClient` | Play-flow UI | 早押しフェーズ遷移のオーケストレーション、レイアウトクラス付与、`PostAnswerFeedback` への正解非表示 |
+| `PostAnswerFeedback` | Play-flow UI | 呼び出し側が `correctAnswerDisplay` を渡さない場合の既存挙動維持（変更最小） |
+| `play.module.css` | Play-flow UI | 早押しプレイ時のコンテナ／カード横幅拡大 |
+| `saveAttempt` / リーダーボード | quizeum-core | 既存 `elapsedSeconds` フィールドを読み取り（値の意味が区間累計になるのみ） |
+
+**Out of boundary**: `quizeum-core` API 変更、早押しタイム計測、テストプレイ、復習画面、結果画面の正誤一覧（結果画面は従来どおり正解表示可）
+
+**Revalidation Triggers**:
+- `elapsedSeconds` のセッション復元形式変更 → `LocalAttemptSession` / `usePlayState` 復元ロジックの再検証
+- 混合クイズでの非早押し区間ルール変更 → 要件 18.6 と整合確認
+
+### 3. Architecture Pattern & State Model
+
+**Selected pattern**: 区間累計タイマー（Segment Accumulator）— 既存 `useElapsedSeconds` の単純 `enabled` フラグを拡張し、問題種別と早押しフェーズで tick をゲートする。
+
+```mermaid
+stateDiagram-v2
+    [*] --> PreReading: quick_press question shown
+    PreReading --> Reading: user starts reading
+    Reading --> PostReadingLimit: reading complete and limitTime set
+    Reading --> PostReadingOpen: reading complete and no limitTime
+    PostReadingLimit --> SegmentDone: answer or timeout
+    PostReadingOpen --> SegmentDone: answer or skip
+    SegmentDone --> Feedback: recordAnswer
+    Feedback --> PreReading: advanceToNext next question
+    note right of PreReading: no tick
+    note right of Reading: tick
+    note right of PostReadingLimit: tick and countdown
+    note right of PostReadingOpen: tick
+    note right of SegmentDone: finalize segment
+    note right of Feedback: no tick
+```
+
+**非早押し問題（混合クイズ）**: 問題表示から `recordAnswer` 確定まで tick（従来の要件 3 相当）。フィードバック中は tick 停止。確定時に区間を累計へ加算。
+
+**表示値**:
+
+```typescript
+type ElapsedSegmentState = {
+  finalizedSeconds: number;
+  segmentStartedAtMs: number | null;
+};
+
+// display = finalizedSeconds + (ticking ? floor((now - segmentStartedAtMs) / 1000) : 0)
+```
+
+1 秒 `setInterval` は `segmentTicking === true` のときのみ動作。tick 停止時に `finalizeSegment()` で進行中区間を `finalizedSeconds` へ加算し `segmentStartedAtMs` を null にする。
+
+### 4. File Structure Plan
+
+```
+src/
+├── lib/
+│   └── play-elapsed.ts              # NEW: 区間累計の純関数
+├── hooks/
+│   ├── usePlayState.ts              # MOD: 区間累計 tick、limitTime 遅延開始 API
+│   └── useQuickPressStream.ts       # MOD: onReadingComplete コールバック
+├── app/quiz/[id]/play/
+│   ├── quiz-play-client.tsx         # MOD: フェーズ制御、レイアウト、feedback props
+│   └── play.module.css              # MOD: .containerQuickPress 等
+└── components/quiz/
+    └── post-answer-feedback.tsx     # 変更なし（呼び出し側で correctAnswerDisplay 省略）
+
+tests/
+├── lib/play-elapsed.test.ts         # NEW
+└── hooks/usePlayState-elapsed.test.ts  # NEW または usePlayState.test.ts 拡張
+```
+
+### 5. Components and Interfaces
+
+#### Component Summary
+
+| Component | Layer | Intent | Req Coverage | Key Dependencies |
+|-----------|-------|--------|--------------|------------------|
+| `play-elapsed.ts` | lib | 区間の開始・確定・表示秒算出 | 18.4, 18.5, 18.13, 18.15 | なし |
+| `usePlayState` | hook | 累計 `elapsedSeconds`、ゲート付き tick、`timeLeft` 遅延 | 18.4–18.16, 3.1a | `play-elapsed`, `LocalAttemptSession` |
+| `useQuickPressStream` | hook | 問読み修了通知 | 18.10, 18.11 | 既存 stream config |
+| `QuizPlayClient` | UI | フェーズ遷移、レイアウト、feedback 制御 | 18.7–18.20, 17.6 | `usePlayState`, `useQuickPressStream`, `PostAnswerFeedback` |
+
+#### `play-elapsed.ts`
+
+```typescript
+export type ElapsedSegmentState = {
+  finalizedSeconds: number;
+  segmentStartedAtMs: number | null;
+};
+
+export function createElapsedSegmentState(
+  finalizedSeconds?: number
+): ElapsedSegmentState;
+
+export function startElapsedSegment(
+  state: ElapsedSegmentState,
+  nowMs?: number
+): ElapsedSegmentState;
+
+export function finalizeElapsedSegment(
+  state: ElapsedSegmentState,
+  nowMs?: number
+): ElapsedSegmentState;
+
+export function getElapsedDisplaySeconds(
+  state: ElapsedSegmentState,
+  ticking: boolean,
+  nowMs?: number
+): number;
+```
+
+- **Preconditions**: `segmentStartedAtMs` が null のとき `finalizeElapsedSegment` は no-op。
+- **Postconditions**: `finalizeElapsedSegment` 後、`segmentStartedAtMs` は null。加算分は秒単位（`Math.floor`）で `finalizedSeconds` へ合算。
+- **Invariants**: `finalizedSeconds >= 0`。
+
+#### `usePlayState` 拡張
+
+**追加オプション**:
+
+```typescript
+type QuestionElapsedPolicy =
+  | { kind: 'standard' } // 非早押し: 問題表示から回答確定まで tick
+  | { kind: 'quick-press'; phase: QuickPressElapsedPhase };
+
+type QuickPressElapsedPhase =
+  | 'pre_reading'
+  | 'reading'
+  | 'post_reading'
+  | 'feedback';
+
+interface UsePlayStateProps {
+  // 既存 props ...
+  /** 現在問題の経過時間ポリシー（QuizPlayClient が question type + QP phase で供給） */
+  elapsedPolicy?: QuestionElapsedPolicy;
+}
+```
+
+**追加返却値**:
+
+```typescript
+beginLimitCountdown: () => void;
+// quick-press: 問読み修了後に QuizPlayClient から呼び、limitTime を timeLeft にセット
+```
+
+**変更点**:
+1. `currentIdx` 変化時、`elapsedPolicy.kind === 'quick-press'` なら `timeLeft` を即セットしない（要件 3.1a / 18.10）。
+2. タイマー `useEffect`: `segmentTicking` を `elapsedPolicy` から導出。tick 時のみ `getElapsedDisplaySeconds` で `elapsedSeconds` state を更新。
+3. `recordAnswer` 成功時: 自動 `finalizeElapsedSegment`（18.13, 18.15）。
+4. `advanceToNext` 時: フィードバック中 tick は既に停止済み。次問で policy 再評価。
+5. `LocalAttemptSession` 保存の `elapsedSeconds` は表示値と同一（18.5）。
+
+**`segmentTicking` 導出規則**:
+
+| Policy | Phase | Ticking |
+|--------|-------|---------|
+| `standard` | 未回答 | true |
+| `standard` | `feedbackPending` | false |
+| `quick-press` | `pre_reading` | false |
+| `quick-press` | `reading` | true |
+| `quick-press` | `post_reading` | true |
+| `quick-press` | `feedback` | false |
+
+#### `useQuickPressStream` 拡張
+
+```typescript
+type UseQuickPressStreamOptions = {
+  // 既存 ...
+  onReadingComplete?: () => void;
+};
+```
+
+- **Trigger**: `run()` の `finally` で `setIsStreaming(false)` かつエラーでない正常完了時に `onReadingCompleteRef.current?.()` を呼ぶ。
+- **Abort / cancel / 早押しボタン**: `onReadingComplete` は呼ばない（ストリーム中断は問読み未修了扱い）。ただし早押しボタン押下後も回答入力フェーズでは `post_reading` tick を継続（limitTime カウントダウンと並行）。
+
+**追加返却値（任意）**: `isReadingComplete: boolean` — UI テスト用。
+
+#### `QuizPlayClient` オーケストレーション
+
+**早押しフェーズ遷移**:
+
+| イベント | 次フェーズ | 副作用 |
+|----------|-----------|--------|
+| 問題表示 / `currentIdx` 変化 | `pre_reading` | `isReadingStarted=false`、tick 停止 |
+| 「問読みを開始する」 | `reading` | `setIsReadingStarted(true)`、`startElapsedSegment` |
+| `onReadingComplete` | `post_reading` | `beginLimitCountdown()`（`limitTime` あり時） |
+| 「押して回答する！」（ストリーム未完了含む） | `post_reading` | `cancelStream()`。未修了でも回答フェーズへ移行し tick 継続 |
+| `recordAnswer`（正誤問わず） | `feedback` | `finalizeElapsedSegment`、tick 停止 |
+| `advanceToNext` | 次問の policy | QP なら `pre_reading` へ |
+
+**`PostAnswerFeedback` 呼び出し**（不正解・早押し）:
+
+```typescript
+correctAnswerDisplay={
+  currentQuestion.type === 'quick-press' || lastAnswerResult.isCorrect
+    ? undefined
+    : formatCorrectAnswer(currentQuestion) || undefined
+}
+```
+
+要件 17.6 の早押し例外を呼び出し側で実装（コンポーネント変更不要）。
+
+**レイアウト**（要件 18.19）:
+
+- 現在の問題が `quick-press` のとき、ルート `container` に `styles.containerQuickPress` を付与。
+- `play.module.css` に `max-width: 1200px`（または `1400px`、ウミガメ `lateralContainer` より控えめ）を定義。`.quizCard` に `min-width` または `width: 100%` を明示し、問読み前の空問題文でもカード幅が縮まないようにする。
+
+**経過時間 testid**（要件 18.24）:
+
+```tsx
+<span data-testid="play-elapsed-seconds">
+  経過時間: {formatPlayElapsedSeconds(elapsedSeconds)}
+</span>
+```
+
+### 6. System Flows
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client as QuizPlayClient
+    participant Stream as useQuickPressStream
+    participant Play as usePlayState
+
+    User->>Client: 問読みを開始する
+    Client->>Play: elapsedPolicy reading, startSegment
+    Stream->>Stream: label + body stream
+    Stream->>Client: onReadingComplete
+    Client->>Play: beginLimitCountdown
+    Note over Play: post_reading tick + timeLeft countdown
+
+    alt incorrect answer or timeout
+        User->>Client: wrong answer or 0 sec
+        Client->>Play: recordAnswer, finalizeSegment
+        Note over Play: feedback phase no tick
+        User->>Client: 次へ
+        Client->>Play: advanceToNext
+    end
+```
+
+### 7. Requirements Traceability（要件 18）
+
+| Req | 設計要素 |
+|-----|----------|
+| 18.1–18.3 | スコープ表、早押しタイム Out of boundary |
+| 18.4–18.5 | `play-elapsed.ts` + `usePlayState` 区間累計、`buildAttemptData` |
+| 18.6 | `QuestionElapsedPolicy.standard` 分岐 |
+| 18.7–18.9 | `pre_reading` / `reading` フェーズ、`segmentTicking` |
+| 18.10–18.12 | `onReadingComplete` + `beginLimitCountdown`、timeout → `recordAnswer('')` |
+| 18.13–18.16 | `finalizeSegment` on answer、`feedback` no tick、`advanceToNext` |
+| 18.17–18.18 | `QuizPlayClient` が `correctAnswerDisplay` を省略 |
+| 18.19–18.20 | `containerQuickPress`、ストリーム演出維持 |
+| 18.21–18.23 | Out of boundary 表 |
+| 18.24 | `data-testid="play-elapsed-seconds"` |
+
+**改定する既存設計要素**:
+- 要件 3.1 / 3.1a → `usePlayState` の `timeLeft` 初期化分岐
+- Phase 15 `PostAnswerFeedback` → 早押し不正解時は `correctAnswerDisplay` 未渡し（17.6 例外）
+
+### 8. Error Handling
+
+| ケース | 応答 |
+|--------|------|
+| ストリームエラー | `onReadingComplete` 不発火。`pre_reading` または `reading` のまま。ユーザーは再試行または中断 |
+| `limitTime` 未設定 | `post_reading` で tick のみ継続、カウントダウン UI 非表示 |
+| セッション復元 | `elapsedSeconds` は保存済み累計を `finalizedSeconds` として復元。進行中区間は 0 から再開（リロード時の微小誤差は許容） |
+
+### 9. Testing Strategy
+
+| 種別 | 検証項目 |
+|------|----------|
+| **Unit** | `play-elapsed`: start / finalize / display 算出、連続 finalize の idempotency |
+| **Unit** | `usePlayState` + `elapsedPolicy`: `pre_reading` で tick なし、`reading` で加算、`feedback` で停止 |
+| **Unit** | `usePlayState`: quick-press 問題で `currentIdx` 変化時に `timeLeft` 即セットされない |
+| **Unit** | `useQuickPressStream`: 正常完了で `onReadingComplete` 1 回、abort で未呼び出し |
+| **Component** | `QuizPlayClient`: 早押し不正解で `PostAnswerFeedback` に正解行なし |
+| **Regression** | 非早押し通常モードの経過時間・limitTime 挙動維持 |
+| **Regression** | 早押しタイム表示・記録（正解時のみ）が Phase 16 変更後も維持 |
+
+**Effort**: S（1〜2 日）— lib 純関数 + hook 拡張 + Client フェーズ配線 + CSS
+
+### 10. Design Synthesis Notes
+
+| レンズ | 決定 |
+|--------|------|
+| **Generalization** | `QuestionElapsedPolicy` で早押し／標準を統一インターフェース化。実装は 2 分岐のみ |
+| **Build vs Adopt** | 新規 npm 依存なし。`play-elapsed.ts` は既存 `useElapsedSeconds` パターンの純関数抽出 |
+| **Simplification** | `PostAnswerFeedback` は変更せず呼び出し側で正解非表示。専用フラグ prop は追加しない |
 

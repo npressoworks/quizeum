@@ -1,7 +1,10 @@
 import { markdownToPlainText } from '@/lib/markdown-typewriter';
 import {
+  buildQuickPressReservedTokens,
   parseMarkdownToQuickPressTokens,
+  parseQuickPressStreamLayoutLine,
   parseQuickPressStreamLine,
+  serializeQuickPressStreamLayout,
   serializeQuickPressStreamToken,
 } from '@/lib/quick-press-plain-text';
 
@@ -30,5 +33,18 @@ describe('quick-press stream line', () => {
     const token = { char: '字', bold: true };
     const line = serializeQuickPressStreamToken(token);
     expect(parseQuickPressStreamLine(line)).toEqual(token);
+  });
+
+  it('parses layout preamble', () => {
+    const bodyTokens = parseMarkdownToQuickPressTokens('A\nB');
+    const line = serializeQuickPressStreamLayout(bodyTokens);
+    expect(parseQuickPressStreamLayoutLine(line)?.tokens).toEqual(bodyTokens);
+  });
+
+  it('builds reserved tokens with label prefix', () => {
+    const bodyTokens = parseMarkdownToQuickPressTokens('本文');
+    const reserved = buildQuickPressReservedTokens(bodyTokens);
+    expect(reserved.slice(0, 3).map((t) => t.char).join('')).toBe('問題：');
+    expect(reserved.slice(3)).toEqual(bodyTokens);
   });
 });

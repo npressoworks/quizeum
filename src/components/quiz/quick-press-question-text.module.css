@@ -12,6 +12,32 @@ h2.root {
   font-weight: 400;
   color: var(--text-main);
   line-height: 1.45;
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.rootReserved {
+  position: relative;
+}
+
+.reserveLayer {
+  display: block;
+  width: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.displayLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.inlineLayer {
+  display: block;
+  width: 100%;
 }
 
 .char {
@@ -21,7 +47,18 @@ h2.root {
   color: transparent;
   background-size: 200% 100%;
   background-position: 100% 0;
+}
+
+.charAnimated {
   animation: quick-press-wipe-in var(--quick-press-wipe-ms, 250ms) linear forwards;
+}
+
+.charReserved {
+  animation: none;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: transparent;
 }
 
 .charBold {

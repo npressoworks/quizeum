@@ -2,11 +2,16 @@
 
 .container {
   max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   padding: 32px 20px;
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.containerWithQuickPressDock {
+  padding-bottom: 220px;
 }
 
 /* AIチャット用2カラムレイアウトの場合は幅を最大にする */
@@ -95,6 +100,8 @@
   gap: 24px;
   position: relative;
   min-height: 380px;
+  width: 100%;
+  min-width: 0;
 }
 
 .questionMeta {
@@ -132,6 +139,9 @@
   font-weight: 400;
   color: var(--text-main);
   line-height: 1.5;
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 /* 親が font-weight: 700 だとマークダウン太字と区別できない */
@@ -737,16 +747,87 @@
   width: 100%;
 }
 
+.quickPressDock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--bg-main);
+  border-top: 1px solid var(--border-light);
+  padding: 16px 20px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 767px) {
+  .quickPressDock {
+    bottom: 60px;
+  }
+}
+
+.quickPressDockInner {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+
+.quickPressDockSkipSlot {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.quickPressDockActionSlot {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.quickPressDockForm {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
 .quickPressBtn {
   cursor: pointer;
   outline: none;
   animation: pulseBtn 1.5s infinite;
+  width: 100%;
+  padding: 24px;
+  font-size: 1.4rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff007f, #7f00ff);
+  color: #fff;
+  border: none;
+  box-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
+  transition: transform 0.2s;
 }
 
 .startReadingBtn {
   cursor: pointer;
   outline: none;
   animation: pulseReadBtn 1.5s infinite;
+  width: 100%;
+  padding: 24px;
+  font-size: 1.4rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #00f5d4, #00bbf9);
+  color: #111;
+  border: none;
+  box-shadow: 0 0 20px rgba(0, 245, 212, 0.4);
+  transition: transform 0.2s;
+}
+
+.quickPressSkipBtn {
+  width: 100%;
 }
 
 @keyframes pulseBtn {

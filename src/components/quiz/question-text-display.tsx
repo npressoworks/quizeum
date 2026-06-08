@@ -10,6 +10,8 @@ type QuestionTextDisplayProps = {
   className?: string;
   /** quick-press: ストリームで届いた強調フラグ付きトークン列 */
   quickPressDisplayTokens?: QuickPressCharToken[];
+  /** quick-press: 全文分のレイアウト確保用トークン列 */
+  quickPressReservedTokens?: QuickPressCharToken[];
   isQuickPressReading?: boolean;
 };
 
@@ -17,6 +19,7 @@ export function QuestionTextDisplay({
   question,
   className,
   quickPressDisplayTokens = [],
+  quickPressReservedTokens = [],
   isQuickPressReading = false,
 }: QuestionTextDisplayProps) {
   if (!question) {
@@ -30,6 +33,7 @@ export function QuestionTextDisplay({
     return (
       <QuickPressQuestionText
         tokens={quickPressDisplayTokens}
+        reservedTokens={quickPressReservedTokens}
         className={className}
       />
     );

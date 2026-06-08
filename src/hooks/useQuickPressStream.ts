@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { QuickPressCharToken } from '@/lib/quick-press-plain-text';
 import {
+  buildQuickPressReservedTokens,
   parseMarkdownToQuickPressTokens,
+  parseQuickPressStreamLayoutLine,
   parseQuickPressStreamLine,
 } from '@/lib/quick-press-plain-text';
 import {
@@ -25,6 +27,8 @@ type UseQuickPressStreamOptions = {
   localBodyMarkdown?: string;
   getIdToken?: () => Promise<string | null>;
   onBodyTimingStart?: () => void;
+  /** ストリーム正常完了時（問読み修了）に 1 回だけ呼ばれる */
+  onReadingComplete?: () => void;
 };
 
 function labelTokensForLength(length: number): QuickPressCharToken[] {
@@ -46,20 +50,25 @@ export function useQuickPressStream({
   localBodyMarkdown = '',
   getIdToken,
   onBodyTimingStart,
+  onReadingComplete,
 }: UseQuickPressStreamOptions) {
   const [displayTokens, setDisplayTokens] = useState<QuickPressCharToken[]>([]);
+  const [reservedTokens, setReservedTokens] = useState<QuickPressCharToken[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [isReadingComplete, setIsReadingComplete] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
   const runIdRef = useRef(0);
   const getIdTokenRef = useRef(getIdToken);
   const onBodyTimingStartRef = useRef(onBodyTimingStart);
+  const onReadingCompleteRef = useRef(onReadingComplete);
   const localBodyRef = useRef(localBodyMarkdown);
 
   getIdTokenRef.current = getIdToken;
   onBodyTimingStartRef.current = onBodyTimingStart;
+  onReadingCompleteRef.current = onReadingComplete;
   localBodyRef.current = localBodyMarkdown;
 
   const abortActiveIO = useCallback(() => {
@@ -80,9 +89,12 @@ export function useQuickPressStream({
     if (!enabled) {
       abortActiveIO();
       setIsStreaming(false);
+      setIsReadingComplete(false);
+      setReservedTokens([]);
       return;
     }
 
+    setIsReadingComplete(false);
     const runId = ++runIdRef.current;
     let cancelled = false;
 
@@ -121,6 +133,13 @@ export function useQuickPressStream({
 
         const chunk: QuickPressCharToken[] = [];
         for (const line of lines) {
+          const layout = parseQuickPressStreamLayoutLine(line);
+          if (layout) {
+            if (!isStale()) {
+              setReservedTokens(buildQuickPressReservedTokens(layout.tokens));
+            }
+            continue;
+          }
           const bodyToken = parseQuickPressStreamLine(line);
           if (bodyToken) chunk.push(bodyToken);
         }
@@ -132,6 +151,9 @@ export function useQuickPressStream({
 
     async function streamBodyLocally(fullBody: string) {
       const bodyTokens = parseMarkdownToQuickPressTokens(fullBody);
+      if (!isStale()) {
+        setReservedTokens(buildQuickPressReservedTokens(bodyTokens));
+      }
       for (const bodyToken of bodyTokens) {
         if (isStale()) return;
         await sleep(QUICK_PRESS_BODY_CHAR_MS);
@@ -143,8 +165,10 @@ export function useQuickPressStream({
     async function run() {
       setStreamError(null);
       setDisplayTokens([]);
+      setReservedTokens([]);
       setIsStreaming(true);
       abortActiveIO();
+      let readingCompleted = false;
 
       try {
         for (let i = 1; i <= QUICK_PRESS_LABEL.length; i++) {
@@ -165,6 +189,9 @@ export function useQuickPressStream({
         } else {
           await streamBodyFromApi();
         }
+        if (!isStale()) {
+          readingCompleted = true;
+        }
       } catch (err) {
         if (isStale()) return;
         if (err instanceof Error && err.name === 'AbortError') {
@@ -179,6 +206,10 @@ export function useQuickPressStream({
           setIsStreaming(false);
           readerRef.current = null;
           abortRef.current = null;
+          if (readingCompleted) {
+            setIsReadingComplete(true);
+            onReadingCompleteRef.current?.();
+          }
         }
       }
     }
@@ -195,8 +226,10 @@ export function useQuickPressStream({
 
   return {
     displayTokens,
+    reservedTokens,
     isStreaming,
     streamError,
+    isReadingComplete,
     cancelStream,
   };
 }

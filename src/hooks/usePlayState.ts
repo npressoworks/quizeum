@@ -6,10 +6,36 @@ import { LocalAttemptSession, PlayProgressData } from '@/services/attempt-sessio
 import { isChoiceAnswerCorrect } from '@/services/choice-answer-utils';
 import { isTextInputAnswerCorrect } from '@/services/text-answer-utils';
 import { canJudgeQuestion, checkTruthKeywordsLocally } from '@/lib/test-play';
+import {
+  createElapsedSegmentState,
+  startElapsedSegment,
+  finalizeElapsedSegment,
+  getElapsedDisplaySeconds,
+  type ElapsedSegmentState,
+} from '@/lib/play-elapsed';
 
 export interface AnswerRecordResult {
   isCorrect: boolean;
   judgeable: boolean;
+}
+
+export type QuickPressElapsedPhase =
+  | 'pre_reading'
+  | 'reading'
+  | 'post_reading'
+  | 'feedback';
+
+export type QuestionElapsedPolicy =
+  | { kind: 'standard' }
+  | { kind: 'quick-press'; phase: QuickPressElapsedPhase };
+
+export function isSegmentTicking(
+  policy: QuestionElapsedPolicy | undefined,
+  feedbackPending: boolean
+): boolean {
+  if (feedbackPending) return false;
+  if (!policy || policy.kind === 'standard') return true;
+  return policy.phase === 'reading' || policy.phase === 'post_reading';
 }
 
 interface UsePlayStateProps {
@@ -23,6 +49,8 @@ interface UsePlayStateProps {
   skipJudgmentWhenIncomplete?: boolean;
   /** true のとき回答後に自動で次問へ進まない（通常モードのフィードバックフロー） */
   manualAdvance?: boolean;
+  /** 通常モードの区間累計経過時間ポリシー（早押し／標準） */
+  elapsedPolicy?: QuestionElapsedPolicy;
 }
 
 function judgeAnswer(
@@ -85,6 +113,7 @@ export function usePlayState({
   persistSession = true,
   skipJudgmentWhenIncomplete = false,
   manualAdvance = false,
+  elapsedPolicy,
 }: UsePlayStateProps) {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [answeredIds, setAnsweredIds] = useState<string[]>([]);
@@ -100,6 +129,26 @@ export function usePlayState({
 
   const isInitialized = useRef<boolean>(false);
   const recordAnswerRef = useRef<(answer: string) => AnswerRecordResult | null>(() => null);
+  const segmentStateRef = useRef<ElapsedSegmentState>(createElapsedSegmentState());
+  const elapsedPolicyRef = useRef(elapsedPolicy);
+  elapsedPolicyRef.current = elapsedPolicy;
+
+  const elapsedPolicyTickKey =
+    elapsedPolicy?.kind === 'quick-press'
+      ? `quick-press:${elapsedPolicy.phase}`
+      : 'standard';
+
+  const syncElapsedDisplay = useCallback(() => {
+    if (mode !== 'normal') return;
+    const ticking = isSegmentTicking(elapsedPolicyRef.current, feedbackPending);
+    setElapsedSeconds(getElapsedDisplaySeconds(segmentStateRef.current, ticking));
+  }, [mode, feedbackPending]);
+
+  const finalizeCurrentSegment = useCallback(() => {
+    if (mode !== 'normal') return;
+    segmentStateRef.current = finalizeElapsedSegment(segmentStateRef.current);
+    setElapsedSeconds(segmentStateRef.current.finalizedSeconds);
+  }, [mode]);
 
   useEffect(() => {
     if (!quizId || !userId || isInitialized.current) return;
@@ -112,6 +161,7 @@ export function usePlayState({
       setFailedIds(saved.failedQuestionIds);
       setQuestionAnswers(saved.questionAnswers ?? {});
       setScore(saved.currentScore);
+      segmentStateRef.current = createElapsedSegmentState(saved.elapsedSeconds);
       setElapsedSeconds(saved.elapsedSeconds);
 
       const nextIdx = saved.answeredQuestionIds.length;
@@ -168,6 +218,10 @@ export function usePlayState({
 
       if (mode !== 'exam' && answeredIds.includes(currentQuestion.id)) return null;
 
+      if (mode === 'normal') {
+        finalizeCurrentSegment();
+      }
+
       const result = judgeAnswer(
         answerTextOrChoiceId,
         currentQuestion,
@@ -199,6 +253,7 @@ export function usePlayState({
       if (manualAdvance) {
         setFeedbackPending(true);
         setLastAnswerResult(result);
+        setTimeLeft(null);
       }
 
       return result;
@@ -211,10 +266,19 @@ export function usePlayState({
       failedIds,
       skipJudgmentWhenIncomplete,
       manualAdvance,
+      finalizeCurrentSegment,
     ]
   );
 
   recordAnswerRef.current = recordAnswer;
+
+  const beginLimitCountdown = useCallback(() => {
+    if (mode !== 'normal' || currentIdx >= questions.length) return;
+    const currentQuestion = questions[currentIdx];
+    if (currentQuestion?.limitTime) {
+      setTimeLeft(currentQuestion.limitTime);
+    }
+  }, [mode, currentIdx, questions]);
 
   const advanceToNext = useCallback(() => {
     setFeedbackPending(false);
@@ -250,14 +314,39 @@ export function usePlayState({
   );
 
   useEffect(() => {
+    if (mode !== 'normal') return;
+    if (segmentStateRef.current.segmentStartedAtMs !== null) {
+      segmentStateRef.current = finalizeElapsedSegment(segmentStateRef.current);
+    }
+  }, [currentIdx, mode]);
+
+  useEffect(() => {
+    if (mode !== 'normal') return;
+    const ticking = isSegmentTicking(elapsedPolicy, feedbackPending);
+    if (ticking) {
+      if (segmentStateRef.current.segmentStartedAtMs === null) {
+        segmentStateRef.current = startElapsedSegment(segmentStateRef.current);
+      }
+    } else if (segmentStateRef.current.segmentStartedAtMs !== null) {
+      segmentStateRef.current = finalizeElapsedSegment(segmentStateRef.current);
+    }
+    syncElapsedDisplay();
+  }, [mode, elapsedPolicyTickKey, feedbackPending, currentIdx, syncElapsedDisplay]);
+
+  useEffect(() => {
     if (answeredIds.length >= questions.length && !manualAdvance) return;
 
     const timer = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-
       if (mode === 'normal') {
+        const ticking = isSegmentTicking(elapsedPolicyRef.current, feedbackPending);
+        if (ticking) {
+          setElapsedSeconds(
+            getElapsedDisplaySeconds(segmentStateRef.current, true)
+          );
+        }
+
         setTimeLeft((prev) => {
-          if (prev === null) return null;
+          if (prev === null || feedbackPending) return prev;
           if (prev <= 1) {
             if (manualAdvance) {
               recordAnswerRef.current?.('');
@@ -268,18 +357,25 @@ export function usePlayState({
           }
           return prev - 1;
         });
+        return;
       }
+
+      setElapsedSeconds((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [mode, answeredIds, questions, manualAdvance, handleAnswerSubmit]);
+  }, [mode, answeredIds, questions, manualAdvance, handleAnswerSubmit, feedbackPending, elapsedPolicyTickKey]);
 
   useEffect(() => {
     if (questions.length === 0 || currentIdx >= questions.length) return;
 
     const currentQuestion = questions[currentIdx];
     if (mode === 'normal' && currentQuestion?.limitTime) {
-      setTimeLeft(currentQuestion.limitTime);
+      if (currentQuestion.type === 'quick-press') {
+        setTimeLeft(null);
+      } else {
+        setTimeLeft(currentQuestion.limitTime);
+      }
     } else {
       setTimeLeft(null);
     }
@@ -313,5 +409,6 @@ export function usePlayState({
     feedbackPending,
     lastAnswerResult,
     isFinished,
+    beginLimitCountdown,
   };
 }

@@ -868,3 +868,66 @@ Phase 11 目標:
 | Effort | **S**（1〜2 日） |
 | Risk | **Low** — Core 変更なし、既存コールバック維持 |
 
+---
+
+# Light Discovery: Phase 16 早押し区間累計経過時間（2026-06-09）
+
+## Summary
+
+- **Feature**: quizeum-play-flow-ui Phase 16（要件 18）
+- **Discovery Scope**: Extension（既存プレイフック・早押しストリームの挙動変更）
+- **Key Findings**:
+  - `usePlayState` は `setInterval` で毎秒 `elapsedSeconds` を無条件加算し、問題切替時に即 `timeLeft` をセットしている（早押しと非互換）。
+  - `useQuickPressStream` は `onBodyTimingStart` のみ提供。問読み修了の親通知は未実装。
+  - `QuizPlayClient` は不正解時に `formatCorrectAnswer` を `PostAnswerFeedback` へ渡している。早押し例外は未適用。
+  - `.container { max-width: 900px }` 固定。問読み前は問題文空のためカードが視覚的に狭く見える。
+
+## Research Log
+
+### 既存タイマー実装
+- **Sources**: `src/hooks/usePlayState.ts`, `src/hooks/useElapsedSeconds.ts`, `src/app/quiz/[id]/play/quiz-play-client.tsx`
+- **Findings**:
+  - 壁時計型 `elapsedSeconds` が `LocalAttemptSession` / `buildAttemptData` / 結果画面へそのまま流れる。
+  - ウミガメモードのみ `useElapsedSeconds` を別途使用（Phase 16 対象外）。
+- **Implications**: 区間累計は `usePlayState` 内で `finalizedSeconds + activeSegment` モデルへ置換。セッション復元は累計値を `finalizedSeconds` 初期値として扱う。
+
+### 早押しストリーム完了検知
+- **Sources**: `src/hooks/useQuickPressStream.ts`, `docs/detailed_design.md` §④
+- **Findings**: `setIsStreaming(false)` が正常完了の唯一のフックポイント。`cancelStream`（早押しボタン）は Abort で完了扱いにしない。
+- **Implications**: `onReadingComplete` を `finally` の正常パスのみで発火。問読み修了後に `beginLimitCountdown()` を Client から呼ぶ。
+
+### フィードバックとレイアウト
+- **Sources**: `src/components/quiz/post-answer-feedback.tsx`, `play.module.css`
+- **Findings**: `correctAnswerDisplay` は optional。渡さなければ非表示（変更不要）。`lateralContainer` は `max-width: 1400px`  precedent。
+- **Implications**: 早押しは `containerQuickPress`（1200px 前後）を新設。`PostAnswerFeedback` は呼び出し側修正のみ。
+
+## Architecture Pattern Evaluation
+
+| Option | Description | Strengths | Risks | Decision |
+|--------|-------------|-----------|-------|----------|
+| A. Client 内インライン state | `quiz-play-client` のみで経過時間管理 | 差分小 | `usePlayState` と二重管理、セッション保存ずれ | 不採用 |
+| B. `usePlayState` + policy prop | 親が `elapsedPolicy` を供給 | セッション一貫、Phase 15 構造維持 | hook API 拡張 | **採用** |
+| C. 新規 `useCumulativeElapsed` hook | 完全分離 | 責務明確 | `usePlayState` との同期コスト | 不採用 |
+
+## Design Decisions
+
+1. **区間数学は lib 純関数** — `play-elapsed.ts` でテスト容易性を確保。hook は tick ループのみ担当。
+2. **`PostAnswerFeedback` 無変更** — 要件 18.17 は呼び出し側で `correctAnswerDisplay` 省略（YAGNI）。
+3. **混合クイズ** — 非早押しは `standard` policy（問題表示〜回答確定で tick）。累計表示は共通（要件 18.6）。
+4. **セッション復元** — リロード時は保存済み `elapsedSeconds` を finalized として復元。進行中区間は再開時に新規 start（許容誤差）。
+
+## Risks & Mitigations
+
+| リスク | 緩和 |
+|--------|------|
+| 混合クイズで累計と旧壁時計の差 | ユニットテストで standard / quick-press 各区間を検証 |
+| ストリーム中断後の limitTime | `onReadingComplete` 未発火のまま。早押しボタンで `post_reading` へ手動遷移するフォールバックを Client に追加 |
+| リーダーボード `elapsedSeconds` 意味変化 | 要件どおり区間累計が正しい値。Core 変更なし。リグレッションは E2E 早押しプレイで確認 |
+
+## Effort & Risk
+
+| 項目 | 評価 |
+|------|------|
+| Effort | **S**（1〜2 日） |
+| Risk | **Low** — 新規依存なし、Core API 不変 |
+

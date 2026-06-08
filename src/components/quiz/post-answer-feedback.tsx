@@ -60,7 +60,7 @@ export function PostAnswerFeedback({
         )}
       </div>
 
-      {explanation && (
+      {isCorrect && explanation && (
         <div className={styles.explanationBox}>
           <strong className={styles.explanationLabel}>💡 解説:</strong>
           <div dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(explanation) }} />

@@ -3,10 +3,30 @@
  * parseMarkdownToHtml / markdownToPlainText と同じ露出ルールに合わせる。
  */
 
+import { QUICK_PRESS_LABEL } from '@/lib/quick-press-stream-config';
+
 export type QuickPressCharToken = {
   char: string;
   bold: boolean;
 };
+
+export type QuickPressStreamLayoutMessage = {
+  kind: 'layout';
+  tokens: QuickPressCharToken[];
+};
+
+export function quickPressLabelTokens(): QuickPressCharToken[] {
+  return Array.from(QUICK_PRESS_LABEL).map((char) => ({
+    char,
+    bold: false,
+  }));
+}
+
+export function buildQuickPressReservedTokens(
+  bodyTokens: QuickPressCharToken[]
+): QuickPressCharToken[] {
+  return [...quickPressLabelTokens(), ...bodyTokens];
+}
 
 function pushChars(
   tokens: QuickPressCharToken[],
@@ -73,18 +93,48 @@ export function serializeQuickPressStreamToken(token: QuickPressCharToken): stri
   return `${JSON.stringify(token)}\n`;
 }
 
+function isQuickPressCharToken(value: unknown): value is QuickPressCharToken {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as QuickPressCharToken).char === 'string' &&
+    typeof (value as QuickPressCharToken).bold === 'boolean' &&
+    (value as QuickPressCharToken).char.length > 0
+  );
+}
+
+export function parseQuickPressStreamLayoutLine(
+  line: string
+): QuickPressStreamLayoutMessage | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = JSON.parse(trimmed) as QuickPressStreamLayoutMessage;
+    if (
+      parsed?.kind !== 'layout' ||
+      !Array.isArray(parsed.tokens) ||
+      !parsed.tokens.every(isQuickPressCharToken)
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function serializeQuickPressStreamLayout(
+  tokens: QuickPressCharToken[]
+): string {
+  return `${JSON.stringify({ kind: 'layout', tokens } satisfies QuickPressStreamLayoutMessage)}\n`;
+}
+
 export function parseQuickPressStreamLine(line: string): QuickPressCharToken | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
   try {
     const parsed = JSON.parse(trimmed) as QuickPressCharToken;
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      typeof parsed.char !== 'string' ||
-      typeof parsed.bold !== 'boolean' ||
-      parsed.char.length === 0
-    ) {
+    if (!isQuickPressCharToken(parsed)) {
       return null;
     }
     return { char: parsed.char, bold: parsed.bold };

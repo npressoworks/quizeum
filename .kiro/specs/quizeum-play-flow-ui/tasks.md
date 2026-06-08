@@ -879,4 +879,67 @@
 - `optimistic-attempt` は `globalThis.sessionStorage` を参照（Jest / ブラウザ両対応）。
 - 通常モード判定は `playMode === 'normal' && !questionListMode`（`isNormalFeedbackFlow`）。
 
+---
+
+### 23. Phase 16 — 早押し形式の区間累計経過時間・制限時間・フィードバック・レイアウト（2026-06-09）
+
+- [x] 23.1 (P) 区間累計経過時間の純関数ユーティリティ
+  - `src/lib/play-elapsed.ts` を新設し、区間の開始・確定・表示秒数算出（`finalizedSeconds` + 進行中区間）を純関数で提供する。
+  - `tests/lib/play-elapsed.test.ts` で start / finalize / 連続確定の idempotency を検証する。
+  - **完了状態**: 確定済み秒数と進行中区間を合成した表示秒数が、単体テストで期待どおり算出されること。
+  - _Requirements: 18.4, 18.5, 18.13, 18.15_
+  - _Boundary: play-elapsed_
+
+- [x] 23.2 `usePlayState` の区間累計タイマーと制限時間遅延開始
+  - `src/hooks/usePlayState.ts` に `elapsedPolicy`（`standard` / `quick-press` + phase）を受け取り、ゲート付き tick で `elapsedSeconds` を更新する。
+  - 早押し問題では `currentIdx` 変化時に `timeLeft` を即セットせず、`beginLimitCountdown()` で問読み修了後に開始する。
+  - `recordAnswer` / `advanceToNext` 時に区間を確定し、`LocalAttemptSession` 保存値と表示値を一致させる。復元時は保存済み累計を `finalizedSeconds` 初期値とする。
+  - **完了状態**: `pre_reading` で tick なし、`reading` / `post_reading` で加算、`feedback` で停止すること。早押し問題表示直後はカウントダウンが始まらないこと。
+  - _Requirements: 3.1, 3.1a, 18.4, 18.5, 18.6, 18.7, 18.8, 18.9, 18.10, 18.11, 18.12, 18.13, 18.14, 18.15, 18.16_
+  - _Depends: 23.1_
+  - _Boundary: PlayStateManager_
+
+- [x] 23.3 (P) `useQuickPressStream` の問読み修了通知
+  - `src/hooks/useQuickPressStream.ts` に `onReadingComplete` コールバックを追加し、ストリーム正常完了時（`setIsStreaming(false)`、エラー・Abort 除く）に 1 回だけ呼ぶ。
+  - 返却値に `isReadingComplete`（任意）を追加し、UI テストから問読み修了を検証可能にする。
+  - **完了状態**: 正常ストリーム完了で `onReadingComplete` が 1 回発火し、`cancelStream` では発火しないこと。
+  - _Requirements: 18.10, 18.11, 18.20_
+  - _Boundary: useQuickPressStream_
+
+- [x] 23.4 (P) 早押しプレイ用レイアウト拡大
+  - `src/app/quiz/[id]/play/play.module.css` に早押し用コンテナクラス（例: `containerQuickPress`）を追加し、問読み前から問題カードが十分な横幅で表示されるようにする。
+  - **完了状態**: 現在問題が `quick-press` のとき、問読み開始前から拡大レイアウトが適用され、問読み後のみ幅が変わる挙動がないこと。
+  - _Requirements: 18.19, 18.20_
+  - _Boundary: play-layout_
+
+- [x] 23.5 早押しプレイ UI のフェーズ統合と不正解フィードバック調整
+  - `src/app/quiz/[id]/play/quiz-play-client.tsx` で早押しフェーズ（`pre_reading` → `reading` → `post_reading` → `feedback`）を `elapsedPolicy` と同期する。
+  - 「問読みを開始する」で reading 開始、「押して回答する！」で `post_reading` へ遷移（ストリーム未完了でも tick 継続）、`onReadingComplete` で `beginLimitCountdown()` を呼ぶ。
+  - 早押し不正解時は `PostAnswerFeedback` に `correctAnswerDisplay` を渡さない。経過時間表示に `data-testid="play-elapsed-seconds"` を付与する。
+  - 早押しタイム（押下〜回答秒数）の既存計測・記録は変更しないこと。
+  - **完了状態**: 問読み前は経過時間が増えず、問読み〜制限時間中は加算され、不正解確定後は停止する。不正解フィードバックに正解行が表示されないこと。
+  - _Requirements: 17.6, 18.1, 18.7, 18.8, 18.9, 18.12, 18.13, 18.14, 18.16, 18.17, 18.18, 18.24_
+  - _Depends: 23.2, 23.3, 23.4_
+  - _Boundary: QuizPlayClient_
+
+- [x] 23.6 Phase 16 統合検証
+  - 区間累計タイマー、問読み後の limitTime 開始、不正解時の正解非表示、レイアウト、混合クイズでの非早押し区間維持、exam 退行なしを Jest / 手動で検証する。
+  - **完了状態**: 関連単体・統合テストがグリーンで、早押し通常プレイの経過時間・フィードバックが要件 18 を満たすこと。
+  - _Requirements: 18.1, 18.2, 18.3, 18.6, 18.21, 18.22, 18.23_
+  - _Depends: 23.5_
+  - _Boundary: Integration_
+
+- [ ]* 23.7 Phase 16 E2E スモーク（任意）
+  - Playwright で早押し通常プレイの問読み開始前経過時間停止、問読み後カウントダウン、不正解時正解非表示を検証する。
+  - _Requirements: 18.7, 18.10, 18.17, 18.19, 18.24_
+  - _Depends: 23.6_
+  - _Boundary: Testing_
+
+## Implementation Notes (Phase 16)
+
+- テストプレイ（`/quiz/test-play/play`）は要件 18.2 のとおり対象外。本番 `quiz-play-client.tsx` のみ変更する。
+- `PostAnswerFeedback` コンポーネント本体は変更せず、呼び出し側で `correctAnswerDisplay` を省略する（design.md Phase 16 §5）。
+- 混合クイズでは非早押し問題に `standard` policy を適用し、セッション合計は各区間の累計とする（要件 18.6）。
+- `elapsedSeconds` の意味が区間累計に変わるが、`saveAttempt` スキーマ変更は行わない（要件 18.21）。
+
 
