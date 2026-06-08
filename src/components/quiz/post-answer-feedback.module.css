@@ -1,0 +1,74 @@
+.feedbackArea {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feedbackBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.feedbackCorrect {
+  background: rgba(0, 245, 212, 0.08);
+  border: 1px solid #00f5d4;
+}
+
+.feedbackIncorrect {
+  background: rgba(255, 0, 127, 0.08);
+  border: 1px solid #ff007f;
+}
+
+.feedbackTitleCorrect {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #00f5d4;
+}
+
+.feedbackTitleIncorrect {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #ff007f;
+}
+
+.feedbackMeta {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.quickPressHighlight {
+  color: #00f5d4;
+  font-size: 1.15rem;
+}
+
+.explanationBox {
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.explanationLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-main);
+}
+
+.ctaButton {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}

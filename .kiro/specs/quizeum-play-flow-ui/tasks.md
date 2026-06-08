@@ -800,5 +800,83 @@
 - 要件 16.12（`difficultyVote` 永続化ロジック変更の対象外）は意図的にタスク化しない。既存 `handleDifficultyVote` / `updateDoc` を維持する。
 - `ExploreAccordion` は探索画面専用のため結果画面では新規コンポーネントを使用する（design.md Phase 14 §3）。
 
+---
+
+### 22. Phase 15 — 通常モード即時フィードバック・スキップ・楽観的結果遷移（2026-06-08）
+
+- [x] 22.1 (P) `usePlayState` の回答記録と進行の分離
+  - `src/hooks/usePlayState.ts` に `recordAnswer`（正誤判定・スコア・`answeredIds` 更新のみ）と `advanceToNext`（`currentIdx` 進行）を追加する。
+  - 通常モード（`mode === 'normal'`）では `handleAnswerSubmit` から自動 `currentIdx` 進行を除去し、exam / flashcard は従来の一体 `handleAnswerSubmit` を維持する。
+  - 制限時間 0 秒時は `recordAnswer('')` を呼び出し側（`QuizPlayClient`）でフィードバック表示に接続する。
+  - **完了状態**: 通常モードで回答後に `currentIdx` が変化せず、「次へ」で初めて進むこと。exam モードは回答後すぐ次問へ進むこと。
+  - _Requirements: 17.1, 17.2, 17.4, 17.8, 17.14_
+  - _Boundary: PlayStateManager_
+
+- [x] 22.2 (P) 楽観的 attempt 一時保存ユーティリティ
+  - `src/lib/optimistic-attempt.ts` を新設し、`sessionStorage` への完了 attempt 保存・読取・削除を実装する（キー: `quizeum_optimistic_attempt_{localId}`）。
+  - **完了状態**: 保存したデータが結果画面 Client から読み取れ、削除後は取得できないこと。
+  - _Requirements: 17.17, 17.18, 17.19, 5.1b_
+  - _Boundary: optimistic-attempt_
+
+- [x] 22.3 (P) `PostAnswerFeedback` コンポーネントの実装
+  - `src/components/quiz/post-answer-feedback.tsx` と CSS Module を新設し、正誤表示・解説・正解表示・「次へ」／「結果を見る」CTA を提供する。
+  - `data-testid="play-answer-feedback"`、CTA に `play-next-question` / `play-view-results` を付与する。
+  - **完了状態**: 最終問以外は「次へ」、最終問は「結果を見る」が表示されること。
+  - _Requirements: 17.4, 17.5, 17.6, 17.12, 17.13, 17.23_
+  - _Boundary: PostAnswerFeedback_
+
+- [x] 22.4 通常モードプレイ UI のフィードバックフロー統合
+  - `src/app/quiz/[id]/play/quiz-play-client.tsx` を修正し、選択式・記述式・早押し・並び替え・連想の各 submit を `recordAnswer` + `PostAnswerFeedback` フローに統合する。
+  - 「わからない（スキップ）」ボタン（`data-testid="play-skip-question"`）を追加し、`recordAnswer('')` と同等の不正解記録を行う。
+  - 早押し専用インライン feedback UI を `PostAnswerFeedback` に統合し重複を削除する。
+  - `isFinished || completing` 時の「解答データを送信中...」ブロックを削除する。
+  - exam / flashcard / lateral / question-list の既存フローを退行させないこと。
+  - **完了状態**: 通常モードで回答→正誤表示→次への手動進行が全問題形式で動作し、スキップが不正解として記録されること。
+  - _Requirements: 17.1, 17.3, 17.4, 17.7, 17.9, 17.10, 17.11, 17.14, 17.16, 17.20, 17.23_
+  - _Depends: 22.1, 22.3_
+  - _Boundary: QuizPlayClient_
+
+- [x] 22.5 楽観的結果遷移とバックグラウンド `saveAttempt`
+  - `handlePlayComplete` を改修し、完了データを `optimistic-attempt` に保存した直後に `router.push(/quiz/{id}/result?localId=...)` する。
+  - `saveAttempt` は `await` せずバックグラウンド実行し、成功時に `router.replace(?attemptId=...)` と localStorage 補助データ（早押しタイム・連想ヒント）のキー移行を行う。
+  - 失敗時は既存 `saveOffline` / `addPendingSyncAttempt` フォールバックを維持する。
+  - **完了状態**: 「結果を見る」押下直後に結果 URL へ遷移し、プレイ画面に送信中テキストが表示されないこと。
+  - _Requirements: 17.15, 17.16, 17.17, 17.18, 17.19, 3.6a, 5.1a_
+  - _Depends: 22.2, 22.4_
+  - _Boundary: QuizPlayClient_
+
+- [x] 22.6 結果画面 Client の楽観的データ読み取り
+  - `src/app/quiz/[id]/result/quiz-result-client.tsx` を修正し、`localId` 指定時に `optimistic-attempt` から完了データを優先読み取りしてスコアサマリーを即表示する。
+  - バックグラウンドで Firestore attempt 取得後に state を更新する。Server 側 `ResultSkeleton` との整合を維持する。
+  - **完了状態**: 通常モード完了直後に結果画面でスコアが即表示され、attempt 永続化後も整合すること。
+  - _Requirements: 5.1a, 5.1b, 17.17, 17.18_
+  - _Depends: 22.2, 22.5_
+  - _Boundary: QuizResultClient_
+
+- [x] 22.7 クイズ詳細の即時正誤トグル無効化（通常モード）
+  - `src/app/quiz/[id]/quiz-detail-client.tsx` において、通常モード選択時は「解答後にその場で正誤・解説を表示」トグルを非表示または無効化し、`feedback` クエリを送信しない（または無視されることを明示）ようにする。
+  - **完了状態**: 通常モード開始時に新フィードバックフローが常に適用されること。
+  - _Requirements: 17.20_
+  - _Boundary: QuizDetailPage_
+
+- [x] 22.8 Phase 15 統合検証
+  - 通常モードの回答→フィードバック→次へ→結果を見る、スキップ不正解、楽観的結果表示、exam/lateral 退行なしを Jest / 手動で検証する。
+  - **完了状態**: 関連テストがグリーン、送信中画面が表示されないこと。
+  - _Requirements: 17.1, 17.4, 17.10, 17.15, 17.16, 17.2_
+  - _Depends: 22.4, 22.5, 22.6, 22.7_
+  - _Boundary: Integration_
+
+- [ ]* 22.9 Phase 15 E2E スモーク（任意）
+  - Playwright で通常プレイのフィードバック表示、「結果を見る」→ 結果 skeleton → スコア表示シーケンスを検証する。
+  - _Requirements: 17.16, 17.17, 17.23_
+  - _Depends: 22.8_
+  - _Boundary: Testing_
+
+## Implementation Notes (Phase 15)
+
+- タスク 16.2（自動結果遷移）は通常モードについて 22.5 で上書き。exam 等は 16.2 挙動を維持。
+- 要件 15.25 は通常モードのみ 22.4 / 22.5 により改定。他モードは Phase 12 追補どおり。
+- `optimistic-attempt` は `globalThis.sessionStorage` を参照（Jest / ブラウザ両対応）。
+- 通常モード判定は `playMode === 'normal' && !questionListMode`（`isNormalFeedbackFlow`）。
 
 

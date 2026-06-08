@@ -1817,4 +1817,178 @@ sequenceDiagram
 
 **Effort**: S（1〜2 日）— 新規 2 コンポーネント + 2 画面差し替え + 軽量テスト
 
+---
+
+## Phase 15: 通常モード即時フィードバック・スキップ・楽観的結果遷移設計（2026-06-08）
+
+### 1. 概要
+
+通常モード（`mode=normal`）のプレイフローを、**回答記録 → 即時正誤表示 → ユーザー操作（次へ／結果を見る）** に変更する。わからない問題はスキップ（空回答＝不正解）。全問完了時の「解答データを送信中...」を廃止し、結果画面 RSC シェル + `ResultSkeleton` を即時表示しつつ `saveAttempt` をバックグラウンド実行する。
+
+**対象外**: exam / flashcard / lateral / question-list / test-play
+
+### 2. Boundary Commitments
+
+| 境界 | 所有者 | 責務 |
+|------|--------|------|
+| `usePlayState` | Play-flow UI | 回答記録（`recordAnswer`）と進行（`advanceToNext`）の分離。通常モードのみ自動 `currentIdx` 進行を停止 |
+| `PostAnswerFeedback` | Play-flow UI | 正誤バッジ、解説、正解表示、次へ／結果を見る CTA |
+| `QuizPlayClient` | Play-flow UI | 通常モードの問題形式別 UI をフィードバックフローに統合、スキップボタン配置 |
+| `handlePlayComplete` | Play-flow UI | 楽観的データ保存 → 即遷移 → バックグラウンド `saveAttempt` |
+| `optimistic-attempt.ts`（lib） | Play-flow UI | sessionStorage への完了 attempt 一時保存・読取・削除 |
+| `QuizResultClient` | Play-flow UI | `localId` / optimistic データ優先表示、Firestore 到着後に置換 |
+| `saveAttempt` | quizeum-core | 既存 API をそのまま呼び出し（変更なし） |
+
+**Out of boundary**: Core API 変更、exam/flashcard/lateral のフロー、test-play
+
+### 3. `usePlayState` リファクタ
+
+#### 現状
+`handleAnswerSubmit` が正誤判定・スコア更新・`answeredIds` 追加・`currentIdx` 進行を一括実行。
+
+#### 変更後
+
+```typescript
+// 通常モード: record のみ（進行しない）
+recordAnswer(answer: string): { isCorrect: boolean; judgeable: boolean }
+
+// 明示進行（通常モードの「次へ」「結果を見る」から呼ぶ）
+advanceToNext(): void
+
+// スキップ = recordAnswer('')
+skipQuestion(): { isCorrect: false }
+
+// exam / flashcard / lateral 用: 従来の一体処理を維持
+handleAnswerSubmit(answer: string): void
+```
+
+**通常モード分岐（`QuizPlayClient`）**:
+- 各問題形式の submit → `recordAnswer` → `pendingFeedback` state をセット
+- 「次へ」→ `advanceToNext` + feedback リセット
+- 最終問「結果を見る」→ `handlePlayComplete`（楽観的遷移）
+
+**exam 等**: 既存 `handleAnswerSubmit`（自動進行）をそのまま使用。
+
+**タイムアウト（0秒）**: `recordAnswer('')` + フィードバック表示（要件 17.8）。
+
+### 4. `PostAnswerFeedback` コンポーネント
+
+**パス**: `src/components/quiz/post-answer-feedback.tsx` + `post-answer-feedback.module.css`
+
+**Props**:
+```typescript
+interface PostAnswerFeedbackProps {
+  isCorrect: boolean;
+  explanation?: string;
+  correctAnswerDisplay?: string;
+  isLastQuestion: boolean;
+  onNext: () => void;
+  onViewResults: () => void;
+  quickPressTime?: number | null; // 早押しのみ任意
+}
+```
+
+**UI**:
+- 正解: 緑系バッジ + CheckCircle（早押し既存スタイル踏襲）
+- 不正解: 赤系バッジ + 正解表示
+- 解説: マークダウン（`parseMarkdownToHtml` / `MarkdownContent`）
+- CTA: 最終問以外 `play-next-question`、最終問 `play-view-results`
+
+早押し専用のインライン feedback UI は本コンポーネントへ統合し重複を削除。
+
+### 5. スキップボタン
+
+**配置**: 問題カード内、アクションバー（ヒントボタン近傍）または各入力フォーム下。
+
+**挙動**: `skipQuestion()` → `recordAnswer('')` 同等。`failedQuestionIds` 追加、スコア不変、即時不正解フィードバック。
+
+**表示条件**: 通常モードかつ `pendingFeedback === null`（未回答状態）。
+
+### 6. 楽観的結果遷移フロー
+
+#### sessionStorage キー
+`quizeum_optimistic_attempt_{localId}` — シリアライズ済み `Attempt` 相当オブジェクト（`id` 未確定）
+
+#### シーケンス
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Play as QuizPlayClient
+    participant Store as sessionStorage
+    participant Result as QuizResultClient
+    participant Core as saveAttempt
+
+    User->>Play: 最終問「結果を見る」
+    Play->>Play: buildAttemptData, clearSession
+    Play->>Store: setOptimisticAttempt(localId, data)
+    Play->>Result: router.push(/result?localId=...)
+    Note over Play: 送信中画面なし
+
+    par Background save
+        Play->>Core: saveAttempt(data)
+        Core-->>Play: attemptId
+        Play->>Result: router.replace(?attemptId=...)
+        Play->>Store: clearOptimisticAttempt(localId)
+    and Result shell
+        Result->>Result: RSC frame + ResultSkeleton
+        Result->>Store: read optimistic data
+        Result->>User: スコアサマリー即表示
+    end
+```
+
+**オンライン成功時**: `router.replace` で `attemptId` に更新。quick-press times / association hints の localStorage キーも `localId` → `attemptId` に移行（既存パターン拡張）。
+
+**オンライン失敗時**: `addPendingSyncAttempt` フォールバック（既存 `saveOffline`）。URL は `localId` のまま。
+
+**オフライン**: 既存 `saveOffline` と同型だが遷移は即時。
+
+### 7. `QuizResultClient` 変更
+
+**読み取り優先順位**:
+1. `initialAttempt`（Server Loader）
+2. `getOptimisticAttempt(localId)`（sessionStorage）
+3. Firestore `getDoc(attempts/{attemptId})`
+4. pending sync 一覧
+
+**表示**: optimistic データがある場合は `attemptLoading=false` でサマリーを即描画。バックグラウンドで Firestore 取得し、到着後に state 更新（差分があれば置換）。
+
+**削除**: プレイ完了待ち UI は `QuizPlayClient` から除去（`isFinished || completing` ブロック削除）。
+
+### 8. クイズ詳細トグル
+
+通常モードでは `feedback` クエリパラメータを無視（常に新フロー）。早押し専用トグル UI は通常モード選択時に非表示、または無効化表示とする（要件 17.20）。
+
+### 9. Requirements Traceability（要件 17）
+
+| Req | 設計要素 |
+|-----|----------|
+| 17.1–17.3 | モード分岐（`effectivePlayMode === 'normal'` かつ `playMode === 'normal'`） |
+| 17.4–17.8 | `recordAnswer` + `PostAnswerFeedback`、全問題形式統合 |
+| 17.9–17.11 | `play-skip-question` → `skipQuestion` |
+| 17.12–17.15 | `advanceToNext` / `handlePlayComplete` |
+| 17.16–17.19 | 楽観的遷移、`optimistic-attempt.ts`、送信中 UI 削除 |
+| 17.20 | 詳細画面トグル無効化 |
+| 17.21–17.22 | Out of boundary |
+| 17.23 | testid |
+
+**改定する既存要件**:
+- 要件 3.6 → 3.6 / 3.6a（モード別）
+- 要件 5.1a / 5.1b → 楽観的結果表示
+- 要件 15.25 → 通常モードは要件 17 優先
+
+### 10. Testing Strategy
+
+| 種別 | 検証項目 |
+|------|----------|
+| **Unit** | `usePlayState`: 通常モードで `recordAnswer` 後に `currentIdx` 不変、`advanceToNext` で進行 |
+| **Unit** | `optimistic-attempt`: 保存・読取・削除 |
+| **Unit** | `PostAnswerFeedback`: 正解/不正解表示、最終問 CTA ラベル |
+| **Integration** | 通常プレイ: 回答 → フィードバック → 次へ × N → 結果を見る → 結果 skeleton → サマリー |
+| **Integration** | スキップ → 不正解フィードバック → failedIds に含まれる |
+| **Regression** | exam / flashcard / lateral の自動遷移維持 |
+| **E2E** | `play-answer-feedback`, `play-view-results`, 送信中テキスト非表示 |
+
+**Effort**: M（2〜3 日）— hook 分離 + コンポーネント + 楽観的遷移 + 結果 Client 統合
+
 

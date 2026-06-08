@@ -26,7 +26,6 @@ export function QuizDetailClient({ quiz }: QuizDetailClientProps) {
 
   const [bookmarked, setBookmarked] = useState<boolean>(false);
   const [selectedMode, setSelectedMode] = useState<'normal' | 'exam' | 'flashcard'>('normal');
-  const [showInstantFeedback, setShowInstantFeedback] = useState<boolean>(true);
   const [bookmarkLoading, setBookmarkLoading] = useState<boolean>(false);
 
   // クイックプレイでのブックマーク状態の初期取得
@@ -75,7 +74,7 @@ export function QuizDetailClient({ quiz }: QuizDetailClientProps) {
       }
       router.push(`/quiz/${quiz.id}/play?mode=lateral`);
     } else if (isQuick) {
-      router.push(`/quiz/${quiz.id}/play?mode=normal&feedback=${showInstantFeedback}`);
+      router.push(`/quiz/${quiz.id}/play?mode=normal`);
     } else {
       router.push(`/quiz/${quiz.id}/play?mode=${selectedMode}`);
     }
@@ -250,38 +249,10 @@ export function QuizDetailClient({ quiz }: QuizDetailClientProps) {
               <Timer size={18} className="text-neon-accent" />
               <span>早押し通常プレイ</span>
             </div>
-            <p className={styles.modeDesc} style={{ marginBottom: '12px' }}>
+            <p className={styles.modeDesc}>
               1文字ずつ表示される早押し問題に対応した専用プレイモードです。
               問題が読めた瞬間にボタンを押し、回答を記述しましょう！
             </p>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-light)',
-              marginTop: '12px'
-            }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>
-                解答後にその場で正誤・解説を表示
-              </span>
-              <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={showInstantFeedback}
-                  onChange={(e) => setShowInstantFeedback(e.target.checked)}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    accentColor: 'var(--color-primary)',
-                    cursor: 'pointer'
-                  }}
-                />
-              </label>
-            </div>
           </div>
         ) : (
           <>

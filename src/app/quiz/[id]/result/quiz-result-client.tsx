@@ -124,6 +124,19 @@ export function QuizResultClient({
               setDifficultyVote(att.difficultyVote ?? null);
             }
           } else if (localId) {
+            const { getOptimisticAttempt } = await import('@/lib/optimistic-attempt');
+            const optimistic = getOptimisticAttempt(localId);
+            if (optimistic) {
+              const att = {
+                ...optimistic,
+                id: optimistic.localId,
+                completedAt: new Date(optimistic.completedAt),
+              } as Attempt;
+              setAttempt(att);
+              if (att.difficultyVote !== undefined) {
+                setDifficultyVote(att.difficultyVote ?? null);
+              }
+            } else {
             const { getPendingSyncAttempts } = await import('@/services/attempt-session');
             const pendingAttempts = getPendingSyncAttempts();
             const found = pendingAttempts.find((a) => a.localId === localId);
@@ -153,10 +166,27 @@ export function QuizResultClient({
                 completedAt: new Date(),
               });
             }
+            }
           } else {
             setAttemptError('結果データが見つかりません');
           }
         } else if (localId) {
+          const { getOptimisticAttempt } = await import('@/lib/optimistic-attempt');
+          const optimistic = getOptimisticAttempt(localId);
+          if (optimistic) {
+            const att = {
+              ...optimistic,
+              id: optimistic.localId,
+              completedAt: new Date(optimistic.completedAt),
+            } as Attempt;
+            setAttempt(att);
+            if (att.difficultyVote !== undefined) {
+              setDifficultyVote(att.difficultyVote ?? null);
+            }
+            setAttemptLoading(false);
+            return;
+          }
+
           const { getPendingSyncAttempts } = await import('@/services/attempt-session');
           const pendingAttempts = getPendingSyncAttempts();
           const found = pendingAttempts.find((a) => a.localId === localId);

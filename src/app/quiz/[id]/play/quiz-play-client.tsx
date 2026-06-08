@@ -4,13 +4,15 @@ import { getTextInputFieldProps } from '@/services/text-answer-utils';
 import React, { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Timer, HelpCircle, Send, CheckCircle, AlertTriangle, Play, Check, X, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Timer, HelpCircle, Send, Play, Check, X, ShieldAlert } from 'lucide-react';
 import { parseMarkdownToHtml } from '@/lib/security/sanitize';
 import { useAuth } from '@/context/auth-context';
 import { usePlayState } from '@/hooks/usePlayState';
 import { useAiPlayState } from '@/hooks/useAiPlayState';
 import { saveAttempt, createLateralAttemptSession, updateFailedQuestionsCount } from '@/services/attempt';
-import { addPendingSyncAttempt, generateLocalId } from '@/services/attempt-session';
+import { addPendingSyncAttempt, generateLocalId, PendingSyncAttempt } from '@/services/attempt-session';
+import { setOptimisticAttempt, clearOptimisticAttempt } from '@/lib/optimistic-attempt';
+import { PostAnswerFeedback } from '@/components/quiz/post-answer-feedback';
 import { toQuestionAnswerRecords } from '@/services/attempt-answer-display';
 import { Quiz, Attempt, Question } from '@/types';
 import { auth } from '@/lib/firebase/config';
@@ -51,14 +53,14 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     questionListMode || rawMode === 'list'
       ? 'normal'
       : (rawMode as 'normal' | 'exam' | 'flashcard' | 'lateral');
-  const feedbackParam = searchParams.get('feedback');
-  const showFeedback = feedbackParam === null ? true : feedbackParam === 'true';
   const questionIdParam = searchParams.get('questionId');
   const startAtQuestionId = searchParams.get('startAtQuestionId');
 
   const quiz = initialQuiz;
   const [online, setOnline] = useState<boolean>(true);
   const [bookmarkedQuestionIds, setBookmarkedQuestionIds] = useState<Set<string>>(new Set());
+
+  const isNormalFeedbackFlow = playMode === 'normal' && !questionListMode;
 
   const playQuestions = useMemo(() => {
     if (!quiz?.questions?.length) return [];
@@ -129,14 +131,20 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     timeLeft,
     showAnswer,
     setShowAnswer,
+    recordAnswer,
+    advanceToNext,
+    completePlay,
     handleAnswerSubmit,
     clearSession,
+    feedbackPending,
+    lastAnswerResult,
     isFinished,
   } = usePlayState({
     quizId,
     userId: user?.id || 'guest',
     mode: playMode === 'lateral' ? 'normal' : (playMode === 'exam' || playMode === 'flashcard' ? playMode : 'normal'),
     questions: playQuestions,
+    manualAdvance: isNormalFeedbackFlow,
   });
 
   const [associationHintIndices, setAssociationHintIndices] = useState<{ [questionId: string]: number }>({});
@@ -148,18 +156,10 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     if (idx >= 0) setCurrentIdx(idx);
   }, [quiz, startAtQuestionId, questionListMode, setCurrentIdx]);
 
-  // isFinished が true になったときに自動的に完了処理を走らせる
-  useEffect(() => {
-    if (isFinished && !completing && playQuestions.length > 0 && !authLoading) {
-      setCompleting(true);
-      handlePlayComplete();
-    }
-  }, [isFinished, completing, playQuestions.length, authLoading]);
-
-  // 3. 通常・試験・フラッシュカード完了時の処理
-  const handlePlayComplete = async (finalScore = score, finalFailed = failedIds) => {
-    if (!quiz) return;
-
+  const buildAttemptData = (
+    finalScore = score,
+    finalFailed = failedIds
+  ): Omit<Attempt, 'id' | 'completedAt'> => {
     const listId = searchParams.get('listId') || undefined;
     const isQuestionListPlay = questionListMode && !!listId;
     let currentMode: Attempt['mode'];
@@ -168,107 +168,184 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     } else if (listId) {
       currentMode = 'list';
     } else {
-      currentMode = playMode === 'lateral' ? 'normal' : (playMode === 'exam' || playMode === 'flashcard' ? playMode : 'normal');
+      currentMode =
+        playMode === 'lateral'
+          ? 'normal'
+          : playMode === 'exam' || playMode === 'flashcard'
+            ? playMode
+            : 'normal';
     }
 
-    const attemptData: Omit<Attempt, 'id' | 'completedAt'> = {
+    return {
       userId: user?.id || 'guest',
-      quizId: quiz.id,
+      quizId: quiz!.id,
       listId,
       mode: currentMode,
       score: finalScore,
-      totalQuestions: isQuestionListPlay ? 1 : (quiz.questions ?? []).length,
+      totalQuestions: isQuestionListPlay ? 1 : (quiz!.questions ?? []).length,
       elapsedSeconds,
       failedQuestionIds: finalFailed,
       questionAnswers: toQuestionAnswerRecords(questionAnswers),
       aiTurnCount: 0,
       aiTurnLimit: null,
     };
+  };
 
-    // セッションデータの削除
+  const persistAuxiliaryAttemptData = (storageId: string) => {
+    if (!quiz) return;
+
+    if (Object.keys(quickPressTimes).length > 0) {
+      localStorage.setItem(`quizeum_qp_times_${storageId}`, JSON.stringify(quickPressTimes));
+    }
+
+    const revealedHintsData = (quiz.questions ?? [])
+      .map((q) => {
+        if (q.type === 'association') {
+          const maxIdx = associationHintIndices[q.id] ?? 0;
+          const hints = q.associationHints?.slice(0, maxIdx + 1) || [];
+          return {
+            questionId: q.id,
+            revealedHints: hints,
+            revealedCount: hints.length,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (revealedHintsData.length > 0) {
+      localStorage.setItem(`quizeum_attempt_hints_${storageId}`, JSON.stringify(revealedHintsData));
+    }
+  };
+
+  const migrateAuxiliaryAttemptData = (fromId: string, toId: string) => {
+    const qpKey = `quizeum_qp_times_${fromId}`;
+    const qpValue = localStorage.getItem(qpKey);
+    if (qpValue) {
+      localStorage.setItem(`quizeum_qp_times_${toId}`, qpValue);
+      localStorage.removeItem(qpKey);
+    }
+
+    const hintsKey = `quizeum_attempt_hints_${fromId}`;
+    const hintsValue = localStorage.getItem(hintsKey);
+    if (hintsValue) {
+      localStorage.setItem(`quizeum_attempt_hints_${toId}`, hintsValue);
+      localStorage.removeItem(hintsKey);
+    }
+  };
+
+  const saveOffline = (attemptData: Omit<Attempt, 'id' | 'completedAt'>, localId?: string) => {
+    if (!quiz) return;
+    const resolvedLocalId = localId ?? generateLocalId();
+    const pendingPayload: PendingSyncAttempt = {
+      ...attemptData,
+      localId: resolvedLocalId,
+      completedAt: new Date().toISOString(),
+    };
+    addPendingSyncAttempt(pendingPayload);
+    persistAuxiliaryAttemptData(resolvedLocalId);
+
+    const listId = searchParams.get('listId');
+    const listQuery = listId ? `&listId=${listId}` : '';
+    router.push(`/quiz/${quiz.id}/result?localId=${resolvedLocalId}${listQuery}`);
+  };
+
+  const handlePlayComplete = async (finalScore = score, finalFailed = failedIds) => {
+    if (!quiz) return;
+
+    const attemptData = buildAttemptData(finalScore, finalFailed);
     clearSession();
 
     if (online) {
-      // オンライン保存
       try {
         const attemptId = await saveAttempt(attemptData);
-        // 不正解問題数を更新
         if (user && finalFailed.length > 0) {
           await updateFailedQuestionsCount(user.id, finalFailed.length);
         }
+        persistAuxiliaryAttemptData(attemptId);
 
-        // 早押しタイムを localStorage に保存 (キー名に attemptId を含める)
-        if (Object.keys(quickPressTimes).length > 0) {
-          localStorage.setItem(`quizeum_qp_times_${attemptId}`, JSON.stringify(quickPressTimes));
-        }
-
-        // 連想クイズの表示ヒント情報を localStorage に保存
-        const revealedHintsData = (quiz.questions ?? []).map((q) => {
-          if (q.type === 'association') {
-            const maxIdx = associationHintIndices[q.id] ?? 0;
-            const hints = q.associationHints?.slice(0, maxIdx + 1) || [];
-            return {
-              questionId: q.id,
-              revealedHints: hints,
-              revealedCount: hints.length
-            };
-          }
-          return null;
-        }).filter(Boolean);
-
-        if (revealedHintsData.length > 0) {
-          localStorage.setItem(`quizeum_attempt_hints_${attemptId}`, JSON.stringify(revealedHintsData));
-        }
-
+        const listId = searchParams.get('listId');
         const listQuery = listId ? `&listId=${listId}` : '';
         router.push(`/quiz/${quiz.id}/result?attemptId=${attemptId}${listQuery}`);
       } catch (error) {
         console.error('[QuizPlay] 保存失敗:', error);
-        // 保存失敗時はオフラインフォールバックとして localStorage に保存
         saveOffline(attemptData);
       }
     } else {
-      // オフライン保存
       saveOffline(attemptData);
     }
   };
 
-  const saveOffline = (attemptData: Omit<Attempt, 'id' | 'completedAt'>) => {
+  const handlePlayCompleteOptimistic = () => {
     if (!quiz) return;
+
+    completePlay();
+    const attemptData = buildAttemptData();
+    clearSession();
+
     const localId = generateLocalId();
-    addPendingSyncAttempt({
+    const pendingPayload: PendingSyncAttempt = {
       ...attemptData,
       localId,
       completedAt: new Date().toISOString(),
-    });
+    };
 
-    // オフライン時も localStorage に早押しタイムを保存
-    if (Object.keys(quickPressTimes).length > 0) {
-      localStorage.setItem(`quizeum_qp_times_${localId}`, JSON.stringify(quickPressTimes));
-    }
-
-    // オフライン時も localStorage に連想クイズの表示ヒント情報を保存
-    const revealedHintsData = (quiz.questions ?? []).map((q) => {
-      if (q.type === 'association') {
-        const maxIdx = associationHintIndices[q.id] ?? 0;
-        const hints = q.associationHints?.slice(0, maxIdx + 1) || [];
-        return {
-          questionId: q.id,
-          revealedHints: hints,
-          revealedCount: hints.length
-        };
-      }
-      return null;
-    }).filter(Boolean);
-
-    if (revealedHintsData.length > 0) {
-      localStorage.setItem(`quizeum_attempt_hints_${localId}`, JSON.stringify(revealedHintsData));
-    }
+    setOptimisticAttempt(localId, pendingPayload);
+    persistAuxiliaryAttemptData(localId);
 
     const listId = searchParams.get('listId');
     const listQuery = listId ? `&listId=${listId}` : '';
-    // オフライン状態でのリダイレクト（結果画面にて同期警告が出る）
     router.push(`/quiz/${quiz.id}/result?localId=${localId}${listQuery}`);
+
+    if (online) {
+      void (async () => {
+        try {
+          const attemptId = await saveAttempt(attemptData);
+          if (user && failedIds.length > 0) {
+            await updateFailedQuestionsCount(user.id, failedIds.length);
+          }
+          migrateAuxiliaryAttemptData(localId, attemptId);
+          clearOptimisticAttempt(localId);
+          router.replace(`/quiz/${quiz.id}/result?attemptId=${attemptId}${listQuery}`);
+        } catch (error) {
+          console.error('[QuizPlay] バックグラウンド保存失敗:', error);
+          addPendingSyncAttempt(pendingPayload);
+          clearOptimisticAttempt(localId);
+        }
+      })();
+    } else {
+      addPendingSyncAttempt(pendingPayload);
+    }
+  };
+
+  // exam / flashcard / question-list: 全問完了時に自動で結果保存
+  useEffect(() => {
+    if (isNormalFeedbackFlow) return;
+    if (isFinished && !completing && playQuestions.length > 0 && !authLoading) {
+      setCompleting(true);
+      void handlePlayComplete();
+    }
+  }, [isFinished, completing, playQuestions.length, authLoading, isNormalFeedbackFlow]);
+
+  const submitAnswer = (answer: string) => {
+    if (isNormalFeedbackFlow) {
+      recordAnswer(answer);
+      return;
+    }
+    handleAnswerSubmit(answer);
+  };
+
+  const handleSkipQuestion = () => {
+    if (!isNormalFeedbackFlow || feedbackPending) return;
+    recordAnswer('');
+  };
+
+  const handleNextQuestion = () => {
+    advanceToNext();
+  };
+
+  const handleViewResults = () => {
+    handlePlayCompleteOptimistic();
   };
 
   // ────────── ウミガメスープ問題専用ステート ──────────
@@ -468,8 +545,6 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
   // ────────── 早押しクイズ（ストリーム表示＆カンニング防止） ──────────
   const [isReadingStarted, setIsReadingStarted] = useState<boolean>(false);
   const [isQuickPressed, setIsQuickPressed] = useState<boolean>(false);
-  const [instantFeedback, setInstantFeedback] = useState<'correct' | 'incorrect' | null>(null);
-  const [userAnswer, setUserAnswer] = useState<string>('');
   const [currentQuickPressTime, setCurrentQuickPressTime] = useState<number>(0);
   const [quickPressTimes, setQuickPressTimes] = useState<{ [questionId: string]: number }>({});
   const quickPressStartTimeRef = useRef<number | null>(null);
@@ -504,8 +579,6 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
   useEffect(() => {
     setIsReadingStarted(false);
     setIsQuickPressed(false);
-    setInstantFeedback(null);
-    setUserAnswer('');
     setCurrentQuickPressTime(0);
     quickPressStartTimeRef.current = null;
   }, [currentIdx]);
@@ -844,15 +917,9 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
 
   const currentQuestion = quiz.questions[currentIdx];
   const progressPercent = playQuestions.length > 0 ? (answeredIds.length / playQuestions.length) * 100 : 0;
-
-  // すべて解答完了時のリダイレクト・完了トリガー（自動遷移）
-  if (isFinished || completing || (isFinished && currentIdx >= playQuestions.length)) {
-    return (
-      <div className={styles.container} style={{ textAlign: 'center', padding: '100px 0' }}>
-        <p style={{ color: 'var(--text-muted)' }}>解答データを送信中...</p>
-      </div>
-    );
-  }
+  const isLastQuestion = currentIdx >= playQuestions.length - 1;
+  const showNormalFeedback =
+    isNormalFeedbackFlow && feedbackPending && lastAnswerResult && currentQuestion;
 
   return (
     <div className={styles.container}>
@@ -925,13 +992,37 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
           isQuickPressReading={isReadingStarted}
         />
 
+        {showNormalFeedback ? (
+          <PostAnswerFeedback
+            isCorrect={lastAnswerResult.isCorrect}
+            explanation={currentQuestion.explanation}
+            correctAnswerDisplay={
+              !lastAnswerResult.isCorrect
+                ? formatCorrectAnswer(currentQuestion) || undefined
+                : undefined
+            }
+            isLastQuestion={isLastQuestion}
+            onNext={handleNextQuestion}
+            onViewResults={handleViewResults}
+            quickPressTime={
+              currentQuestion.type === 'quick-press'
+                ? quickPressTimes[currentQuestion.id] ?? currentQuickPressTime
+                : undefined
+            }
+          />
+        ) : (
+          <>
         {/* 1. 選択肢表示 (単一正解=ラジオ / 複数正解=チェックボックス → 確定ボタン) */}
         {(currentQuestion?.type === 'multiple-choice' || currentQuestion?.type === 'true-false') && (
           <ChoiceAnswerPanel
             question={currentQuestion}
-            onConfirm={handleAnswerSubmit}
+            onConfirm={submitAnswer}
             initialAnswer={questionAnswers[currentQuestion.id]}
-            disabled={effectivePlayMode !== 'exam' && answeredIds.includes(currentQuestion.id)}
+            disabled={
+              isNormalFeedbackFlow
+                ? feedbackPending
+                : effectivePlayMode !== 'exam' && answeredIds.includes(currentQuestion.id)
+            }
           />
         )}
 
@@ -943,7 +1034,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
               onSubmit={(e) => {
                 e.preventDefault();
                 const input = (e.currentTarget.elements.namedItem('textAnswer') as HTMLInputElement).value;
-                handleAnswerSubmit(input);
+                submitAnswer(input);
                 e.currentTarget.reset();
               }}
               className={styles.inputForm}
@@ -1013,19 +1104,18 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
               >
                 🔴 押して回答する！
               </button>
-            ) : instantFeedback === null ? (
+            ) : (
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   const input = (e.currentTarget.elements.namedItem('quickAnswer') as HTMLInputElement).value;
-                  setUserAnswer(input);
 
-                  // ローカルで正誤判定（タイム記録のために両モードで共通実行）
                   let isCorrect = false;
                   try {
-                    const decodedAnswers = currentQuestion.correctTextAnswerList?.map(ans =>
-                      decodeURIComponent(escape(atob(ans))).trim().toLowerCase().replace(/\s+/g, '')
-                    ) || [];
+                    const decodedAnswers =
+                      currentQuestion.correctTextAnswerList?.map((ans) =>
+                        decodeURIComponent(escape(atob(ans))).trim().toLowerCase().replace(/\s+/g, '')
+                      ) || [];
                     const cleanInput = input.trim().toLowerCase().replace(/\s+/g, '');
                     isCorrect = decodedAnswers.includes(cleanInput);
                   } catch (err) {
@@ -1033,20 +1123,14 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
                   }
 
                   if (isCorrect) {
-                    // 正解した場合は早押しタイムを記録
-                    setQuickPressTimes(prev => ({
+                    setQuickPressTimes((prev) => ({
                       ...prev,
-                      [currentQuestion.id]: currentQuickPressTime
+                      [currentQuestion.id]: currentQuickPressTime,
                     }));
                   }
 
-                  if (showFeedback) {
-                    // 即時正誤表示ONの場合：ローカルで正誤判定結果を表示
-                    setInstantFeedback(isCorrect ? 'correct' : 'incorrect');
-                  } else {
-                    // 即時正誤表示OFFの場合：そのままフックを呼ぶ
-                    handleAnswerSubmit(input);
-                  }
+                  submitAnswer(input);
+
                   e.currentTarget.reset();
                 }}
                 className={styles.inputForm}
@@ -1063,88 +1147,6 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
                 />
                 <button type="submit" className="btn btn-primary" data-analytics="quiz-quickpress-answer-submit">送信</button>
               </form>
-            ) : (
-              // 即時正誤フィードバック表示 & 次の問題へボタン
-              <div className={styles.feedbackArea} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  background: instantFeedback === 'correct' ? 'rgba(0, 245, 212, 0.08)' : 'rgba(255, 0, 127, 0.08)',
-                  border: `1px solid ${instantFeedback === 'correct' ? '#00f5d4' : '#ff007f'}`,
-                }}>
-                  {instantFeedback === 'correct' ? (
-                    <>
-                      <CheckCircle size={32} color="#00f5d4" />
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#00f5d4' }}>正解！</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                          早押しタイム: <strong style={{ color: '#00f5d4', fontSize: '1.15rem' }}>{currentQuickPressTime}</strong> 秒
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle size={32} color="#ff007f" />
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#ff007f' }}>不正解...</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                          早押しタイム: {currentQuickPressTime} 秒 (正解時のみ記録されます)
-                        </div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                          正解: {
-                            currentQuestion.correctTextAnswerList?.map(ans => {
-                              try {
-                                return decodeURIComponent(escape(atob(ans)));
-                              } catch {
-                                return '不明';
-                              }
-                            }).join(', ')
-                          }
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {currentQuestion.explanation && (
-                  <div style={{
-                    padding: '16px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--border-light)',
-                    fontSize: '0.95rem',
-                    lineHeight: '1.6'
-                  }}>
-                    <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-main)' }}>💡 解説:</strong>
-                    <div dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.explanation) }} />
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  data-analytics="quiz-quickpress-next"
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    fontSize: '1.1rem',
-                    fontWeight: 'bold',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-                    color: '#fff',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => {
-                    handleAnswerSubmit(userAnswer);
-                  }}
-                >
-                  次の問題へ ➔
-                </button>
-              </div>
             )}
           </div>
         )}
@@ -1175,7 +1177,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
               data-analytics="quiz-answer-sorting-submit"
               onClick={() => {
                 const sortedIds = sortingItems.map((item) => item.id).join(',');
-                handleAnswerSubmit(sortedIds);
+                submitAnswer(sortedIds);
               }}
             >
               並び替えを確定して解答する
@@ -1220,7 +1222,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
               onSubmit={(e) => {
                 e.preventDefault();
                 const input = (e.currentTarget.elements.namedItem('associationAnswer') as HTMLInputElement).value;
-                handleAnswerSubmit(input);
+                submitAnswer(input);
                 e.currentTarget.reset();
               }}
               className={styles.inputForm}
@@ -1280,11 +1282,26 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
             )}
           </div>
         )}
+
+        {isNormalFeedbackFlow && !feedbackPending && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            data-testid="play-skip-question"
+            data-analytics="quiz-play-skip"
+            style={{ width: '100%', marginTop: '16px' }}
+            onClick={handleSkipQuestion}
+          >
+            わからない（スキップ）
+          </button>
+        )}
+          </>
+        )}
       </div>
 
       {/* アクションボタンバー (ヒント表示) */}
       <div className={styles.actionsBar}>
-        {currentQuestion?.hint && (
+        {currentQuestion?.hint && !showNormalFeedback && (
           <button className="btn btn-secondary" onClick={() => setShowHint(true)}>
             💡 ヒントを表示
           </button>

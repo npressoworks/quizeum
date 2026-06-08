@@ -1,11 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Quiz, Question } from '@/types';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Question } from '@/types';
 import { LocalAttemptSession, PlayProgressData } from '@/services/attempt-session';
 import { isChoiceAnswerCorrect } from '@/services/choice-answer-utils';
 import { isTextInputAnswerCorrect } from '@/services/text-answer-utils';
 import { canJudgeQuestion, checkTruthKeywordsLocally } from '@/lib/test-play';
+
+export interface AnswerRecordResult {
+  isCorrect: boolean;
+  judgeable: boolean;
+}
 
 interface UsePlayStateProps {
   quizId: string;
@@ -16,6 +21,60 @@ interface UsePlayStateProps {
   persistSession?: boolean;
   /** true のとき正解設定が不完全な問題は正誤判定をスキップする */
   skipJudgmentWhenIncomplete?: boolean;
+  /** true のとき回答後に自動で次問へ進まない（通常モードのフィードバックフロー） */
+  manualAdvance?: boolean;
+}
+
+function judgeAnswer(
+  answerTextOrChoiceId: string,
+  currentQuestion: Question,
+  mode: 'normal' | 'exam' | 'flashcard',
+  skipJudgmentWhenIncomplete: boolean
+): AnswerRecordResult {
+  const judgeable = !skipJudgmentWhenIncomplete || canJudgeQuestion(currentQuestion);
+  if (!judgeable) {
+    return { isCorrect: false, judgeable: false };
+  }
+
+  let isCorrect = false;
+
+  if (mode === 'flashcard') {
+    isCorrect = answerTextOrChoiceId === 'correct';
+  } else if (currentQuestion.type === 'multiple-choice' || currentQuestion.type === 'true-false') {
+    isCorrect = isChoiceAnswerCorrect(answerTextOrChoiceId, currentQuestion);
+  } else if (currentQuestion.type === 'text-input' || currentQuestion.type === 'association') {
+    isCorrect = isTextInputAnswerCorrect(answerTextOrChoiceId, currentQuestion);
+  } else if (currentQuestion.type === 'quick-press') {
+    const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
+    isCorrect =
+      currentQuestion.correctTextAnswerList?.some((ans) => {
+        try {
+          const decoded = decodeURIComponent(escape(atob(ans)));
+          return decoded.trim().toLowerCase().replace(/\s+/g, '') === cleanInput;
+        } catch {
+          return false;
+        }
+      }) ?? false;
+  } else if (currentQuestion.type === 'sorting') {
+    const userSortedIds = answerTextOrChoiceId.split(',');
+    const sortingItems = currentQuestion.sortingItems ?? [];
+
+    if (userSortedIds.length !== sortingItems.length) {
+      isCorrect = false;
+    } else {
+      isCorrect = userSortedIds.every((id, idx) => {
+        const item = sortingItems.find((s) => s.id === id);
+        return item?.correctOrder === idx;
+      });
+    }
+  } else if (currentQuestion.type === 'lateral-thinking') {
+    isCorrect = checkTruthKeywordsLocally(
+      answerTextOrChoiceId,
+      currentQuestion.truthKeywords ?? []
+    );
+  }
+
+  return { isCorrect, judgeable };
 }
 
 export function usePlayState({
@@ -25,6 +84,7 @@ export function usePlayState({
   questions,
   persistSession = true,
   skipJudgmentWhenIncomplete = false,
+  manualAdvance = false,
 }: UsePlayStateProps) {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [answeredIds, setAnsweredIds] = useState<string[]>([]);
@@ -33,12 +93,14 @@ export function usePlayState({
   const [score, setScore] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-
-  // フラッシュカード用のカード裏面表示ステート
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
+  const [playCompleted, setPlayCompleted] = useState<boolean>(false);
+  const [feedbackPending, setFeedbackPending] = useState<boolean>(false);
+  const [lastAnswerResult, setLastAnswerResult] = useState<AnswerRecordResult | null>(null);
 
-  // 初回起動時のセッション復元
   const isInitialized = useRef<boolean>(false);
+  const recordAnswerRef = useRef<(answer: string) => AnswerRecordResult | null>(() => null);
+
   useEffect(() => {
     if (!quizId || !userId || isInitialized.current) return;
     isInitialized.current = true;
@@ -52,18 +114,19 @@ export function usePlayState({
       setScore(saved.currentScore);
       setElapsedSeconds(saved.elapsedSeconds);
 
-      // 復旧された回答済みの数から次の未解答インデックスを決定
       const nextIdx = saved.answeredQuestionIds.length;
       if (nextIdx < questions.length) {
         setCurrentIdx(nextIdx);
+      } else if (manualAdvance && saved.answeredQuestionIds.length === questions.length && questions.length > 0) {
+        setCurrentIdx(questions.length - 1);
+        setFeedbackPending(true);
+        setLastAnswerResult({ isCorrect: false, judgeable: true });
       } else {
-        // すべて解答済みの場合は結果画面へ進めるため最後にする
         setCurrentIdx(questions.length - 1);
       }
     }
-  }, [quizId, userId, mode, questions, persistSession]);
+  }, [quizId, userId, mode, questions, persistSession, manualAdvance]);
 
-  // localStorage への自動シリアライズ保存
   useEffect(() => {
     if (!persistSession || !quizId || !userId || !isInitialized.current) return;
 
@@ -80,27 +143,127 @@ export function usePlayState({
       elapsedSeconds,
     };
 
-    // プレイ完了まで常に保存
-    if (answeredIds.length < questions.length) {
+    if (!playCompleted && answeredIds.length < questions.length) {
       LocalAttemptSession.save(quizId, userId, progress);
     }
-  }, [quizId, userId, mode, answeredIds, failedIds, questionAnswers, score, elapsedSeconds, questions, persistSession]);
+  }, [
+    quizId,
+    userId,
+    mode,
+    answeredIds,
+    failedIds,
+    questionAnswers,
+    score,
+    elapsedSeconds,
+    questions,
+    persistSession,
+    playCompleted,
+  ]);
 
-  // タイマー処理
+  const recordAnswer = useCallback(
+    (answerTextOrChoiceId: string): AnswerRecordResult | null => {
+      if (questions.length === 0 || currentIdx >= questions.length) return null;
+
+      const currentQuestion = questions[currentIdx];
+
+      if (mode !== 'exam' && answeredIds.includes(currentQuestion.id)) return null;
+
+      const result = judgeAnswer(
+        answerTextOrChoiceId,
+        currentQuestion,
+        mode,
+        skipJudgmentWhenIncomplete
+      );
+
+      const nextAnswered = [...answeredIds];
+      if (!nextAnswered.includes(currentQuestion.id)) {
+        nextAnswered.push(currentQuestion.id);
+        setAnsweredIds(nextAnswered);
+      }
+
+      const nextFailed = [...failedIds];
+      if (result.judgeable) {
+        if (result.isCorrect) {
+          setScore((prev) => prev + 1);
+        } else if (!nextFailed.includes(currentQuestion.id)) {
+          nextFailed.push(currentQuestion.id);
+          setFailedIds(nextFailed);
+        }
+      }
+
+      setQuestionAnswers((prev) => ({
+        ...prev,
+        [currentQuestion.id]: answerTextOrChoiceId,
+      }));
+
+      if (manualAdvance) {
+        setFeedbackPending(true);
+        setLastAnswerResult(result);
+      }
+
+      return result;
+    },
+    [
+      questions,
+      currentIdx,
+      mode,
+      answeredIds,
+      failedIds,
+      skipJudgmentWhenIncomplete,
+      manualAdvance,
+    ]
+  );
+
+  recordAnswerRef.current = recordAnswer;
+
+  const advanceToNext = useCallback(() => {
+    setFeedbackPending(false);
+    setLastAnswerResult(null);
+
+    if (currentIdx < questions.length - 1) {
+      setCurrentIdx((prev) => prev + 1);
+    }
+  }, [currentIdx, questions.length]);
+
+  const completePlay = useCallback(() => {
+    setFeedbackPending(false);
+    setLastAnswerResult(null);
+    setPlayCompleted(true);
+  }, []);
+
+  const handleAnswerSubmit = useCallback(
+    (answerTextOrChoiceId: string) => {
+      const result = recordAnswer(answerTextOrChoiceId);
+      if (!result) return;
+
+      if (!manualAdvance && mode !== 'exam') {
+        setFeedbackPending(false);
+        setLastAnswerResult(null);
+        if (currentIdx < questions.length - 1) {
+          setCurrentIdx((prev) => prev + 1);
+        } else {
+          setCurrentIdx(questions.length);
+        }
+      }
+    },
+    [recordAnswer, manualAdvance, mode, currentIdx, questions.length]
+  );
+
   useEffect(() => {
-    // すべて回答済みの場合はタイマーを動かさない
-    if (answeredIds.length >= questions.length) return;
+    if (answeredIds.length >= questions.length && !manualAdvance) return;
 
     const timer = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
 
-      // 通常モードにおける個別問題の制限時間カウントダウン
       if (mode === 'normal') {
         setTimeLeft((prev) => {
           if (prev === null) return null;
           if (prev <= 1) {
-            // 時間切れ (0秒) -> 自動的に不正解扱いとして次の問題へ
-            handleAnswerSubmit('');
+            if (manualAdvance) {
+              recordAnswerRef.current?.('');
+            } else {
+              handleAnswerSubmit('');
+            }
             return null;
           }
           return prev - 1;
@@ -109,9 +272,8 @@ export function usePlayState({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [mode, answeredIds, questions, currentIdx]);
+  }, [mode, answeredIds, questions, manualAdvance, handleAnswerSubmit]);
 
-  // 問題が変わる際のタイマー初期化
   useEffect(() => {
     if (questions.length === 0 || currentIdx >= questions.length) return;
 
@@ -124,101 +286,13 @@ export function usePlayState({
     setShowAnswer(false);
   }, [currentIdx, questions, mode]);
 
-  // 解答提出処理
-  const handleAnswerSubmit = (answerTextOrChoiceId: string) => {
-    if (questions.length === 0 || currentIdx >= questions.length) return;
-
-    const currentQuestion = questions[currentIdx];
-
-    // すでに回答済みの問題はスキップ (通常モード・フラッシュカードモードでの重複回答防止)
-    if (mode !== 'exam' && answeredIds.includes(currentQuestion.id)) return;
-
-    let isCorrect = false;
-    const judgeable = !skipJudgmentWhenIncomplete || canJudgeQuestion(currentQuestion);
-
-    // 正誤判定ロジック
-    if (!judgeable) {
-      isCorrect = false;
-    } else if (mode === 'flashcard') {
-      // 暗記カード（フラッシュカード）モードは自己申告による正誤判定
-      isCorrect = answerTextOrChoiceId === 'correct';
-    } else if (currentQuestion.type === 'multiple-choice' || currentQuestion.type === 'true-false') {
-      isCorrect = isChoiceAnswerCorrect(answerTextOrChoiceId, currentQuestion);
-    } else if (currentQuestion.type === 'text-input' || currentQuestion.type === 'association') {
-      isCorrect = isTextInputAnswerCorrect(answerTextOrChoiceId, currentQuestion);
-    } else if (currentQuestion.type === 'quick-press') {
-      const cleanInput = answerTextOrChoiceId.trim().toLowerCase().replace(/\s+/g, '');
-      // 早押し問題の正解候補は Base64 難読化されているため、デコードして比較
-      isCorrect = currentQuestion.correctTextAnswerList?.some(
-        (ans) => {
-          try {
-            const decoded = decodeURIComponent(escape(atob(ans)));
-            return decoded.trim().toLowerCase().replace(/\s+/g, '') === cleanInput;
-          } catch (e) {
-            return false;
-          }
-        }
-      ) ?? false;
-    } else if (currentQuestion.type === 'sorting') {
-      // 並び替え要素の正しい順序を検証
-      // カンマ区切りの要素ID文字列（例："id1,id2,id3"）を受け取ると想定
-      const userSortedIds = answerTextOrChoiceId.split(',');
-      const sortingItems = currentQuestion.sortingItems ?? [];
-
-      if (userSortedIds.length !== sortingItems.length) {
-        isCorrect = false;
-      } else {
-        isCorrect = userSortedIds.every((id, idx) => {
-          const item = sortingItems.find((s) => s.id === id);
-          return item?.correctOrder === idx;
-        });
-      }
-    } else if (currentQuestion.type === 'lateral-thinking') {
-      isCorrect = checkTruthKeywordsLocally(
-        answerTextOrChoiceId,
-        currentQuestion.truthKeywords ?? []
-      );
-    }
-
-    // 回答ログの追加
-    const nextAnswered = [...answeredIds];
-    if (!nextAnswered.includes(currentQuestion.id)) {
-      nextAnswered.push(currentQuestion.id);
-      setAnsweredIds(nextAnswered);
-    }
-
-    const nextFailed = [...failedIds];
-    if (judgeable) {
-      if (isCorrect) {
-        setScore((prev) => prev + 1);
-      } else {
-        if (!nextFailed.includes(currentQuestion.id)) {
-          nextFailed.push(currentQuestion.id);
-          setFailedIds(nextFailed);
-        }
-      }
-    }
-
-    setQuestionAnswers((prev) => ({
-      ...prev,
-      [currentQuestion.id]: answerTextOrChoiceId,
-    }));
-
-    // 次の問題へ進む (試験モード以外は自動で進む)
-    if (mode !== 'exam') {
-      if (currentIdx < questions.length - 1) {
-        setCurrentIdx((prev) => prev + 1);
-      } else {
-        // 全問終了
-        setCurrentIdx(questions.length); // 完了フラグ用インデックス
-      }
-    }
-  };
-
-  // セッションの強制消去 (クリア完了後など)
   const clearSession = () => {
     LocalAttemptSession.clear(quizId, userId);
   };
+
+  const isFinished = manualAdvance
+    ? playCompleted
+    : answeredIds.length >= questions.length;
 
   return {
     currentIdx,
@@ -231,8 +305,13 @@ export function usePlayState({
     timeLeft,
     showAnswer,
     setShowAnswer,
+    recordAnswer,
+    advanceToNext,
+    completePlay,
     handleAnswerSubmit,
     clearSession,
-    isFinished: answeredIds.length >= questions.length,
+    feedbackPending,
+    lastAnswerResult,
+    isFinished,
   };
 }
