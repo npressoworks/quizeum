@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { QuizListSort } from '@/services/quiz';
-import homeStyles from '@/app/page.module.css';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export interface ExploreSortTabsProps {
   activeSort: QuizListSort;
@@ -17,19 +17,23 @@ const TABS: { id: QuizListSort; label: string }[] = [
 
 export function ExploreSortTabs({ activeSort, onSortChange }: ExploreSortTabsProps) {
   return (
-    <div className={homeStyles.tabBar} data-testid="explore-sort-tabs">
-      {TABS.map((tab) => (
-        <div
-          key={tab.id}
-          role="tab"
-          aria-selected={activeSort === tab.id}
-          data-testid={`explore-sort-${tab.id}`}
-          className={`${homeStyles.tab} ${activeSort === tab.id ? homeStyles.tabActive : ''}`}
-          onClick={() => onSortChange(tab.id)}
-        >
-          {tab.label}
-        </div>
-      ))}
-    </div>
+    <Tabs
+      value={activeSort}
+      onValueChange={(value) => onSortChange(value as QuizListSort)}
+      data-testid="explore-sort-tabs"
+    >
+      <TabsList variant="line" className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
+        {TABS.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            data-testid={`explore-sort-${tab.id}`}
+            className="rounded-none px-2 py-3 data-active:bg-transparent"
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

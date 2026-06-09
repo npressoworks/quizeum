@@ -9,7 +9,6 @@ import { ExploreAccordion } from './explore-accordion';
 import { GenreCarousel } from './genre-carousel';
 import { FormatCarousel } from './format-carousel';
 import { GenreSearchField } from './genre-search-field';
-import styles from './explore-carousel.module.css';
 
 export interface ExploreAccordionsPanelProps {
   genres: GenreMetadata[];
@@ -55,14 +54,14 @@ export function ExploreAccordionsPanel({
   );
 
   return (
-    <div className={styles.accordionsPanel}>
+    <div className="flex flex-col gap-3">
       <ExploreAccordion
         testId="explore-accordion-genre"
         title={selectedGenre ? `ジャンルで絞り込む：${selectedGenre.displayName}` : 'ジャンルで絞り込む'}
         open={genreOpen}
         onToggle={() => setGenreOpen((v) => !v)}
       >
-        <div className={styles.genreSearchWrap} data-testid="genre-explore-search-field">
+        <div className="mb-3" data-testid="genre-explore-search-field">
           <GenreSearchField
             genres={genres}
             query={genreSearchQuery}

@@ -32,7 +32,7 @@ describe('DifficultyVoteStars', () => {
     const stars = screen.getAllByRole('button');
     stars.forEach((star) => {
       expect(star).toHaveTextContent('☆');
-      expect(star).toHaveStyle({ color: 'var(--text-muted)' });
+      expect(star).toHaveClass('text-muted-foreground');
     });
   });
 

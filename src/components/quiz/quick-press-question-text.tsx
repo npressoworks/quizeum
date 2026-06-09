@@ -3,30 +3,35 @@
 import type { CSSProperties } from 'react';
 import type { QuickPressCharToken } from '@/lib/quick-press-plain-text';
 import { QUICK_PRESS_WIPE_CHAR_MS } from '@/lib/quick-press-stream-config';
-import styles from './quick-press-question-text.module.css';
+import { cn } from '@/lib/utils';
+import { quickPressClasses as styles } from './quick-press-classes';
 
 type QuickPressQuestionTextProps = {
   tokens: QuickPressCharToken[];
-  /** 全文分の非表示レイアウト用トークン（問読み中のボタン位置ずれ防止） */
   reservedTokens?: QuickPressCharToken[];
   className?: string;
 };
 
 const NORMAL_GRADIENT =
-  'linear-gradient(to right, var(--text-main) 50%, rgba(243, 240, 252, 0) 50%)';
+  'linear-gradient(to right, var(--foreground) 50%, transparent 50%)';
 const BOLD_GRADIENT =
-  'linear-gradient(to right, var(--color-accent) 50%, rgba(0, 245, 212, 0) 50%)';
+  'linear-gradient(to right, var(--primary) 50%, transparent 50%)';
 
 function renderChar(token: QuickPressCharToken, key: string, animated: boolean) {
   return (
     <span
       key={key}
-      className={`${styles.char} ${token.bold ? styles.charBold : ''} ${animated ? styles.charAnimated : styles.charReserved}`}
+      className={cn(
+        styles.char,
+        token.bold && styles.charBold,
+        animated ? cn(styles.charAnimated, 'animate-quick-press-wipe bg-clip-text text-transparent') : styles.charReserved
+      )}
       style={
         animated
           ? {
               backgroundImage: token.bold ? BOLD_GRADIENT : NORMAL_GRADIENT,
               backgroundSize: '200% 100%',
+              backgroundPosition: '100% 0',
             }
           : undefined
       }
@@ -36,10 +41,6 @@ function renderChar(token: QuickPressCharToken, key: string, animated: boolean) 
   );
 }
 
-/**
- * 早押し問題文: ストリームで届いたトークンを1文字ずつ左ワイプで表示する。
- * reservedTokens があるときは非表示レイヤーで全文分の高さを先に確保する。
- */
 export function QuickPressQuestionText({
   tokens,
   reservedTokens = [],
@@ -49,12 +50,13 @@ export function QuickPressQuestionText({
 
   return (
     <h2
-      className={`${className ?? ''} ${styles.root} ${hasReservedLayout ? styles.rootReserved : ''}`}
-      style={
-        {
-          '--quick-press-wipe-ms': `${QUICK_PRESS_WIPE_CHAR_MS}ms`,
-        } as CSSProperties
-      }
+      className={cn(
+        'w-full max-w-full text-[1.85rem] leading-[1.45] wrap-break-word text-foreground',
+        styles.root,
+        hasReservedLayout && styles.rootReserved,
+        className
+      )}
+      style={{ '--quick-press-wipe-ms': `${QUICK_PRESS_WIPE_CHAR_MS}ms` } as CSSProperties}
     >
       {hasReservedLayout && (
         <span className={styles.reserveLayer} aria-hidden="true">

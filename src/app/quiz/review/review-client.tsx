@@ -14,7 +14,7 @@ import { isChoiceAnswerCorrect } from '@/services/choice-answer-utils';
 import { getTextInputFieldProps, isTextInputAnswerCorrect } from '@/services/text-answer-utils';
 import { Question, GenreMetadata } from '@/types';
 import { useActiveGenres } from '@/hooks/useActiveGenres';
-import styles from './review.module.css';
+import { reviewClasses as styles } from './review-classes';
 
 interface ReviewClientProps {
   initialGenres: GenreMetadata[];

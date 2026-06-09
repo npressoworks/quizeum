@@ -3,9 +3,11 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
 import { filterGenreSuggestions } from '@/lib/filter-genre-suggestions';
 import type { GenreMetadata } from '@/types';
-import styles from './genre-search-field.module.css';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useWeeklyTopGenres } from '@/hooks/useWeeklyTrends';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface GenreSearchFieldProps {
   genres: GenreMetadata[];
@@ -15,6 +17,9 @@ export interface GenreSearchFieldProps {
   onChange: (genreId: string) => void;
   disabled?: boolean;
 }
+
+const suggestPanelClass =
+  'absolute z-20 top-[calc(100%+4px)] left-0 right-0 max-h-[280px] overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md';
 
 export function GenreSearchField({
   genres,
@@ -86,14 +91,13 @@ export function GenreSearchField({
   };
 
   return (
-    <div className={styles.wrap} ref={wrapRef} data-testid="genre-search-field">
-      <label htmlFor={listId} style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
+    <div className="relative w-full" ref={wrapRef} data-testid="genre-search-field">
+      <label htmlFor={listId} className="sr-only">
         ジャンルで絞り込み
       </label>
-      <input
+      <Input
         id={listId}
         type="text"
-        className={styles.input}
         placeholder="ジャンル名で検索..."
         value={query}
         disabled={disabled || genres.length === 0}
@@ -126,16 +130,16 @@ export function GenreSearchField({
         }}
       />
       {open && !query.trim() && (
-        <div className={styles.smartSuggest} data-testid="genre-smart-suggest" role="listbox">
+        <div className={suggestPanelClass} data-testid="genre-smart-suggest" role="listbox">
           {recentGenreMetadata.length > 0 && (
-            <div data-testid="recent-genres-section" className={styles.section}>
-              <div className={styles.sectionTitle}>最近検索したジャンル</div>
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            <div data-testid="recent-genres-section" className="py-1 not-last:border-b not-last:border-border">
+              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">最近検索したジャンル</div>
+              <ul className="m-0 list-none p-0">
                 {recentGenreMetadata.map((g) => (
                   <li
                     key={g.id}
                     role="option"
-                    className={styles.option}
+                    className="cursor-pointer px-3 py-2.5 text-sm hover:bg-muted"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       pickSmart(g);
@@ -147,19 +151,19 @@ export function GenreSearchField({
               </ul>
             </div>
           )}
-          
+
           {!errorWeekly && (
-            <div data-testid="weekly-top-genres-section" className={styles.section}>
-              <div className={styles.sectionTitle}>今週の人気ジャンル</div>
+            <div data-testid="weekly-top-genres-section" className="py-1">
+              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">今週の人気ジャンル</div>
               {loadingWeekly ? (
-                <div className={styles.loading}>読み込み中...</div>
+                <div className="px-3 py-2.5 text-sm text-muted-foreground">読み込み中...</div>
               ) : (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                <ul className="m-0 list-none p-0">
                   {weeklyGenreMetadata.map((g) => (
                     <li
                       key={g.id}
                       role="option"
-                      className={styles.option}
+                      className="cursor-pointer px-3 py-2.5 text-sm hover:bg-muted"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         pickSmart(g);
@@ -176,13 +180,16 @@ export function GenreSearchField({
       )}
 
       {open && query.trim().length > 0 && suggestions.length > 0 && (
-        <ul className={styles.list} role="listbox">
+        <ul className={suggestPanelClass} role="listbox">
           {suggestions.map((g, i) => (
             <li
               key={g.id}
               role="option"
               aria-selected={i === highlight}
-              className={`${styles.option} ${i === highlight ? styles.optionActive : ''}`}
+              className={cn(
+                'cursor-pointer px-3 py-2.5 text-sm',
+                i === highlight && 'bg-muted'
+              )}
               data-testid={`genre-suggest-${g.id}`}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -195,11 +202,11 @@ export function GenreSearchField({
         </ul>
       )}
       {value && (
-        <button type="button" className={styles.clearBtn} onClick={clear}>
+        <Button type="button" variant="link" size="sm" className="mt-1.5 h-auto p-0" onClick={clear}>
           ジャンル条件をクリア
-        </button>
+        </Button>
       )}
-      <p className={styles.hint}>一覧が多い場合は名前の一部を入力して候補から選べます</p>
+      <p className="mt-1 text-xs text-muted-foreground">一覧が多い場合は名前の一部を入力して候補から選べます</p>
     </div>
   );
 }

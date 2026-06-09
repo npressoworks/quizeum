@@ -6,7 +6,16 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { EXPLORE_FORMAT_OPTIONS } from '@/lib/explore-formats';
 import { hasActiveMyQuizFilters, type MyQuizFilterState } from '@/lib/my-quiz-filter';
 import type { MyQuizQuestionCandidate, MyQuizSource } from '@/lib/my-quiz-pool';
-import styles from './my-quiz.module.css';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export const MY_QUIZ_TABLE_PAGE_SIZE = 100;
 
@@ -75,119 +84,117 @@ export function MyQuizFilteredTable({
       : '表示できる問題がありません。';
 
   return (
-    <section className={styles.section} data-testid="my-quiz-filtered-table">
-      <div className={styles.tableHeader}>
-        <h2 className={styles.sectionTitle}>
+    <Card data-testid="my-quiz-filtered-table">
+      <CardHeader className="flex flex-row flex-wrap items-baseline justify-between gap-2 space-y-0">
+        <CardTitle>
           {filtered ? '絞り込み結果' : '問題一覧'}
           {!poolLoading && candidates.length > 0 && (
-            <span className={styles.tableCount}>（{candidates.length} 問）</span>
+            <span className="ml-2 text-sm font-semibold text-muted-foreground">
+              （{candidates.length} 問）
+            </span>
           )}
-        </h2>
+        </CardTitle>
         {!poolLoading && candidates.length > 0 && (
-          <p className={styles.tableRange} data-testid="my-quiz-table-range">
+          <p className="text-sm text-muted-foreground" data-testid="my-quiz-table-range">
             {rangeStart}–{rangeEnd} 件を表示
           </p>
         )}
-      </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="max-h-[min(480px,55vh)] overflow-auto rounded-md border">
+          <Table className="min-w-[720px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12 text-center">#</TableHead>
+                <TableHead>問題文</TableHead>
+                <TableHead>親クイズ</TableHead>
+                <TableHead>取得元</TableHead>
+                <TableHead>ジャンル</TableHead>
+                <TableHead>形式</TableHead>
+                <TableHead className="text-center">難易度</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {poolLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                    —
+                  </TableCell>
+                </TableRow>
+              ) : candidates.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                    {emptyMessage}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                pageRows.map((row, index) => (
+                  <TableRow
+                    key={row.questionId}
+                    data-testid={`my-quiz-filtered-row-${row.questionId}`}
+                  >
+                    <TableCell className="text-center text-muted-foreground">
+                      {(safePage - 1) * MY_QUIZ_TABLE_PAGE_SIZE + index + 1}
+                    </TableCell>
+                    <TableCell className="max-w-[280px] whitespace-normal" title={row.questionText}>
+                      {excerpt(row.questionText)}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/quiz/${row.parentQuizId}`}
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        {row.parentQuizTitle}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{SOURCE_LABELS[row.source]}</TableCell>
+                    <TableCell>{genreLabelById.get(row.genreId) ?? row.genreId}</TableCell>
+                    <TableCell>{formatLabel(row.format)}</TableCell>
+                    <TableCell className="text-center">Lv.{row.difficulty}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-      <div className={styles.tableScroll}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th className={styles.th} scope="col">
-                #
-              </th>
-              <th className={styles.th} scope="col">
-                問題文
-              </th>
-              <th className={styles.th} scope="col">
-                親クイズ
-              </th>
-              <th className={styles.th} scope="col">
-                取得元
-              </th>
-              <th className={styles.th} scope="col">
-                ジャンル
-              </th>
-              <th className={styles.th} scope="col">
-                形式
-              </th>
-              <th className={styles.th} scope="col">
-                難易度
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {poolLoading ? (
-              <tr>
-                <td className={styles.tdEmpty} colSpan={7}>
-                  —
-                </td>
-              </tr>
-            ) : candidates.length === 0 ? (
-              <tr>
-                <td className={styles.tdEmpty} colSpan={7}>
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              pageRows.map((row, index) => (
-                <tr key={row.questionId} data-testid={`my-quiz-filtered-row-${row.questionId}`}>
-                  <td className={styles.tdNum}>
-                    {(safePage - 1) * MY_QUIZ_TABLE_PAGE_SIZE + index + 1}
-                  </td>
-                  <td className={styles.tdQuestion} title={row.questionText}>
-                    {excerpt(row.questionText)}
-                  </td>
-                  <td className={styles.td}>
-                    <Link href={`/quiz/${row.parentQuizId}`} className={styles.quizLink}>
-                      {row.parentQuizTitle}
-                    </Link>
-                  </td>
-                  <td className={styles.td}>{SOURCE_LABELS[row.source]}</td>
-                  <td className={styles.td}>
-                    {genreLabelById.get(row.genreId) ?? row.genreId}
-                  </td>
-                  <td className={styles.td}>{formatLabel(row.format)}</td>
-                  <td className={styles.tdNum}>Lv.{row.difficulty}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {!poolLoading && candidates.length > MY_QUIZ_TABLE_PAGE_SIZE && (
-        <nav
-          className={styles.pagination}
-          aria-label="問題一覧のページ送り"
-          data-testid="my-quiz-table-pagination"
-        >
-          <button
-            type="button"
-            className={styles.pageBtn}
-            disabled={safePage <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            data-testid="my-quiz-table-prev"
+        {!poolLoading && candidates.length > MY_QUIZ_TABLE_PAGE_SIZE && (
+          <nav
+            className="flex items-center justify-center gap-4"
+            aria-label="問題一覧のページ送り"
+            data-testid="my-quiz-table-pagination"
           >
-            <ChevronLeft size={18} aria-hidden />
-            前へ
-          </button>
-          <span className={styles.pageStatus} data-testid="my-quiz-table-page-status">
-            {safePage} / {totalPages}
-          </span>
-          <button
-            type="button"
-            className={styles.pageBtn}
-            disabled={safePage >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            data-testid="my-quiz-table-next"
-          >
-            次へ
-            <ChevronRight size={18} aria-hidden />
-          </button>
-        </nav>
-      )}
-    </section>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              data-testid="my-quiz-table-prev"
+            >
+              <ChevronLeft size={18} aria-hidden />
+              前へ
+            </Button>
+            <span
+              className="min-w-[72px] text-center text-sm font-bold text-muted-foreground"
+              data-testid="my-quiz-table-page-status"
+            >
+              {safePage} / {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              data-testid="my-quiz-table-next"
+            >
+              次へ
+              <ChevronRight size={18} aria-hidden />
+            </Button>
+          </nav>
+        )}
+      </CardContent>
+    </Card>
   );
 }

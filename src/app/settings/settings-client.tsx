@@ -4,32 +4,47 @@ import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 import { ThemeToggle } from '@/components/settings/theme-toggle';
-import styles from './settings.module.css';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 export function SettingsClient() {
   const { user } = useAuth();
 
   return (
-    <div data-testid="settings-page-container">
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>表示テーマ</h2>
-        <p className={styles.sectionDesc}>アプリ全体の配色を切り替えます。</p>
-        <ThemeToggle />
-      </section>
+    <div className="flex flex-col gap-6" data-testid="settings-page-container">
+      <Card>
+        <CardHeader>
+          <CardTitle>表示テーマ</CardTitle>
+          <CardDescription>アプリ全体の配色を切り替えます。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ThemeToggle />
+        </CardContent>
+      </Card>
 
       {user && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>アカウント</h2>
-          <p className={styles.sectionDesc}>プロフィール情報を編集できます。</p>
-          <Link
-            href="/profile/edit"
-            className="btn btn-secondary"
-            data-testid="settings-profile-edit-link"
-            style={{ alignSelf: 'flex-start' }}
-          >
-            プロフィールを編集
-          </Link>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>アカウント</CardTitle>
+            <CardDescription>プロフィール情報を編集できます。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href="/profile/edit"
+              data-testid="settings-profile-edit-link"
+              className={cn(buttonVariants({ variant: 'secondary' }))}
+            >
+              プロフィールを編集
+            </Link>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

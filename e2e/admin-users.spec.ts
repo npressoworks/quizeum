@@ -69,6 +69,13 @@ test.describe('特権管理者ユーザー評判管理 E2Eテスト', () => {
         // 10文字以上 -> 活性化することを確認
         await reasonTextarea.fill('10文字以上の具体的なリセット理由を入力します。');
         await expect(resetBtn).toBeEnabled();
+
+        // 確認ダイアログ: 実行前に表示され、キャンセルで閉じる
+        await resetBtn.click();
+        const confirmDialog = page.getByTestId('confirm-action-btn');
+        await expect(confirmDialog).toBeVisible({ timeout: 3000 });
+        await page.getByTestId('cancel-action-btn').click();
+        await expect(confirmDialog).not.toBeVisible({ timeout: 3000 });
       }
     }
   });

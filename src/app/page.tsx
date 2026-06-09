@@ -7,7 +7,6 @@ import {
 import { DISCOVERY_CAROUSEL_SIZE } from '@/lib/quiz-feed-cursor';
 import { HomeDiscoveryClient } from './home-discovery-client';
 import { HomeDiscoveryPageSkeleton } from '@/components/explore/home-discovery-page-skeleton';
-import styles from './page.module.css';
 
 async function HomeDiscoveryDataLoader() {
   const [trending, latest, genres] = await Promise.all([
@@ -27,7 +26,7 @@ async function HomeDiscoveryDataLoader() {
 
 export default function Home() {
   return (
-    <div className={styles.container}>
+    <div className="mx-auto flex max-w-[1200px] flex-col gap-8 px-5 py-10 max-md:gap-6 max-md:px-3 max-md:py-6">
       <Suspense fallback={<HomeDiscoveryPageSkeleton />}>
         <HomeDiscoveryDataLoader />
       </Suspense>

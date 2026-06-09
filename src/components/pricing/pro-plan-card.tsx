@@ -14,7 +14,15 @@ import {
 } from '@/lib/billing-client';
 import type { ProPricesResult } from '@/lib/billing-client';
 import type { PriceInterval } from '@/types/subscription';
-import styles from './pro-plan-card.module.css';
+import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface ProPlanCardProps {
   ctaMode: PricingUiCtaMode;
@@ -121,89 +129,97 @@ export function ProPlanCard({ ctaMode }: ProPlanCardProps) {
   };
 
   return (
-    <article className={`${styles.card} glass-card`} data-testid="pricing-pro-card">
-      <div className={styles.header}>
-        <Sparkles size={24} className={styles.icon} aria-hidden />
-        <h2 className={styles.planName}>{plan.displayName}</h2>
-      </div>
-
-      <div className={styles.intervalToggle} role="group" aria-label="料金プランの支払い間隔">
-        <button
-          type="button"
-          className={`${styles.intervalBtn} ${selectedInterval === 'monthly' ? styles.intervalActive : ''}`}
-          onClick={() => setSelectedInterval('monthly')}
-          disabled={isIntervalDisabled}
-          data-testid="pricing-interval-monthly"
-          aria-pressed={selectedInterval === 'monthly'}
+    <Card className="border-primary/30" data-testid="pricing-pro-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles size={24} className="text-primary" />
+          {plan.displayName}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <ToggleGroup
+          value={[selectedInterval]}
+          onValueChange={(values) => {
+            const next = values[values.length - 1];
+            if (next === 'monthly' || next === 'yearly') setSelectedInterval(next);
+          }}
+          aria-label="料金プランの支払い間隔"
         >
-          月額
-        </button>
-        <button
-          type="button"
-          className={`${styles.intervalBtn} ${selectedInterval === 'yearly' ? styles.intervalActive : ''}`}
-          onClick={() => setSelectedInterval('yearly')}
-          disabled={isIntervalDisabled}
-          data-testid="pricing-interval-yearly"
-          aria-pressed={selectedInterval === 'yearly'}
+          <ToggleGroupItem
+            value="monthly"
+            disabled={isIntervalDisabled}
+            data-testid="pricing-interval-monthly"
+          >
+            月額
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="yearly"
+            disabled={isIntervalDisabled}
+            data-testid="pricing-interval-yearly"
+          >
+            年額
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        <p
+          className={cn(
+            'text-3xl font-bold',
+            priceState.status === 'error' && 'text-destructive',
+            priceState.status === 'loading' && 'text-muted-foreground'
+          )}
+          data-testid={
+            priceState.status === 'error'
+              ? 'pricing-price-error'
+              : priceState.status === 'loading'
+                ? 'pricing-price-loading'
+                : 'pricing-price-ready'
+          }
         >
-          年額
-        </button>
-      </div>
-
-      <p
-        className={`${styles.price} ${priceState.status === 'error' ? styles.priceError : ''} ${priceState.status === 'loading' ? styles.priceLoading : ''}`}
-        data-testid={
-          priceState.status === 'error'
-            ? 'pricing-price-error'
-            : priceState.status === 'loading'
-              ? 'pricing-price-loading'
-              : 'pricing-price-ready'
-        }
-      >
-        {priceLabel}
-      </p>
-      {savingsLabel && <p className={styles.savings}>{savingsLabel}</p>}
-
-      <ul className={styles.featureList}>
-        {plan.featureBullets.map((feature) => (
-          <li key={feature.id} className={styles.featureItem}>
-            <Check size={16} aria-hidden />
-            <span>{feature.label}</span>
-          </li>
-        ))}
-      </ul>
-
-      {errorMessage && (
-        <p className={styles.error} role="alert" data-testid="pricing-error-message">
-          {errorMessage}
+          {priceLabel}
         </p>
-      )}
+        {savingsLabel && <p className="text-sm text-primary">{savingsLabel}</p>}
 
-      {showManageCta ? (
-        <button
-          type="button"
-          className={`${styles.ctaBtn} btn btn-accent`}
-          onClick={handleSubscribe}
-          disabled={isPortalDisabled}
-          data-testid="pricing-portal-btn"
-          aria-label="契約内容を管理する"
-        >
-          {loading ? <Loader2 size={18} className={styles.spinner} aria-hidden /> : null}
-          契約を管理する
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={`${styles.ctaBtn} btn btn-accent`}
-          onClick={handleSubscribe}
-          disabled={isSubscribeDisabled}
-          data-testid="pricing-subscribe-btn"
-          aria-label={ctaMode === 'guest' ? 'ログインして Pro プランに加入する' : 'Pro プランに加入する'}
-        >
-          {loading ? <Loader2 size={18} className={styles.spinner} aria-hidden /> : null}
-          {ctaMode === 'guest' ? 'ログインして加入する' : 'Pro プランに加入する'}
-        </button>
-      )}
-    </article>
+        <ul className="flex flex-col gap-2">
+          {plan.featureBullets.map((feature) => (
+            <li key={feature.id} className="flex items-start gap-2 text-sm">
+              <Check size={16} className="mt-0.5 shrink-0 text-primary" />
+              <span>{feature.label}</span>
+            </li>
+          ))}
+        </ul>
+
+        {errorMessage && (
+          <p className="text-sm text-destructive" role="alert" data-testid="pricing-error-message">
+            {errorMessage}
+          </p>
+        )}
+
+        {showManageCta ? (
+          <Button
+            type="button"
+            className="w-full"
+            onClick={handleSubscribe}
+            disabled={isPortalDisabled}
+            data-testid="pricing-portal-btn"
+            aria-label="契約内容を管理する"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+            契約を管理する
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="w-full"
+            onClick={handleSubscribe}
+            disabled={isSubscribeDisabled}
+            data-testid="pricing-subscribe-btn"
+            aria-label={ctaMode === 'guest' ? 'ログインして Pro プランに加入する' : 'Pro プランに加入する'}
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+            {ctaMode === 'guest' ? 'ログインして加入する' : 'Pro プランに加入する'}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }

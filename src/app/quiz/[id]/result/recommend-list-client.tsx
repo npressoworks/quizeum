@@ -6,7 +6,7 @@ import { QuizCard } from '@/components/quiz/quiz-card';
 import { toggleBookmark, isBookmarked } from '@/services/bookmark';
 import { useAuth } from '@/context/auth-context';
 import { Quiz } from '@/types';
-import styles from './result.module.css';
+import { resultClasses as styles } from './result-classes';
 
 interface RecommendListClientProps {
   recommendQuizzes: Quiz[];

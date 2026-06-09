@@ -30,7 +30,7 @@ import {
   buildTestPlayReturnUrl,
 } from '@/lib/test-play';
 import { PlaySkeleton } from '@/components/quiz/play-skeleton';
-import styles from '@/app/quiz/[id]/play/play.module.css';
+import { playClasses as styles } from '@/app/quiz/[id]/play/play-classes';
 import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
 import { TrueFalseAnswerPanel } from '@/components/quiz/true-false-answer-panel';
 import { SortableSortingList } from '@/components/sorting/sortable-sorting-list';

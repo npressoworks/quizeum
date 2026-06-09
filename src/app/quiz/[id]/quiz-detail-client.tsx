@@ -14,7 +14,7 @@ import { usePlayedQuizIds } from '@/hooks/usePlayedQuizIds';
 import { resolveQuizFormat } from '@/lib/quiz-format';
 import { formatReviewScorePercent } from '@/services/review-utils';
 import { FormatLabel } from '@/components/quiz/format-label';
-import styles from './page.module.css';
+import { detailClasses as styles } from './detail-classes';
 
 interface QuizDetailClientProps {
   quiz: Quiz;

@@ -4,7 +4,7 @@ import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { User as DBUser } from '@/types';
 import { LeaderboardClient } from './leaderboard-client';
 import { LeaderboardSkeleton } from '@/components/quiz/leaderboard-skeleton';
-import styles from './leaderboard.module.css';
+import { leaderboardClasses as styles } from './leaderboard-classes';
 
 export default async function LeaderboardPage() {
   return (

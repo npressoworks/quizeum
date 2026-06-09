@@ -17,7 +17,7 @@ import {
 import { formatCorrectAnswer, formatUserAnswer, getUserAnswerRaw } from '@/services/attempt-answer-display';
 import { Quiz } from '@/types';
 import { ResultQuestionDetailsAccordion } from '@/components/quiz/result-question-details-accordion';
-import styles from '@/app/quiz/[id]/result/result.module.css';
+import { resultClasses as styles } from '@/app/quiz/[id]/result/result-classes';
 
 function TestPlayResultContent() {
   const router = useRouter();

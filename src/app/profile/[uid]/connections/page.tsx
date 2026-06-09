@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { ConnectionsClient } from './connections-client';
 import { ConnectionsSkeleton } from '@/components/profile/connections-skeleton';
-import styles from './connections.module.css';
 
 type PageProps = {
   params: Promise<{ uid: string }>;
@@ -13,17 +12,18 @@ export default async function ConnectionsPage({ params }: PageProps) {
   const { uid } = await params;
 
   return (
-    <main className={styles.main}>
-      <div className={styles.container}>
-        <Link href={`/profile/${uid}`} className={styles.backButton}>
-          <ArrowLeft size={16} />
-          <span>プロフィールに戻る</span>
-        </Link>
+    <main className="mx-auto flex min-h-[calc(100vh-72px)] w-full max-w-3xl flex-col gap-5 px-6 py-10">
+      <Link
+        href={`/profile/${uid}`}
+        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft size={16} />
+        <span>プロフィールに戻る</span>
+      </Link>
 
-        <Suspense fallback={<ConnectionsSkeleton data-testid="connections-skeleton" />}>
-          <ConnectionsClient />
-        </Suspense>
-      </div>
+      <Suspense fallback={<ConnectionsSkeleton data-testid="connections-skeleton" />}>
+        <ConnectionsClient />
+      </Suspense>
     </main>
   );
 }

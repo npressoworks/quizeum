@@ -3,32 +3,23 @@ import Link from 'next/link';
 import { ArrowLeft, Bookmark } from 'lucide-react';
 import { BookmarksClient } from './bookmarks-client';
 import { BookmarksSkeleton } from '@/components/ui/bookmarks-skeleton';
-import styles from './bookmarks.module.css';
-import cardStyles from '../page.module.css';
 
 export default async function BookmarksPage() {
   return (
-    <div className={styles.container}>
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6">
       <Link
         href="/"
-        className={cardStyles.backBtn}
-        style={{
-          alignSelf: 'flex-start',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: 'var(--text-muted)',
-        }}
+        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft size={16} /> ホームに戻る
       </Link>
 
-      <div className={styles.titleSection}>
-        <h1 className={styles.title}>
-          <Bookmark size={32} fill="#00ff66" style={{ color: '#00ff66' }} />
+      <div>
+        <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight">
+          <Bookmark size={32} className="text-primary" />
           ブックマーク
         </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
+        <p className="mt-2 text-muted-foreground">
           クイズ・リスト・問題を種類ごとに管理できます。
         </p>
       </div>

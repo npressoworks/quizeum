@@ -3,15 +3,26 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { 
-  getUser, 
-  updateProfile, 
-  validateProfileData, 
-  ProfileValidationError 
+import {
+  getUser,
+  updateProfile,
+  validateProfileData,
+  ProfileValidationError
 } from '@/services/user';
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react';
 import { ProfileEditSkeleton } from '@/components/profile/profile-skeleton';
-import styles from './edit.module.css';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export function ProfileEditClient() {
   const { user: currentUser, loading: authLoading } = useAuth();
@@ -24,7 +35,6 @@ export function ProfileEditClient() {
   const [errors, setErrors] = useState<ProfileValidationError[]>([]);
   const [submitError, setSubmitError] = useState('');
 
-  // 現在のユーザー情報を取得してフォームにセット
   useEffect(() => {
     async function loadUserData() {
       if (authLoading) return;
@@ -48,7 +58,6 @@ export function ProfileEditClient() {
     loadUserData();
   }, [currentUser, authLoading, router]);
 
-  // 入力値変更時のリアルタイムバリデーション
   useEffect(() => {
     if (loading) return;
     const validationErrors = validateProfileData({ displayName, bio });
@@ -65,9 +74,9 @@ export function ProfileEditClient() {
     try {
       await updateProfile(currentUser.id, { displayName, bio });
       router.push(`/profile/${currentUser.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Profile update failed:', err);
-      setSubmitError(err.message || '更新に失敗しました。時間をおいて再度お試しください。');
+      setSubmitError((err as Error)?.message || '更新に失敗しました。時間をおいて再度お試しください。');
     } finally {
       setSubmitting(false);
     }
@@ -84,99 +93,93 @@ export function ProfileEditClient() {
   const hasErrors = errors.length > 0;
 
   return (
-    <main className={styles.main}>
-      <div className={styles.container}>
-        {/* Back link */}
-        <button 
-          onClick={() => router.push(`/profile/${currentUser?.id}`)} 
-          className={styles.backButton}
-        >
-          <ArrowLeft size={16} />
-          <span>プロフィールに戻る</span>
-        </button>
+    <main className="mx-auto w-full max-w-2xl px-4 py-6">
+      <Button
+        type="button"
+        variant="ghost"
+        className="mb-4 -ml-2"
+        onClick={() => router.push(`/profile/${currentUser?.id}`)}
+      >
+        <ArrowLeft size={16} />
+        <span>プロフィールに戻る</span>
+      </Button>
 
-        {/* Edit Card */}
-        <div className={`${styles.editCard} glass-card animate-fade-in`}>
-          <h1 className={styles.title}>プロフィールの編集</h1>
-          
+      <Card>
+        <CardHeader>
+          <CardTitle>プロフィールの編集</CardTitle>
+        </CardHeader>
+        <CardContent>
           {submitError && (
-            <div className={styles.errorAlert}>
-              <AlertCircle size={18} />
-              <span>{submitError}</span>
-            </div>
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="size-4" />
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className={styles.form}>
-            {/* Display Name Input */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="displayName">表示名</label>
-              <input
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="displayName">表示名</Label>
+              <Input
                 id="displayName"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className={`form-input ${getFieldError('displayName') ? styles.inputError : ''}`}
+                className={cn(getFieldError('displayName') && 'border-destructive')}
                 placeholder="ユーザー名を入力してください"
                 disabled={submitting}
               />
-              <div className={styles.inputFooter}>
+              <div className="flex items-center justify-between text-xs">
                 {getFieldError('displayName') ? (
-                  <span className={styles.errorText}>{getFieldError('displayName')}</span>
+                  <span className="text-destructive">{getFieldError('displayName')}</span>
                 ) : (
                   <span />
                 )}
-                <span className={`${styles.charCount} ${displayName.length > 30 ? styles.countOver : ''}`}>
+                <span className={cn('text-muted-foreground', displayName.length > 30 && 'text-destructive')}>
                   {displayName.length} / 30
                 </span>
               </div>
             </div>
 
-            {/* Biography TextArea */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="bio">自己紹介</label>
-              <textarea
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="bio">自己紹介</Label>
+              <Textarea
                 id="bio"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                className={`form-input ${styles.textarea} ${getFieldError('bio') ? styles.inputError : ''}`}
+                className={cn('min-h-[120px]', getFieldError('bio') && 'border-destructive')}
                 placeholder="自己紹介を書いてみましょう（好きなジャンルや関心など）"
                 disabled={submitting}
                 rows={5}
               />
-              <div className={styles.inputFooter}>
+              <div className="flex items-center justify-between text-xs">
                 {getFieldError('bio') ? (
-                  <span className={styles.errorText}>{getFieldError('bio')}</span>
+                  <span className="text-destructive">{getFieldError('bio')}</span>
                 ) : (
                   <span />
                 )}
-                <span className={`${styles.charCount} ${bio.length > 200 ? styles.countOver : ''}`}>
+                <span className={cn('text-muted-foreground', bio.length > 200 && 'text-destructive')}>
                   {bio.length} / 200
                 </span>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className={styles.formActions}>
-              <button
+            <div className="flex justify-end gap-3">
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => router.push(`/profile/${currentUser?.id}`)}
-                className="btn btn-secondary"
                 disabled={submitting}
               >
                 キャンセル
-              </button>
-              <button
-                type="submit"
-                className={`btn btn-primary ${hasErrors || submitting ? 'btn-disabled' : ''}`}
-                disabled={hasErrors || submitting}
-              >
+              </Button>
+              <Button type="submit" disabled={hasErrors || submitting}>
                 <Save size={18} />
-                <span>{submitting ? '保存中...' : '変更を保存する'}</span>
-              </button>
+                <span>{submitting ? '保存中...' : '保存'}</span>
+              </Button>
             </div>
           </form>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </main>
   );
 }

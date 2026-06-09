@@ -77,6 +77,7 @@ jest.mock('lucide-react', () => ({
   Trophy: () => <span>Trophy</span>,
   CheckCircle: () => <span>CheckCircle</span>,
   ChevronRight: () => <span>ChevronRight</span>,
+  ChevronDown: () => <span>ChevronDown</span>,
   Bookmark: () => <span>Bookmark</span>,
   UserPlus: () => <span>UserPlus</span>,
   UserCheck: () => <span>UserCheck</span>,

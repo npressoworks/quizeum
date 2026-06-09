@@ -4,20 +4,27 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { saveQuiz, getQuiz, updateQuiz } from '@/services/quiz';
-import { validateQuizForPublish, collectQuestionTextValidationErrors, normalizeTag, QuizPublishValidationError, QuizValidationQuestionField, filterValidationErrors, formatValidationErrorSummary } from '@/services/quiz-validation';
+import {
+  validateQuizForPublish,
+  collectQuestionTextValidationErrors,
+  normalizeTag,
+  QuizPublishValidationError,
+} from '@/services/quiz-validation';
+import {
+  FieldValidationMessages,
+  QuizEditorErrorSummary,
+  scrollToFirstValidationError,
+} from '@/components/quiz/editor/quiz-editor-validation';
 import { hasAnyQuestionUserInput } from '@/services/quiz-question-input';
-import { getTextInputFieldProps } from '@/services/text-answer-utils';
 import {
   createDefaultChoices,
   MAX_MULTIPLE_CHOICE_COUNT,
   MIN_MULTIPLE_CHOICE_COUNT,
 } from '@/services/quiz-choice-utils';
 import { Quiz, Question } from '@/types';
-import styles from '@/app/quiz/create/create.module.css';
-import { MarkdownFieldHint } from '@/components/markdown/markdown-field-hint';
-import { MarkdownPreview } from '@/components/markdown/markdown-preview';
-import { Trash2, Plus, Info, AlertTriangle, Image, ArrowLeft, Save, Send, HelpCircle, Play } from 'lucide-react';
-import { SortableSortingList, reindexCorrectOrder } from '@/components/sorting/sortable-sorting-list';
+import { editorClasses as styles } from '@/components/quiz/editor/quiz-editor-classes';
+import { Plus, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { reindexCorrectOrder } from '@/components/sorting/sortable-sorting-list';
 import {
   buildTestPlayPayload,
   consumeTestPlayDraftForEditor,
@@ -32,16 +39,16 @@ import {
   findTrueFalseChoiceId,
   resolveTrueFalseCorrectSide,
 } from '@/lib/true-false-defaults';
-import { TrueFalseCorrectToggle } from '@/components/quiz/true-false-correct-toggle';
-import { DifficultyVoteStars } from '@/components/quiz/difficulty-vote-stars';
-import { getFormatLabel, getFormatDescription } from '@/lib/quiz-format-labels';
-import { AutoGrowTextarea } from '@/components/ui/auto-grow-textarea';
+import { getFormatLabel } from '@/lib/quiz-format-labels';
 import { useActiveGenres } from '@/hooks/useActiveGenres';
-import { GenreEditorSelect } from '@/components/quiz/genre-editor-select';
 import { AuthorQuizReferencePanel } from '@/components/quiz/author-quiz-reference-panel';
-import { ReferenceQuestionBadge } from '@/components/quiz/reference-question-badge';
 import { isReferenceLinkQuestion } from '@/lib/linked-question';
 import { EditorFormSkeleton } from '@/components/quiz/editor-skeleton';
+import { QuizFormatSelector } from '@/components/quiz/editor/quiz-format-selector';
+import { QuizMetadataSection } from '@/components/quiz/editor/quiz-metadata-section';
+import { QuestionCard } from '@/components/quiz/editor/question-card';
+import { QuizEditorActionBar } from '@/components/quiz/editor/quiz-editor-action-bar';
+import type { QuestionEditorHandlers } from '@/components/quiz/editor/question-editor-types';
 import type { GenreMetadata, TagMetadata } from '@/types';
 
 interface QuizEditorProps {
@@ -49,51 +56,6 @@ interface QuizEditorProps {
   initialGenres?: GenreMetadata[];
   initialTags?: TagMetadata[];
   initialQuiz?: Quiz | null;
-}
-
-const FieldValidationMessages: React.FC<{
-  errors: QuizPublishValidationError[];
-  field: QuizPublishValidationError['field'];
-  questionIndex?: number;
-  questionField?: QuizValidationQuestionField;
-  answerIndex?: number;
-  unscopedOnly?: boolean;
-}> = ({ errors, field, questionIndex, questionField, answerIndex, unscopedOnly }) => {
-  const matched = filterValidationErrors(errors, {
-    field,
-    questionIndex,
-    questionField,
-    answerIndex,
-    unscopedOnly,
-  });
-  if (matched.length === 0) return null;
-  return (
-    <div className={styles.fieldError} role="alert">
-      {matched.map((err, i) => (
-        <p key={i}>{err.message}</p>
-      ))}
-    </div>
-  );
-};
-
-function scrollToFirstValidationError(errors: QuizPublishValidationError[]) {
-  const first = errors[0];
-  if (!first) {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-  const targetId =
-    first.field === 'title' ? 'field-title'
-      : first.field === 'difficulty' ? 'field-difficulty'
-        : first.field === 'genre' ? 'field-genre'
-          : first.questionIndex != null ? `question-card-${first.questionIndex}`
-            : first.field === 'questions' ? 'questions-section'
-              : null;
-  if (targetId) {
-    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // 類似 canonical タグの定義 (要件 1.3 タグ名寄せ用)
@@ -834,6 +796,18 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
     }
   };
 
+  const handleAiContextDetailsChange = (qIdx: number, text: string) => {
+    const nextQuestions = [...questions];
+    nextQuestions[qIdx].aiContextDetails = text;
+    setQuestions(nextQuestions);
+  };
+
+  const handleSourceUrlChange = (qIdx: number, url: string | null) => {
+    const nextQuestions = [...questions];
+    nextQuestions[qIdx].sourceUrl = url;
+    setQuestions(nextQuestions);
+  };
+
   // タグ入力時のリアルタイム正規化・類似サジェスト (要件 1.3)
   const handleTagInputChange = (val: string) => {
     setTagInput(val);
@@ -1093,6 +1067,36 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
     }
   };
 
+  const questionEditorHandlers: QuestionEditorHandlers = {
+    onRemoveQuestion: handleRemoveQuestion,
+    onToggleQuestionType: handleToggleQuestionType,
+    onQuestionTextChange: handleQuestionTextChange,
+    onExplanationChange: handleExplanationChange,
+    onSourceUrlChange: handleSourceUrlChange,
+    onTrueFalseCorrectChange: handleTrueFalseCorrectChange,
+    onChoiceTextChange: handleChoiceTextChange,
+    onChoiceCorrectToggle: handleChoiceCorrectToggle,
+    onAddChoice: handleAddChoice,
+    onRemoveChoice: handleRemoveChoice,
+    onTextAnswerChange: handleTextAnswerChange,
+    onAddTextAnswer: handleAddTextAnswer,
+    onRemoveTextAnswer: handleRemoveTextAnswer,
+    onTextInputModeChange: handleTextInputModeChange,
+    onTextInputCharCountChange: handleTextInputCharCountChange,
+    onSortingItemTextChange: handleSortingItemTextChange,
+    onAddSortingItem: handleAddSortingItem,
+    onRemoveSortingItem: handleRemoveSortingItem,
+    onSortingItemsReorder: handleSortingItemsReorder,
+    onAssociationHintTextChange: handleAssociationHintTextChange,
+    onAddAssociationHint: handleAddAssociationHint,
+    onRemoveAssociationHint: handleRemoveAssociationHint,
+    onAiContextDetailsChange: handleAiContextDetailsChange,
+    onKeywordInputChange: handleKeywordInputChange,
+    onAddKeyword: handleAddKeyword,
+    onRemoveKeyword: handleRemoveKeyword,
+    onDetachReferenceForEdit: handleDetachReferenceForEdit,
+  };
+
   if (authLoading || initialFetchLoading) {
     return <EditorFormSkeleton data-testid="quiz-editor-skeleton" />;
   }
@@ -1141,226 +1145,40 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
       </div>
       <p className={styles.subtitle}>クリエイティブで挑戦者をうならせるクイズや楽しんで解けるクイズを作りましょう。</p>
 
-      {/* エラー表示エリア (要件 1.5) */}
-      {(errorText || validationErrors.length > 0) && (
-        <div className={styles.errorBox}>
-          <div className={styles.errorTitle}>
-            <AlertTriangle size={20} />
-            <span>保存できませんでした。以下の項目をご確認ください：</span>
-          </div>
-          {errorText && <p style={{ fontSize: '0.95rem', marginBottom: '10px' }}>{errorText}</p>}
-          {validationErrors.length > 0 && (
-            <ul className={styles.errorList}>
-              {validationErrors.map((err, i) => (
-                <li key={i}>{formatValidationErrorSummary(err, { questions })}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      <QuizEditorErrorSummary
+        errorText={errorText}
+        validationErrors={validationErrors}
+        questions={questions}
+      />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* クイズ全体の出題形式設定 */}
-        <div className={styles.editorCard}>
-          <h2 className={styles.sectionTitle}>
-            <HelpCircle size={20} />
-            クイズ全体の出題形式 <span style={{ color: 'var(--color-danger)' }}>*</span>
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-            クイズ全体のルールと問題タイプを決定します。単一形式を選ぶと、全ての問題がそのタイプに固定されます。「複合」を選ぶと問題ごとに形式を選択できます。
-          </p>
+      <div className="flex flex-col gap-6">
+        <QuizFormatSelector format={format} onFormatChange={handleFormatChange} />
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            gap: '12px',
-            marginTop: '8px'
-          }}>
-            {[
-              { id: 'mixed', label: '複合', icon: '🌀' },
-              { id: 'multiple-choice', label: '選択式', icon: '☑️' },
-              { id: 'true-false', label: '〇✕式', icon: '⭕' },
-              { id: 'text-input', label: '記述式', icon: '✍️' },
-              { id: 'quick-press', label: '早押し', icon: '⚡' },
-              { id: 'sorting', label: '並び替え', icon: '↕️' },
-              { id: 'association', label: '連想', icon: '💡' },
-              { id: 'lateral-thinking', label: 'ウミガメのスープ', icon: '🐢' },
-            ].map((item) => {
-              const isActive = format === item.id;
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => handleFormatChange(item.id as any)}
-                  style={{
-                    padding: '16px',
-                    borderRadius: '10px',
-                    background: isActive ? 'rgba(157, 78, 221, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                    border: isActive ? '2px solid var(--color-primary)' : '1px solid var(--border-light)',
-                    boxShadow: isActive ? '0 0 15px rgba(157, 78, 221, 0.2)' : 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease-in-out',
-                    transform: isActive ? 'translateY(-2px)' : 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
-                      e.currentTarget.style.borderColor = 'var(--border-light)';
-                    }
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.4rem' }}>{item.icon}</span>
-                    <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: isActive ? 'var(--color-primary)' : 'var(--text-main)' }}>
-                      {item.label}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4', margin: 0 }}>
-                    {getFormatDescription(item.id)}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <QuizMetadataSection
+          title={title}
+          description={description}
+          thumbnailUrl={thumbnailUrl}
+          difficulty={difficulty}
+          genre={genre}
+          validationErrors={validationErrors}
+          genres={activeGenres}
+          genresLoading={genresLoading}
+          genresError={genresError}
+          onTitleChange={setTitle}
+          onDescriptionChange={setDescription}
+          onThumbnailTrigger={triggerThumbnail}
+          onDifficultyChange={setDifficulty}
+          onGenreChange={setGenre}
+          onGenresRetry={refetchGenres}
+          originalTags={originalTags}
+          tagInput={tagInput}
+          suggestedTag={suggestedTag}
+          onTagInputChange={handleTagInputChange}
+          onAddTag={handleAddTag}
+          onApplySuggestedTag={applySuggestedTag}
+          onRemoveTag={handleRemoveTag}
+        />
 
-        {/* 基本メタデータ入力 */}
-        <div className={styles.editorCard}>
-          <h2 className={styles.sectionTitle}>
-            <Info size={20} />
-            クイズの基本設定
-          </h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* タイトル・説明文 */}
-            <div className={styles.formGroup} id="field-title">
-              <label className={styles.label}>クイズタイトル <span style={{ color: 'var(--color-danger)' }}>*</span></label>
-              <input
-                type="text"
-                className={`${styles.input} ${filterValidationErrors(validationErrors, { field: 'title' }).length > 0 ? styles.inputError : ''}`}
-                placeholder="例: React Hooksの基礎知識クイズ"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={100}
-              />
-              <FieldValidationMessages errors={validationErrors} field="title" />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>説明文</label>
-              <AutoGrowTextarea
-                className={styles.textarea}
-                placeholder="クイズの概要や対象読者などを入力してください。"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                minRows={4}
-                data-testid="auto-grow-description"
-              />
-            </div>
-
-            {/* サムネイル・難易度・ジャンル・タグ */}
-            <div className={styles.metaGrid}>
-              {/* 左: サムネイル */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>サムネイル画像</label>
-                <div className={styles.thumbnailUpload} onClick={triggerThumbnail}>
-                  {thumbnailUrl ? (
-                    <img src={thumbnailUrl} alt="Thumbnail preview" className={styles.thumbnailPreview} />
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
-                      <Image size={32} />
-                      <span style={{ fontSize: '0.85rem' }}>クリックしてサムネイルを自動生成</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 右: 難易度・ジャンル・タグ */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* 難易度（星） */}
-                <div className={styles.formGroup} id="field-difficulty">
-                  <label className={styles.label}>難易度 (1 - 5)</label>
-                  <DifficultyVoteStars
-                    value={difficulty}
-                    onVote={setDifficulty}
-                  />
-                  <FieldValidationMessages errors={validationErrors} field="difficulty" />
-                </div>
-
-                {/* ジャンル選択 */}
-                <div className={styles.formGroup} id="field-genre">
-                  <div className={styles.genreContainer}>
-                    <label className={styles.label}>
-                      ジャンル <span style={{ color: 'var(--color-danger)' }}>*</span>
-                    </label>
-                    <GenreEditorSelect
-                      value={genre}
-                      onChange={setGenre}
-                      genres={activeGenres}
-                      loading={genresLoading}
-                      error={genresError}
-                      onRetry={refetchGenres}
-                      selectClassName={`${styles.select} ${filterValidationErrors(validationErrors, { field: 'genre' }).length > 0 ? styles.inputError : ''}`}
-                    />
-                    <a href="/community/genres" className={styles.genreLink}>
-                      新しいジャンルを申請する
-                    </a>
-                  </div>
-                  <FieldValidationMessages errors={validationErrors} field="genre" />
-                </div>
-
-                {/* タグ設定 */}
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>タグ (最大 5 つ)</label>
-                  <form onSubmit={handleAddTag} className={styles.tagInputWrapper}>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      placeholder="タグを入力してEnter"
-                      value={tagInput}
-                      onChange={(e) => handleTagInputChange(e.target.value)}
-                      disabled={originalTags.length >= 5}
-                    />
-                  </form>
-
-                  {suggestedTag && (
-                    <div className={styles.tagWarning} onClick={applySuggestedTag} style={{ cursor: 'pointer' }}>
-                      <AlertTriangle size={16} />
-                      <div>
-                        <span style={{ fontWeight: 'bold' }}>推奨:</span> 類似するタグ <span style={{ textDecoration: 'underline' }}>#{suggestedTag}</span> が既に存在します。既存のタグを使用することをお勧めします。（クリックで適用）
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={styles.tagList}>
-                    {originalTags.map((tag, idx) => (
-                      <div key={idx} className={styles.tagBadge}>
-                        #{tag}
-                        <button type="button" className={styles.removeTagBtn} onClick={() => handleRemoveTag(idx)}>
-                          &times;
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                    <span className={styles.tagLimitInfo}>{originalTags.length} / 5 タグ</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 問題管理エリア */}
         <div className={styles.editorCard} id="questions-section">
           <div className={styles.questionHeader}>
             <h2 className={styles.sectionTitle} style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
@@ -1383,637 +1201,29 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
           <FieldValidationMessages errors={validationErrors} field="questions" unscopedOnly />
 
           <div className={styles.questionList}>
-            {questions.map((q, qIdx) => {
-              const isRefReadOnly = isReferenceLinkQuestion(q);
-              return (
-                <div key={q.id || qIdx} id={`question-card-${qIdx}`} className={styles.questionCard}>
-                  <div className={styles.questionCardHeader}>
-                    <span className={styles.questionNumber}>
-                      第 {qIdx + 1} 問
-                      {isRefReadOnly && <ReferenceQuestionBadge />}
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.removeQuestionBtn}
-                      onClick={() => handleRemoveQuestion(qIdx)}
-                      title="問題を削除"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-
-                  {cowNoticeIds.has(q.id) && (
-                    <div className={styles.tagWarning} role="status" data-testid="cow-detach-notice">
-                      <AlertTriangle size={16} />
-                      <span>保存時に独自コピーとして切り離されます</span>
-                    </div>
-                  )}
-
-                  {isRefReadOnly ? (
-                    <div style={{ padding: '12px 0' }}>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
-                        参照リンク問題（読み取り専用）
-                      </p>
-                      <p style={{ whiteSpace: 'pre-wrap', marginBottom: 12 }}>{q.questionText}</p>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => handleDetachReferenceForEdit(qIdx)}
-                        data-testid={`detach-reference-${q.id}`}
-                      >
-                        内容を編集（コピーに切り離し）
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      {/* 問題タイプ切り替えトグル (複合形式のみ) */}
-                      {format === 'mixed' ? (
-                        <div className={styles.typeToggle}>
-                          <button
-                            type="button"
-                            className={`${styles.toggleBtn} ${q.type === 'multiple-choice' ? styles.toggleBtnActive : ''}`}
-                            onClick={() => handleToggleQuestionType(qIdx, 'multiple-choice')}
-                          >
-                            選択式
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.toggleBtn} ${q.type === 'true-false' ? styles.toggleBtnActive : ''}`}
-                            onClick={() => handleToggleQuestionType(qIdx, 'true-false')}
-                            data-testid="question-type-true-false"
-                          >
-                            〇✕
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.toggleBtn} ${q.type === 'text-input' ? styles.toggleBtnActive : ''}`}
-                            onClick={() => handleToggleQuestionType(qIdx, 'text-input')}
-                          >
-                            記述式
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.toggleBtn} ${q.type === 'sorting' ? styles.toggleBtnActive : ''}`}
-                            onClick={() => handleToggleQuestionType(qIdx, 'sorting')}
-                          >
-                            並び替え
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          border: '1px solid var(--border-light)',
-                          fontSize: '0.85rem',
-                          color: 'var(--text-muted)',
-                          marginBottom: '16px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}>
-                          ⚡ この問題の形式はクイズ全体の出題形式（<strong>{getFormatLabel(format)}</strong>）に固定されています。
-                        </div>
-                      )}
-                      <FieldValidationMessages
-                        errors={validationErrors}
-                        field="questions"
-                        questionIndex={qIdx}
-                        questionField="type"
-                      />
-
-                      <div className={styles.formGroup}>
-                        <label className={styles.label}>問題文（必須）</label>
-                        <AutoGrowTextarea
-                          className={`${styles.textarea} ${filterValidationErrors(validationErrors, { field: 'questions', questionIndex: qIdx, questionField: 'questionText' }).length > 0 ? styles.inputError : ''}`}
-                          placeholder="例: Reactにおいて、**useState** で管理するのは？"
-                          value={q.questionText}
-                          onChange={(e) => handleQuestionTextChange(qIdx, e.target.value)}
-                          style={{ resize: 'vertical' }}
-                          minRows={3}
-                          required
-                          minLength={5}
-                          maxLength={500}
-                          data-testid={`auto-grow-question-text-${qIdx}`}
-                        />
-                        <MarkdownFieldHint />
-                        <MarkdownPreview markdown={q.questionText} />
-                        <FieldValidationMessages
-                          errors={validationErrors}
-                          field="questions"
-                          questionIndex={qIdx}
-                          questionField="questionText"
-                        />
-                      </div>
-
-                      {/* 〇✕式の問題入力 */}
-                      {q.type === 'true-false' && (
-                        <div className={styles.choicesList}>
-                          <TrueFalseCorrectToggle
-                            value={resolveTrueFalseCorrectSide(q.choices)}
-                            onChange={(side) => handleTrueFalseCorrectChange(qIdx, side)}
-                          />
-                          <FieldValidationMessages
-                            errors={validationErrors}
-                            field="questions"
-                            questionIndex={qIdx}
-                            questionField="answers"
-                          />
-                        </div>
-                      )}
-
-                      {/* 選択式の問題入力 */}
-                      {q.type === 'multiple-choice' && q.choices && (
-                        <div className={styles.choicesList}>
-                          <label className={styles.label}>
-                            選択肢と正解設定（正解となる選択肢にすべてチェック。{MIN_MULTIPLE_CHOICE_COUNT}〜{MAX_MULTIPLE_CHOICE_COUNT}択・複数正解可）
-                          </label>
-                          {q.choices.map((choice, cIdx) => (
-                            <div key={choice.id || cIdx} className={styles.choiceRow}>
-                              <input
-                                type="checkbox"
-                                className={styles.choiceCheckbox}
-                                checked={choice.isCorrect}
-                                onChange={() => handleChoiceCorrectToggle(qIdx, cIdx)}
-                              />
-                              <input
-                                type="text"
-                                className={styles.input}
-                                value={choice.choiceText}
-                                onChange={(e) => handleChoiceTextChange(qIdx, cIdx, e.target.value)}
-                              />
-                              <button
-                                type="button"
-                                className={styles.removeQuestionBtn}
-                                onClick={() => handleRemoveChoice(qIdx, cIdx)}
-                                title="この選択肢を削除"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            className={styles.addTextAnswerBtn}
-                            onClick={() => handleAddChoice(qIdx)}
-                            disabled={q.choices.length >= MAX_MULTIPLE_CHOICE_COUNT}
-                          >
-                            <Plus size={14} /> 選択肢を追加する
-                          </button>
-                          <FieldValidationMessages
-                            errors={validationErrors}
-                            field="questions"
-                            questionIndex={qIdx}
-                            questionField="answers"
-                          />
-                        </div>
-                      )}
-
-                      {/* 記述式（旧短答入力式）の問題入力 */}
-                      {q.type === 'text-input' && q.correctTextAnswerList && (
-                        <div className={styles.textAnswersContainer}>
-                          <label className={styles.label}>入力タイプ</label>
-                          <div className={styles.toggleGroup} style={{ marginBottom: '12px' }}>
-                            {([
-                              { id: 'text' as const, label: '通常' },
-                              { id: 'numeric' as const, label: '数値' },
-                              { id: 'char-count' as const, label: '文字数指定' },
-                            ]).map(({ id, label }) => (
-                              <button
-                                key={id}
-                                type="button"
-                                className={`${styles.toggleBtn} ${(q.textInputMode ?? 'text') === id ? styles.toggleBtnActive : ''}`}
-                                onClick={() => handleTextInputModeChange(qIdx, id)}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                          {(q.textInputMode ?? 'text') === 'char-count' && (
-                            <div style={{ marginBottom: '12px' }}>
-                              <label className={styles.label}>要求文字数（1〜100文字）</label>
-                              <input
-                                type="number"
-                                className={`${styles.input} ${filterValidationErrors(validationErrors, { field: 'questions', questionIndex: qIdx, questionField: 'textInputCharCount' }).length > 0 ? styles.inputError : ''}`}
-                                min={1}
-                                max={100}
-                                value={q.textInputCharCount ?? ''}
-                                onChange={(e) => handleTextInputCharCountChange(qIdx, e.target.value)}
-                                placeholder="例: 4"
-                              />
-                              <FieldValidationMessages
-                                errors={validationErrors}
-                                field="questions"
-                                questionIndex={qIdx}
-                                questionField="textInputCharCount"
-                              />
-                            </div>
-                          )}
-                          <label className={styles.label}>
-                            {(q.textInputMode ?? 'text') === 'numeric'
-                              ? '正解数値候補（複数設定可能）'
-                              : '正解テキスト候補（大文字・小文字表記揺れなど複数設定可能）'}
-                          </label>
-                          {q.correctTextAnswerList.map((ans, aIdx) => {
-                            const textInputMode = q.textInputMode ?? 'text';
-                            const answerFieldProps = textInputMode === 'numeric'
-                              ? getTextInputFieldProps(q, { placeholder: '例: 3.14' })
-                              : textInputMode === 'char-count'
-                                ? getTextInputFieldProps(q)
-                                : { type: 'text' as const, placeholder: '例: useState' };
-                            const answerHasError = filterValidationErrors(validationErrors, {
-                              field: 'questions',
-                              questionIndex: qIdx,
-                              questionField: 'correctTextAnswer',
-                              answerIndex: aIdx,
-                            }).length > 0;
-                            return (
-                              <div key={aIdx}>
-                                <div className={styles.textAnswerRow}>
-                                  <input
-                                    type={answerFieldProps.type}
-                                    className={`${styles.input} ${answerHasError ? styles.inputError : ''}`}
-                                    placeholder={answerFieldProps.placeholder}
-                                    inputMode={answerFieldProps.inputMode}
-                                    maxLength={answerFieldProps.maxLength}
-                                    minLength={answerFieldProps.minLength}
-                                    value={ans}
-                                    onChange={(e) => handleTextAnswerChange(qIdx, aIdx, e.target.value)}
-                                  />
-                                  <button
-                                    type="button"
-                                    className={styles.removeQuestionBtn}
-                                    onClick={() => handleRemoveTextAnswer(qIdx, aIdx)}
-                                    title="この正解を削除"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                                <FieldValidationMessages
-                                  errors={validationErrors}
-                                  field="questions"
-                                  questionIndex={qIdx}
-                                  questionField="correctTextAnswer"
-                                  answerIndex={aIdx}
-                                />
-                              </div>
-                            );
-                          })}
-                          <button
-                            type="button"
-                            className={styles.addTextAnswerBtn}
-                            onClick={() => handleAddTextAnswer(qIdx)}
-                          >
-                            <Plus size={14} /> 正解候補を追加する
-                          </button>
-                          <FieldValidationMessages
-                            errors={validationErrors}
-                            field="questions"
-                            questionIndex={qIdx}
-                            questionField="answers"
-                          />
-                        </div>
-                      )}
-
-                      {/* 早押し式の問題入力 */}
-                      {q.type === 'quick-press' && q.correctTextAnswerList && (
-                        <div className={styles.textAnswersContainer}>
-                          <label className={styles.label}>正解テキスト候補（大文字・小文字表記揺れなど複数設定可能）</label>
-                          {q.correctTextAnswerList.map((ans, aIdx) => (
-                            <div key={aIdx}>
-                              <div className={styles.textAnswerRow}>
-                                <input
-                                  type="text"
-                                  className={styles.input}
-                                  placeholder="例: useState"
-                                  value={ans}
-                                  onChange={(e) => handleTextAnswerChange(qIdx, aIdx, e.target.value)}
-                                />
-                                <button
-                                  type="button"
-                                  className={styles.removeQuestionBtn}
-                                  onClick={() => handleRemoveTextAnswer(qIdx, aIdx)}
-                                  title="この正解を削除"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                              <FieldValidationMessages
-                                errors={validationErrors}
-                                field="questions"
-                                questionIndex={qIdx}
-                                questionField="correctTextAnswer"
-                                answerIndex={aIdx}
-                              />
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            className={styles.addTextAnswerBtn}
-                            onClick={() => handleAddTextAnswer(qIdx)}
-                          >
-                            <Plus size={14} /> 正解候補を追加する
-                          </button>
-                          <FieldValidationMessages
-                            errors={validationErrors}
-                            field="questions"
-                            questionIndex={qIdx}
-                            questionField="answers"
-                          />
-                        </div>
-                      )}
-
-                      {/* 並び替えの問題入力 */}
-                      {q.type === 'sorting' && q.sortingItems && (
-                        <div className={styles.choicesList}>
-                          <label className={styles.label}>
-                            並び替え要素（ドラッグで上から正しい順序に並べてください。2〜6要素）
-                          </label>
-                          <SortableSortingList
-                            items={q.sortingItems}
-                            showIndex={false}
-                            onReorder={(reordered) => handleSortingItemsReorder(qIdx, reordered)}
-                            renderItemContent={(item) => (
-                              <div className={styles.choiceRow}>
-                                <input
-                                  type="text"
-                                  className={styles.input}
-                                  value={item.text}
-                                  onChange={(e) => {
-                                    const itemIdx = q.sortingItems!.findIndex((s) => s.id === item.id);
-                                    if (itemIdx >= 0) handleSortingItemTextChange(qIdx, itemIdx, e.target.value);
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  className={styles.removeQuestionBtn}
-                                  onClick={() => {
-                                    const itemIdx = q.sortingItems!.findIndex((s) => s.id === item.id);
-                                    if (itemIdx >= 0) handleRemoveSortingItem(qIdx, itemIdx);
-                                  }}
-                                  title="この要素を削除"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            )}
-                          />
-                          <button
-                            type="button"
-                            className={styles.addTextAnswerBtn}
-                            onClick={() => handleAddSortingItem(qIdx)}
-                            style={{ marginTop: '8px' }}
-                          >
-                            <Plus size={14} /> 要素を追加する
-                          </button>
-                          <FieldValidationMessages
-                            errors={validationErrors}
-                            field="questions"
-                            questionIndex={qIdx}
-                            questionField="sortingItems"
-                          />
-                        </div>
-                      )}
-
-                      {/* 連想クイズの問題入力 */}
-                      {q.type === 'association' && q.associationHints && (
-                        <div className={styles.choicesList}>
-                          <label className={styles.label}>段階的連想ヒント（ヒント1から順にプレイヤーに開示されます。1〜5ヒント）</label>
-                          {q.associationHints.map((hint, hIdx) => (
-                            <div key={hIdx} className={styles.choiceRow}>
-                              <span style={{ fontSize: '0.9rem', minWidth: '60px', color: 'var(--text-muted)' }}>
-                                ヒント {hIdx + 1}
-                              </span>
-                              <input
-                                type="text"
-                                className={styles.input}
-                                placeholder={`例: ヒント ${hIdx + 1} の内容`}
-                                value={hint}
-                                onChange={(e) => handleAssociationHintTextChange(qIdx, hIdx, e.target.value)}
-                              />
-                              <button
-                                type="button"
-                                className={styles.removeQuestionBtn}
-                                onClick={() => handleRemoveAssociationHint(qIdx, hIdx)}
-                                title="このヒントを削除"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            className={styles.addTextAnswerBtn}
-                            onClick={() => handleAddAssociationHint(qIdx)}
-                            style={{ marginTop: '8px', marginBottom: '16px' }}
-                          >
-                            <Plus size={14} /> ヒントを追加する
-                          </button>
-                          <FieldValidationMessages
-                            errors={validationErrors}
-                            field="questions"
-                            questionIndex={qIdx}
-                            questionField="associationHints"
-                          />
-
-                          {/* 連想の正解設定 (記述式の correctTextAnswerList と同一構造) */}
-                          {q.correctTextAnswerList && (
-                            <div className={styles.textAnswersContainer} style={{ marginTop: '16px', borderTop: '1px dashed var(--border-light)', paddingTop: '16px' }}>
-                              <label className={styles.label}>正解テキスト候補（大文字・小文字表記揺れなど複数設定可能）</label>
-                              {q.correctTextAnswerList.map((ans, aIdx) => (
-                                <div key={aIdx} className={styles.textAnswerRow}>
-                                  <input
-                                    type="text"
-                                    className={styles.input}
-                                    placeholder="例: 正解文字列"
-                                    value={ans}
-                                    onChange={(e) => handleTextAnswerChange(qIdx, aIdx, e.target.value)}
-                                  />
-                                  <button
-                                    type="button"
-                                    className={styles.removeQuestionBtn}
-                                    onClick={() => handleRemoveTextAnswer(qIdx, aIdx)}
-                                    title="この正解を削除"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                              ))}
-                              <button
-                                type="button"
-                                className={styles.addTextAnswerBtn}
-                                onClick={() => handleAddTextAnswer(qIdx)}
-                              >
-                                <Plus size={14} /> 正解候補を追加する
-                              </button>
-                              <FieldValidationMessages
-                                errors={validationErrors}
-                                field="questions"
-                                questionIndex={qIdx}
-                                questionField="answers"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* ウミガメスープ専用の真相（裏設定）および必須キーワード入力エリア */}
-                      {q.type === 'lateral-thinking' && (
-                        <>
-                          <div className={styles.formGroup} style={{ marginTop: '20px' }}>
-                            <label className={styles.label}>
-                              真相（ゲームマスター用の裏設定・解決情報）
-                              <span style={{ color: 'var(--color-danger)' }}> *</span>
-                            </label>
-                            <AutoGrowTextarea
-                              className={`${styles.textarea} ${filterValidationErrors(validationErrors, { field: 'questions', questionIndex: qIdx, questionField: 'aiContextDetails' }).length > 0 ? styles.inputError : ''}`}
-                              placeholder="AIがプレイヤーからの自由な質問に答える基準となる「真相（裏設定）」を、20文字以上2000文字以内で詳しく記述してください。"
-                              value={q.aiContextDetails || ''}
-                              onChange={(e) => {
-                                const nextQuestions = [...questions];
-                                nextQuestions[qIdx].aiContextDetails = e.target.value;
-                                setQuestions(nextQuestions);
-                              }}
-                              style={{ resize: 'vertical' }}
-                              minRows={5}
-                              data-testid={`auto-grow-truth-${qIdx}`}
-                            />
-                            <FieldValidationMessages
-                              errors={validationErrors}
-                              field="questions"
-                              questionIndex={qIdx}
-                              questionField="aiContextDetails"
-                            />
-                          </div>
-
-                          <div className={styles.formGroup} style={{ marginTop: '20px' }}>
-                            <label className={styles.label}>
-                              必須正解キーワード（真相判定に使用するエッセンス。複数指定可能）
-                              <span style={{ color: 'var(--color-danger)' }}> *</span>
-                            </label>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <input
-                                type="text"
-                                className={styles.input}
-                                placeholder="例: スープ (Enterで追加)"
-                                value={keywordInputs[qIdx] || ''}
-                                onChange={(e) => handleKeywordInputChange(qIdx, e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddKeyword(qIdx);
-                                  }
-                                }}
-                              />
-                              <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={() => handleAddKeyword(qIdx)}
-                                style={{ padding: '0 16px', height: '40px', minWidth: '80px' }}
-                              >
-                                追加
-                              </button>
-                            </div>
-
-                            <div className={styles.tagList} style={{ marginTop: '10px' }}>
-                              {(q.truthKeywords ?? []).map((kw, kwIdx) => (
-                                <div key={kwIdx} className={styles.tagBadge} style={{ background: 'var(--color-primary-glow)', borderColor: 'var(--color-primary)' }}>
-                                  {kw}
-                                  <button
-                                    type="button"
-                                    className={styles.removeTagBtn}
-                                    onClick={() => handleRemoveKeyword(qIdx, kwIdx)}
-                                  >
-                                    &times;
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                            <span className={styles.tagLimitInfo} style={{ marginTop: '4px', display: 'block' }}>
-                              {(q.truthKeywords ?? []).length} 個の必須キーワード
-                            </span>
-                            <FieldValidationMessages
-                              errors={validationErrors}
-                              field="questions"
-                              questionIndex={qIdx}
-                              questionField="truthKeywords"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      <div className={styles.formGroup} style={{ marginTop: '20px' }}>
-                        <label className={styles.label}>正解後の解説文(任意)</label>
-                        <AutoGrowTextarea
-                          className={styles.textarea}
-                          placeholder="正解した/間違えた挑戦者へ表示する解説文を入力してください。"
-                          value={q.explanation}
-                          onChange={(e) => handleExplanationChange(qIdx, e.target.value)}
-                          style={{ resize: 'vertical' }}
-                          minRows={3}
-                          data-testid={`auto-grow-explanation-${qIdx}`}
-                        />
-                      </div>
-
-                      <div className={styles.formGroup} style={{ marginTop: '16px' }}>
-                        <label className={styles.label}>出典・参考URL(任意)</label>
-                        <input
-                          type="url"
-                          className={styles.input}
-                          placeholder="https://example.com/reference"
-                          value={q.sourceUrl ?? ''}
-                          onChange={(e) => {
-                            const nextQuestions = [...questions];
-                            nextQuestions[qIdx].sourceUrl = e.target.value || null;
-                            setQuestions(nextQuestions);
-                          }}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            {questions.map((q, qIdx) => (
+              <QuestionCard
+                key={q.id || qIdx}
+                qIdx={qIdx}
+                question={q}
+                format={format}
+                validationErrors={validationErrors}
+                cowNoticeIds={cowNoticeIds}
+                keywordInputs={keywordInputs}
+                handlers={questionEditorHandlers}
+                isRefReadOnly={isReferenceLinkQuestion(q)}
+              />
+            ))}
           </div>
         </div>
       </div>
 
-      {/* アクションバー (要件 1.6 下書き保存, 公開) */}
-      <div className={styles.actionsBar}>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => handleSave('draft')}
-          disabled={loading}
-          data-analytics="quiz-save-draft"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Save size={18} />
-          下書き保存
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={handleTestPlay}
-          disabled={loading}
-          data-analytics="quiz-test-play"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Play size={18} />
-          テストプレイ
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => handleSave('published')}
-          disabled={loading}
-          data-analytics="quiz-publish"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Send size={18} />
-          公開
-        </button>
-      </div>
+      <QuizEditorActionBar
+        loading={loading}
+        onSaveDraft={() => handleSave('draft')}
+        onTestPlay={handleTestPlay}
+        onPublish={() => handleSave('published')}
+      />
     </div>
   );
 };

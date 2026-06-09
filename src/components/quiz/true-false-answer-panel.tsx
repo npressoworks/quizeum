@@ -6,7 +6,8 @@ import {
   findTrueFalseChoiceId,
   TRUE_FALSE_LABELS,
 } from '@/lib/true-false-defaults';
-import styles from './true-false-answer-panel.module.css';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type TrueFalseAnswerPanelProps = {
   question: Question;
@@ -33,31 +34,36 @@ export function TrueFalseAnswerPanel({
     onConfirm(choiceId);
   };
 
+  const btnClass =
+    'min-h-[72px] w-full rounded-lg border border-border bg-card px-5 py-5 text-4xl font-bold leading-none text-foreground transition-colors hover:border-primary/50 hover:bg-muted/50 disabled:cursor-not-allowed';
+
   return (
     <div
-      className={`${styles.panel} ${disabled ? styles.panelDisabled : ''}`}
+      className={cn('mt-4 grid grid-cols-2 gap-4', disabled && 'pointer-events-none opacity-55')}
       data-testid="true-false-answer-panel"
     >
-      <button
+      <Button
         type="button"
-        className={styles.answerBtn}
+        variant="outline"
+        className={btnClass}
         onClick={() => handleSelect(maruId)}
         disabled={disabled || !maruId}
         data-testid="true-false-answer-true"
         data-analytics="quiz-answer-true-false-maru"
       >
         {TRUE_FALSE_LABELS.maru}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className={styles.answerBtn}
+        variant="outline"
+        className={btnClass}
         onClick={() => handleSelect(batsuId)}
         disabled={disabled || !batsuId}
         data-testid="true-false-answer-false"
         data-analytics="quiz-answer-true-false-batsu"
       >
         {TRUE_FALSE_LABELS.batsu}
-      </button>
+      </Button>
     </div>
   );
 }

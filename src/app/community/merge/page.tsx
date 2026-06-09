@@ -1,16 +1,5 @@
 /**
  * タグ/ジャンルマージリクエスト画面
- *
- * 機能:
- * - moderator 以上のクライアントサイドアクセスガード
- * - 「提案起案」タブ: マージ提案フォーム（ソース → ターゲット）
- * - 「投票一覧」タブ: 保留中マージリクエストのカード表示
- * - ソースタグクリックで対応リスト画面を別ウィンドウで開く
- * - 賛成👍 / 反対👎 投票（シニアモデレータは重みx2バッジ表示）
- * - weightedVotesFor / weightedVotesAgainst に基づくリアルタイムプログレスバー
- *
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7
- * Boundary: CommunityMerge, CommunityMerge-Vote
  */
 'use client';
 
@@ -20,20 +9,23 @@ import {
   collection,
   query,
   where,
-  getDocs,
   orderBy,
-  doc,
-  updateDoc,
-  increment,
   onSnapshot,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { useAuth } from '@/context/auth-context';
 import { createMergeRequest, voteMergeRequest } from '@/services/tagMerge';
-import styles from './merge.module.css';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2 } from 'lucide-react';
 
-/** マージリクエストの型定義 */
 interface MergeRequest {
   id: string;
   targetType: 'tag' | 'genre';
@@ -65,15 +57,11 @@ export default function CommunityMergePage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // フォーム状態
   const [formSourceId, setFormSourceId] = useState('');
   const [formTargetId, setFormTargetId] = useState('');
   const [formType, setFormType] = useState<'tag' | 'genre'>('tag');
   const [formReasoning, setFormReasoning] = useState('');
 
-  // -------------------------------------------------------------------
-  // クライアントサイドアクセスガード (Req 2.1)
-  // -------------------------------------------------------------------
   const TIER_RANK: Record<string, number> = {
     newcomer: 0,
     contributor: 1,
@@ -96,42 +84,42 @@ export default function CommunityMergePage() {
     }
   }, [user, loading, isAuthorized, router]);
 
-  // -------------------------------------------------------------------
-  // 保留中マージリクエストのリアルタイム取得 (Req 2.3)
-  // -------------------------------------------------------------------
   useEffect(() => {
     if (!isAuthorized) return;
 
-    setFetchLoading(true);
+    let cancelled = false;
     const q = query(
       collection(db, 'mergeRequests'),
       where('status', '==', 'open'),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
     );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const requests = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        } as MergeRequest));
+        const requests = snapshot.docs.map(
+          (d) =>
+            ({
+              id: d.id,
+              ...d.data(),
+            }) as MergeRequest,
+        );
         setMergeRequests(requests);
-        setFetchLoading(false);
+        if (!cancelled) setFetchLoading(false);
       },
       (err) => {
         console.error('マージリクエスト取得エラー:', err);
         setErrorMessage('マージリクエストの読み込みに失敗しました。');
-        setFetchLoading(false);
-      }
+        if (!cancelled) setFetchLoading(false);
+      },
     );
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [isAuthorized]);
 
-  // -------------------------------------------------------------------
-  // マージ提案の起案送信 (Req 2.2)
-  // -------------------------------------------------------------------
   const handlePropose = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !formSourceId.trim() || !formTargetId.trim()) return;
@@ -146,10 +134,10 @@ export default function CommunityMergePage() {
         formTargetId.trim(),
         formType,
         formReasoning,
-        user.id
+        user.id,
       );
       setSuccessMessage(
-        `「${formSourceId}」→「${formTargetId}」のマージ提案を起案しました。`
+        `「${formSourceId}」→「${formTargetId}」のマージ提案を起案しました。`,
       );
       setFormSourceId('');
       setFormTargetId('');
@@ -163,13 +151,7 @@ export default function CommunityMergePage() {
     }
   };
 
-  // -------------------------------------------------------------------
-  // 賛否投票 (Req 2.5, 2.6)
-  // -------------------------------------------------------------------
-  const handleVote = async (
-    mergeRequestId: string,
-    vote: 'approve' | 'reject'
-  ) => {
+  const handleVote = async (mergeRequestId: string, vote: 'approve' | 'reject') => {
     if (!user) return;
 
     setVoteLoading(mergeRequestId + vote);
@@ -179,7 +161,7 @@ export default function CommunityMergePage() {
     try {
       await voteMergeRequest(mergeRequestId, user.id, vote);
       setSuccessMessage(
-        vote === 'approve' ? '👍 賛成票を投じました。' : '👎 反対票を投じました。'
+        vote === 'approve' ? '👍 賛成票を投じました。' : '👎 反対票を投じました。',
       );
     } catch (err) {
       console.error('投票失敗:', err);
@@ -189,28 +171,27 @@ export default function CommunityMergePage() {
     }
   };
 
-  // -------------------------------------------------------------------
-  // ソースタグ/ジャンル一覧を別ウィンドウで開く (Req 2.4)
-  // -------------------------------------------------------------------
   const openSourceList = (sourceId: string, type: 'tag' | 'genre') => {
     const path = type === 'tag' ? `/tags/${sourceId}` : `/genres/${sourceId}`;
     window.open(path, '_blank');
   };
 
-  // -------------------------------------------------------------------
-  // 賛成率計算 (Req 2.7)
-  // -------------------------------------------------------------------
   const calcApprovalRate = (req: MergeRequest): number => {
     const totalWeighted = req.weightedVotesFor + req.weightedVotesAgainst;
     if (totalWeighted === 0) return 0;
     return Math.round((req.weightedVotesFor / totalWeighted) * 100);
   };
 
-  // ローディング
+  const formatDate = (date: Date | Timestamp) => {
+    if (date instanceof Timestamp) return date.toDate().toLocaleDateString('ja-JP');
+    if (date instanceof Date) return date.toLocaleDateString('ja-JP');
+    return '';
+  };
+
   if (loading) {
     return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner} />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="size-8 animate-spin" />
         <p>読み込んでいます...</p>
       </div>
     );
@@ -219,185 +200,156 @@ export default function CommunityMergePage() {
   if (!isAuthorized) return null;
 
   return (
-    <div className={styles.pageContainer}>
-      {/* ページヘッダー */}
-      <header className={styles.pageHeader}>
-        <div className={styles.headerBadge}>🔀 モデレータ専用</div>
-        <h1 className={styles.pageTitle}>タグ / ジャンル マージリクエスト</h1>
-        <p className={styles.pageSubtitle}>
+    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+      <header className="space-y-2">
+        <Badge variant="secondary">🔀 モデレータ専用</Badge>
+        <h1 className="text-2xl font-bold">タグ / ジャンル マージリクエスト</h1>
+        <p className="text-sm text-muted-foreground">
           表記揺れのタグやジャンルを統合するマージ提案を起案・投票できます。
         </p>
         {isSeniorModerator && (
-          <div className={styles.seniorBadge}>
-            ⚡ シニアモデレータ — 投票の重み: <strong>x2</strong>
-          </div>
+          <Badge variant="outline">⚡ シニアモデレータ — 投票の重み: x2</Badge>
         )}
       </header>
 
-      {/* フィードバックメッセージ */}
       {successMessage && (
-        <div className={styles.alertSuccess}>✅ {successMessage}</div>
+        <Alert>
+          <AlertDescription>✅ {successMessage}</AlertDescription>
+        </Alert>
       )}
       {errorMessage && (
-        <div className={styles.alertError}>⚠️ {errorMessage}</div>
+        <Alert variant="destructive">
+          <AlertDescription>⚠️ {errorMessage}</AlertDescription>
+        </Alert>
       )}
 
-      {/* タブナビゲーション */}
-      <div className={styles.tabNav}>
-        <button
-          id="tab-votes"
-          className={`${styles.tabBtn} ${activeTab === 'votes' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('votes')}
-        >
-          📋 投票一覧
-          {mergeRequests.length > 0 && (
-            <span className={styles.tabBadge}>{mergeRequests.length}</span>
-          )}
-        </button>
-        <button
-          id="tab-propose"
-          className={`${styles.tabBtn} ${activeTab === 'propose' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('propose')}
-        >
-          ✏️ 提案起案
-        </button>
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
+        <TabsList>
+          <TabsTrigger id="tab-votes" value="votes">
+            📋 投票一覧
+            {mergeRequests.length > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {mergeRequests.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger id="tab-propose" value="propose">
+            ✏️ 提案起案
+          </TabsTrigger>
+        </TabsList>
 
-      {/* タブコンテンツ */}
-      <div className={styles.tabContent}>
-        {/* ============================================================
-            投票一覧タブ (Req 2.3, 2.4, 2.5, 2.6, 2.7)
-            ============================================================ */}
-        {activeTab === 'votes' && (
-          <div className={styles.votesTab}>
-            {fetchLoading ? (
-              <div className={styles.loadingInner}>
-                <div className={styles.spinner} />
-              </div>
-            ) : mergeRequests.length === 0 ? (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>🌿</div>
+        <TabsContent value="votes" className="mt-4">
+          {fetchLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : mergeRequests.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+                <span className="text-3xl">🌿</span>
                 <p>現在、保留中のマージ提案はありません。</p>
-              </div>
-            ) : (
-              <div className={styles.requestList}>
-                {mergeRequests.map((req) => {
-                  const approvalRate = calcApprovalRate(req);
-                  return (
-                    <div key={req.id} className={styles.requestCard}>
-                      {/* リクエストヘッダー */}
-                      <div className={styles.requestHeader}>
-                        <span className={styles.requestTypeBadge}>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {mergeRequests.map((req) => {
+                const approvalRate = calcApprovalRate(req);
+                return (
+                  <Card key={req.id}>
+                    <CardContent className="space-y-4 p-6">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Badge variant="outline">
                           {req.targetType === 'tag' ? '🏷️ タグ' : '🎭 ジャンル'}
-                        </span>
-                        <span className={styles.requestDate}>
-                          {req.createdAt instanceof Timestamp
-                            ? req.createdAt.toDate().toLocaleDateString('ja-JP')
-                            : req.createdAt instanceof Date
-                            ? req.createdAt.toLocaleDateString('ja-JP')
-                            : ''}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(req.createdAt)}
                         </span>
                       </div>
- 
-                      {/* マージ方向表示 (Req 2.4: ソースクリックで別ウィンドウ) */}
-                      <div className={styles.mergeDirection}>
+
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
                         <button
-                          className={styles.sourceLink}
+                          type="button"
+                          className="font-medium text-primary hover:underline"
                           onClick={() => openSourceList(req.sourceId, req.targetType)}
                           title="クリックして一覧を別ウィンドウで開く"
                         >
-                          {req.sourceId}
-                          <span className={styles.externalIcon}>↗</span>
+                          {req.sourceId} ↗
                         </button>
-                        <span className={styles.mergeArrow}>→</span>
-                        <span className={styles.targetLabel}>{req.targetId}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="font-medium">{req.targetId}</span>
                       </div>
 
-                      {/* プログレスバー (Req 2.7) */}
-                      <div className={styles.progressSection}>
-                        <div className={styles.progressHeader}>
-                          <span className={styles.progressLabel}>賛成率</span>
-                          <span className={styles.progressValue}>
-                            {approvalRate}%
-                          </span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>賛成率</span>
+                          <span className="font-medium">{approvalRate}%</span>
                         </div>
-                        <div className={styles.progressBar}>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                           <div
-                            className={styles.progressFill}
+                            className="h-full bg-primary transition-all"
                             style={{ width: `${approvalRate}%` }}
                           />
                         </div>
-                        <div className={styles.voteWeights}>
-                          <span className={styles.voteFor}>
-                            👍 {req.weightedVotesFor}
-                          </span>
-                          <span className={styles.voteAgainst}>
-                            👎 {req.weightedVotesAgainst}
-                          </span>
-                          <span className={styles.voteTotal}>
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          <span>👍 {req.weightedVotesFor}</span>
+                          <span>👎 {req.weightedVotesAgainst}</span>
+                          <span>
                             合計重み: {req.weightedVotesFor + req.weightedVotesAgainst}
                           </span>
                         </div>
                       </div>
 
-                      {/* 投票ボタン (Req 2.5, 2.6) */}
-                      <div className={styles.voteActions}>
+                      <div className="flex flex-wrap items-center gap-2">
                         {isSeniorModerator && (
-                          <span className={styles.weightBadge}>
-                            ⚡ 投票の重み: x2
-                          </span>
+                          <Badge variant="outline">⚡ 投票の重み: x2</Badge>
                         )}
-                        <div className={styles.voteBtns}>
-                          <button
-                            id={`vote-approve-${req.id}`}
-                            className={`${styles.voteBtn} ${styles.voteApproveBtn}`}
-                            onClick={() => handleVote(req.id, 'approve')}
-                            disabled={voteLoading !== null}
-                          >
-                            {voteLoading === req.id + 'approve' ? (
-                              <span className={styles.btnSpinner} />
-                            ) : (
-                              '👍 賛成'
-                            )}
-                          </button>
-                          <button
-                            id={`vote-reject-${req.id}`}
-                            className={`${styles.voteBtn} ${styles.voteRejectBtn}`}
-                            onClick={() => handleVote(req.id, 'reject')}
-                            disabled={voteLoading !== null}
-                          >
-                            {voteLoading === req.id + 'reject' ? (
-                              <span className={styles.btnSpinner} />
-                            ) : (
-                              '👎 反対'
-                            )}
-                          </button>
-                        </div>
+                        <Button
+                          id={`vote-approve-${req.id}`}
+                          variant="outline"
+                          onClick={() => handleVote(req.id, 'approve')}
+                          disabled={voteLoading !== null}
+                        >
+                          {voteLoading === req.id + 'approve' ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            '👍 賛成'
+                          )}
+                        </Button>
+                        <Button
+                          id={`vote-reject-${req.id}`}
+                          variant="destructive"
+                          onClick={() => handleVote(req.id, 'reject')}
+                          disabled={voteLoading !== null}
+                        >
+                          {voteLoading === req.id + 'reject' ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            '👎 反対'
+                          )}
+                        </Button>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
 
-        {/* ============================================================
-            提案起案タブ (Req 2.2)
-            ============================================================ */}
-        {activeTab === 'propose' && (
-          <div className={styles.proposeTab}>
-            <div className={styles.formCard}>
-              <h2 className={styles.formTitle}>マージ提案を起案する</h2>
-              <p className={styles.formDescription}>
+        <TabsContent value="propose" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>マージ提案を起案する</CardTitle>
+              <p className="text-sm text-muted-foreground">
                 統合を提案するソースと統合先ターゲットを入力し、理由を記載してください。
               </p>
-              <form onSubmit={handlePropose} className={styles.proposeForm}>
-                {/* タイプ選択 */}
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>対象タイプ</label>
-                  <div className={styles.radioGroup}>
-                    <label className={styles.radioLabel}>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePropose} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>対象タイプ</Label>
+                  <div className="flex gap-4">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
                       <input
                         type="radio"
                         name="type"
@@ -407,7 +359,7 @@ export default function CommunityMergePage() {
                       />
                       🏷️ タグ
                     </label>
-                    <label className={styles.radioLabel}>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
                       <input
                         type="radio"
                         name="type"
@@ -420,15 +372,11 @@ export default function CommunityMergePage() {
                   </div>
                 </div>
 
-                {/* ソースID */}
-                <div className={styles.formGroup}>
-                  <label htmlFor="sourceId" className={styles.formLabel}>
-                    ソース（統合される側）
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label htmlFor="sourceId">ソース（統合される側）</Label>
+                  <Input
                     id="sourceId"
                     type="text"
-                    className={styles.formInput}
                     placeholder="例: javascipt（表記揺れ）"
                     value={formSourceId}
                     onChange={(e) => setFormSourceId(e.target.value)}
@@ -436,15 +384,11 @@ export default function CommunityMergePage() {
                   />
                 </div>
 
-                {/* ターゲットID */}
-                <div className={styles.formGroup}>
-                  <label htmlFor="targetId" className={styles.formLabel}>
-                    ターゲット（統合先の正規名）
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label htmlFor="targetId">ターゲット（統合先の正規名）</Label>
+                  <Input
                     id="targetId"
                     type="text"
-                    className={styles.formInput}
                     placeholder="例: javascript（正規）"
                     value={formTargetId}
                     onChange={(e) => setFormTargetId(e.target.value)}
@@ -452,14 +396,10 @@ export default function CommunityMergePage() {
                   />
                 </div>
 
-                {/* 理由 */}
-                <div className={styles.formGroup}>
-                  <label htmlFor="reasoning" className={styles.formLabel}>
-                    統合の理由
-                  </label>
-                  <textarea
+                <div className="space-y-2">
+                  <Label htmlFor="reasoning">統合の理由</Label>
+                  <Textarea
                     id="reasoning"
-                    className={styles.formTextarea}
                     placeholder="なぜこのマージが必要か、根拠を説明してください。"
                     value={formReasoning}
                     onChange={(e) => setFormReasoning(e.target.value)}
@@ -467,25 +407,20 @@ export default function CommunityMergePage() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  id="submit-propose-btn"
-                  className={styles.submitBtn}
-                  disabled={submitLoading}
-                >
+                <Button type="submit" id="submit-propose-btn" disabled={submitLoading}>
                   {submitLoading ? (
                     <>
-                      <span className={styles.btnSpinner} /> 送信中...
+                      <Loader2 className="size-4 animate-spin" /> 送信中...
                     </>
                   ) : (
                     '🚀 マージ提案を起案する'
                   )}
-                </button>
+                </Button>
               </form>
-            </div>
-          </div>
-        )}
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

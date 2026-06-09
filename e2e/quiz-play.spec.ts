@@ -91,7 +91,7 @@ test.describe('クイズプレイ・結果評価フロー E2Eテスト', () => {
     await expect(page).toHaveURL(/\/result/);
     
     // スコアが 1 / 1 正解 であることを確認（要素が分割されているため、コンテナに対して検証）
-    const scoreCircle = page.locator('[class*="scoreCircle"]');
+    const scoreCircle = page.getByTestId('quiz-result-score-circle');
     await expect(scoreCircle).toBeVisible();
     await expect(scoreCircle).toContainText('1');
     await expect(scoreCircle).toContainText('1');

@@ -16,6 +16,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 import {
   collection,
   query,
@@ -29,7 +30,19 @@ import { isAdminUser } from '@/lib/middleware-auth-cookies';
 import { resolveFlag } from '@/services/moderation';
 import { assertSeedGenresAccess } from '@/lib/seed-genres-access';
 import { Quiz } from '@/types';
-import styles from './moderation.module.css';
+import { ConfirmActionDialog } from '@/components/admin/confirm-action-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /** 通報フラグの詳細情報 */
 interface FlagDetail {
@@ -46,6 +59,8 @@ interface ModerationQueueItem {
   flags: FlagDetail[];
 }
 
+type PendingAction = { quizId: string; action: 'restore' | 'delete' } | null;
+
 export default function AdminModerationPage() {
   const { user, firebaseUser, loading } = useAuth();
   const router = useRouter();
@@ -58,11 +73,8 @@ export default function AdminModerationPage() {
   const [seedLoading, setSeedLoading] = useState(false);
   const [seedSuccessMessage, setSeedSuccessMessage] = useState<string | null>(null);
   const [seedErrorMessage, setSeedErrorMessage] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
-  // -------------------------------------------------------------------
-  // クライアントサイドアクセスガード (Req 1.1)
-  // ミドルウェアによる一次保護に加えて、ページ側でも権限検証を行う
-  // -------------------------------------------------------------------
   const isAuthorized =
     user?.moderationTier === 'senior_moderator' ||
     (user?.moderationTier as string) === 'admin' ||
@@ -80,38 +92,36 @@ export default function AdminModerationPage() {
     }
   }, [user, loading, isAuthorized, router]);
 
-  // -------------------------------------------------------------------
-  // 保留コンテンツの取得 (Req 1.2)
-  // -------------------------------------------------------------------
   useEffect(() => {
     if (!isAuthorized) return;
 
     const fetchQueue = async () => {
       setFetchLoading(true);
       try {
-        // 1. suspended 状態のクイズを取得
         const quizzesQuery = query(
           collection(db, 'quizzes'),
           where('status', '==', 'suspended'),
-          orderBy('flagsCount', 'desc')
+          orderBy('flagsCount', 'desc'),
         );
         const quizzesSnap = await getDocs(quizzesQuery);
         const quizzes = quizzesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Quiz));
 
-        // 2. 各クイズに対応する通報フラグを取得
         const items: ModerationQueueItem[] = await Promise.all(
           quizzes.map(async (quiz) => {
             const flagsQuery = query(
               collection(db, 'flags'),
-              where('quizId', '==', quiz.id)
+              where('quizId', '==', quiz.id),
             );
             const flagsSnap = await getDocs(flagsQuery);
-            const flags = flagsSnap.docs.map((d) => ({
-              id: d.id,
-              ...d.data(),
-            } as FlagDetail));
+            const flags = flagsSnap.docs.map(
+              (d) =>
+                ({
+                  id: d.id,
+                  ...d.data(),
+                }) as FlagDetail,
+            );
             return { quiz, flags };
-          })
+          }),
         );
 
         setQueueItems(items);
@@ -126,13 +136,7 @@ export default function AdminModerationPage() {
     fetchQueue();
   }, [isAuthorized]);
 
-  // -------------------------------------------------------------------
-  // アクション: 公開復帰 / 削除 (Req 1.4)
-  // -------------------------------------------------------------------
-  const handleAction = async (
-    quizId: string,
-    action: 'restore' | 'delete'
-  ) => {
+  const executeAction = async (quizId: string, action: 'restore' | 'delete') => {
     setActionLoading(quizId + action);
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -143,19 +147,22 @@ export default function AdminModerationPage() {
       setSuccessMessage(
         action === 'restore'
           ? 'コンテンツを公開に復帰しました。'
-          : 'コンテンツを削除し、作成者に通知しました。'
+          : 'コンテンツを削除し、作成者に通知しました。',
       );
     } catch (err) {
       console.error('アクション失敗:', err);
       setErrorMessage('操作に失敗しました。もう一度お試しください。');
     } finally {
       setActionLoading(null);
+      setPendingAction(null);
     }
   };
 
-  // -------------------------------------------------------------------
-  // 通報理由のラベル変換
-  // -------------------------------------------------------------------
+  const handleConfirmAction = () => {
+    if (!pendingAction) return;
+    void executeAction(pendingAction.quizId, pendingAction.action);
+  };
+
   const handleSeedGenres = async () => {
     if (!firebaseUser) {
       setSeedErrorMessage('ログインセッションが無効です。再度ログインしてください。');
@@ -187,19 +194,19 @@ export default function AdminModerationPage() {
             (data.error === 'admin-not-configured'
               ? 'サーバーに Firebase サービスアカウントが未設定です。.env.local に FIREBASE_SERVICE_ACCOUNT_JSON を設定してください。'
               : data.error) ||
-            '初期ジャンルの一括投入に失敗しました。'
+            '初期ジャンルの一括投入に失敗しました。',
         );
       }
 
       const added = data.added ?? 0;
       const updated = data.updated ?? 0;
       setSeedSuccessMessage(
-        `初期ジャンルの一括投入が完了しました（新規: ${added}件、更新: ${updated}件）。`
+        `初期ジャンルの一括投入が完了しました（新規: ${added}件、更新: ${updated}件）。`,
       );
     } catch (err) {
       console.error('初期ジャンル投入エラー:', err);
       setSeedErrorMessage(
-        err instanceof Error ? err.message : '初期ジャンルの一括投入に失敗しました。'
+        err instanceof Error ? err.message : '初期ジャンルの一括投入に失敗しました。',
       );
     } finally {
       setSeedLoading(false);
@@ -218,181 +225,205 @@ export default function AdminModerationPage() {
     return labels[reason] ?? reason;
   };
 
-  // ローディング中
+  const confirmDialogProps = {
+    restore: {
+      title: 'コンテンツを公開に復帰しますか？',
+      description: '通報フラグをリセットし、このクイズを公開状態に戻します。',
+      confirmLabel: '公開に復帰',
+    },
+    delete: {
+      title: 'コンテンツを削除しますか？',
+      description: 'このクイズを削除し、作成者に通知します。この操作は取り消せません。',
+      confirmLabel: 'コンテンツ削除',
+    },
+  } as const;
+
   if (loading || fetchLoading) {
     return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner} />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="size-8 animate-spin" />
         <p>審査キューを読み込んでいます...</p>
       </div>
     );
   }
 
-  // 権限なし (ガード)
   if (!isAuthorized) return null;
 
   return (
-    <div className={styles.pageContainer}>
-      {/* ページヘッダー */}
-      <header className={styles.pageHeader}>
-        <div className={styles.headerBadge}>🛡️ 管理者専用</div>
-        <h1 className={styles.pageTitle}>モデレーション審査</h1>
-        <p className={styles.pageSubtitle}>
+    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
+      <header className="space-y-2">
+        <Badge variant="secondary">🛡️ 管理者専用</Badge>
+        <h1 className="text-2xl font-bold">モデレーション審査</h1>
+        <p className="text-sm text-muted-foreground">
           通報が5回に達した保留コンテンツを審査し、公開復帰または削除を行います。
         </p>
         {isAdmin && (
-          <div>
-            <Link href="/admin/users" className={styles.usersAdminLink}>
-              👤 ユーザー評判管理画面へ
-            </Link>
-          </div>
+          <Link
+            href="/admin/users"
+            className="inline-block text-sm text-muted-foreground hover:text-foreground"
+          >
+            👤 ユーザー評判管理画面へ
+          </Link>
         )}
       </header>
 
       {isAdmin && (
-        <section className={styles.seedSection} aria-labelledby="seed-genres-heading">
-          <h2 id="seed-genres-heading" className={styles.seedSectionTitle}>
-            初期ジャンル一括投入 (Seed Initial Genres)
-          </h2>
-          <p className={styles.seedSectionDesc}>
-            `src/data/initial_genres.json` に定義された標準ジャンルを Firestore の
-            metadata_genres へ冪等に登録します。
-          </p>
-          {seedSuccessMessage && (
-            <div className={styles.alertSuccess}>
-              <span>✅</span> {seedSuccessMessage}
-            </div>
-          )}
-          {seedErrorMessage && (
-            <div className={styles.alertError}>
-              <span>⚠️</span> {seedErrorMessage}
-            </div>
-          )}
-          <button
-            type="button"
-            id="seed-genres-btn"
-            className={styles.seedBtn}
-            onClick={handleSeedGenres}
-            disabled={seedLoading}
-          >
-            {seedLoading ? (
-              <>
-                <span className={styles.btnSpinner} aria-hidden />
-                投入中...
-              </>
-            ) : (
-              '🌱 初期ジャンル一括投入'
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg" id="seed-genres-heading">
+              初期ジャンル一括投入 (Seed Initial Genres)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              `src/data/initial_genres.json` に定義された標準ジャンルを Firestore の
+              metadata_genres へ冪等に登録します。
+            </p>
+            {seedSuccessMessage && (
+              <Alert>
+                <AlertDescription>✅ {seedSuccessMessage}</AlertDescription>
+              </Alert>
             )}
-          </button>
-        </section>
+            {seedErrorMessage && (
+              <Alert variant="destructive">
+                <AlertDescription>⚠️ {seedErrorMessage}</AlertDescription>
+              </Alert>
+            )}
+            <Button
+              type="button"
+              id="seed-genres-btn"
+              onClick={handleSeedGenres}
+              disabled={seedLoading}
+            >
+              {seedLoading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> 投入中...
+                </>
+              ) : (
+                '🌱 初期ジャンル一括投入'
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      {/* フィードバックメッセージ */}
       {successMessage && (
-        <div className={styles.alertSuccess}>
-          <span>✅</span> {successMessage}
-        </div>
+        <Alert>
+          <AlertDescription>✅ {successMessage}</AlertDescription>
+        </Alert>
       )}
       {errorMessage && (
-        <div className={styles.alertError}>
-          <span>⚠️</span> {errorMessage}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>⚠️ {errorMessage}</AlertDescription>
+        </Alert>
       )}
 
-      {/* キューカウンター */}
-      <div className={styles.queueStats}>
-        <span className={styles.queueCount}>{queueItems.length}</span>
-        <span className={styles.queueLabel}>件の審査待ちコンテンツ</span>
+      <div className="flex items-baseline gap-2">
+        <span className="text-3xl font-bold">{queueItems.length}</span>
+        <span className="text-muted-foreground">件の審査待ちコンテンツ</span>
       </div>
 
-      {/* 審査キューリスト (Req 1.2, 1.3) */}
       {queueItems.length === 0 ? (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>✨</div>
-          <p>現在、審査待ちのコンテンツはありません。</p>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+            <span className="text-3xl">✨</span>
+            <p>現在、審査待ちのコンテンツはありません。</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className={styles.queueList}>
+        <div className="space-y-4">
           {queueItems.map(({ quiz, flags }) => (
-            <div key={quiz.id} className={styles.queueCard}>
-              {/* カードヘッダー */}
-              <div className={styles.cardHeader}>
-                <div className={styles.cardMeta}>
-                  <span className={styles.contentTypeBadge}>📝 クイズ</span>
-                  <span className={styles.flagCountBadge}>
-                    🚩 {quiz.flagsCount} 件の通報
-                  </span>
+            <Card key={quiz.id}>
+              <CardHeader className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">📝 クイズ</Badge>
+                  <Badge variant="destructive">🚩 {quiz.flagsCount} 件の通報</Badge>
                 </div>
-                {/* クイズタイトル → 特別審査ビューへのリンク (Req 1.5) */}
                 <Link
                   href={`/quiz/${quiz.id}?admin_review=1`}
                   target="_blank"
-                  className={styles.quizTitleLink}
+                  className="group flex items-start gap-2 hover:text-primary"
                 >
-                  <h2 className={styles.quizTitle}>{quiz.title}</h2>
-                  <span className={styles.previewIcon}>🔍</span>
+                  <CardTitle className="text-lg group-hover:underline">{quiz.title}</CardTitle>
+                  <span className="text-muted-foreground">🔍</span>
                 </Link>
-                <div className={styles.quizMeta}>
+                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <span>作成者: {quiz.authorName}</span>
                   <span>問題数: {quiz.questionCount}問</span>
                   <span>ジャンル: {quiz.genre}</span>
                 </div>
-              </div>
+              </CardHeader>
 
-              {/* 通報詳細一覧 (Req 1.3) */}
-              <div className={styles.flagsSection}>
-                <h3 className={styles.flagsSectionTitle}>通報詳細</h3>
-                <div className={styles.flagsList}>
-                  {flags.map((flag) => (
-                    <div key={flag.id} className={styles.flagItem}>
-                      <span className={styles.flagReason}>
-                        {getReason(flag.reason)}
-                      </span>
-                      <span className={styles.flagReporter}>
-                        通報者: {flag.reporterId.slice(0, 8)}...
-                      </span>
-                    </div>
-                  ))}
+              <CardContent className="space-y-4">
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">通報詳細</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>理由</TableHead>
+                        <TableHead>通報者</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {flags.map((flag) => (
+                        <TableRow key={flag.id}>
+                          <TableCell>{getReason(flag.reason)}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {flag.reporterId.slice(0, 8)}...
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-              </div>
 
-              {/* アクションボタン (Req 1.4) */}
-              <div className={styles.cardActions}>
-                <button
-                  id={`restore-btn-${quiz.id}`}
-                  className={`${styles.actionBtn} ${styles.restoreBtn}`}
-                  onClick={() => handleAction(quiz.id, 'restore')}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === quiz.id + 'restore' ? (
-                    <span className={styles.btnSpinner} />
-                  ) : (
-                    '✅ 公開に復帰'
-                  )}
-                </button>
-                <button
-                  id={`delete-btn-${quiz.id}`}
-                  className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                  onClick={() => handleAction(quiz.id, 'delete')}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === quiz.id + 'delete' ? (
-                    <span className={styles.btnSpinner} />
-                  ) : (
-                    '🗑️ コンテンツ削除'
-                  )}
-                </button>
-                <Link
-                  href={`/quiz/${quiz.id}?admin_review=1`}
-                  target="_blank"
-                  className={`${styles.actionBtn} ${styles.previewBtn}`}
-                >
-                  🔍 管理者審査ビューで確認
-                </Link>
-              </div>
-            </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    id={`restore-btn-${quiz.id}`}
+                    variant="default"
+                    onClick={() => setPendingAction({ quizId: quiz.id, action: 'restore' })}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === quiz.id + 'restore' ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      '✅ 公開に復帰'
+                    )}
+                  </Button>
+                  <Button
+                    id={`delete-btn-${quiz.id}`}
+                    variant="destructive"
+                    onClick={() => setPendingAction({ quizId: quiz.id, action: 'delete' })}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === quiz.id + 'delete' ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      '🗑️ コンテンツ削除'
+                    )}
+                  </Button>
+                  <Button variant="outline" render={<Link href={`/quiz/${quiz.id}?admin_review=1`} target="_blank" />}>
+                    🔍 管理者審査ビューで確認
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
+      )}
+
+      {pendingAction && (
+        <ConfirmActionDialog
+          open={!!pendingAction}
+          onOpenChange={(open) => {
+            if (!open && !actionLoading) setPendingAction(null);
+          }}
+          title={confirmDialogProps[pendingAction.action].title}
+          description={confirmDialogProps[pendingAction.action].description}
+          confirmLabel={confirmDialogProps[pendingAction.action].confirmLabel}
+          onConfirm={handleConfirmAction}
+          loading={actionLoading !== null}
+        />
       )}
     </div>
   );

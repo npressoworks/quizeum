@@ -1,6 +1,5 @@
 import React from 'react';
-import { SkeletonCard } from './skeleton-card';
-import styles from './bookmarks-skeleton.module.css';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface BookmarksSkeletonProps {
   'data-testid'?: string;
@@ -8,23 +7,21 @@ interface BookmarksSkeletonProps {
 
 export function BookmarksSkeleton({ 'data-testid': testId = 'bookmarks-skeleton' }: BookmarksSkeletonProps) {
   return (
-    <div className={styles.skeletonWrapper} data-testid={testId}>
-      <div className={`${styles.backBtn} ${styles.pulse}`} />
-      
-      <div className={styles.titleSection}>
-        <div className={`${styles.title} ${styles.pulse}`} />
-        <div className={`${styles.desc} ${styles.pulse}`} />
+    <div className="flex flex-col gap-6" data-testid={testId}>
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-72" />
       </div>
 
-      <div className={styles.tabBar}>
-        <div className={`${styles.tab} ${styles.pulse}`} />
-        <div className={`${styles.tab} ${styles.pulse}`} />
-        <div className={`${styles.tab} ${styles.pulse}`} />
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-20" />
+        <Skeleton className="h-9 w-20" />
+        <Skeleton className="h-9 w-20" />
       </div>
 
-      <div className={styles.grid}>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonCard key={i} />
+          <Skeleton key={i} className="h-48 w-full rounded-xl" />
         ))}
       </div>
     </div>

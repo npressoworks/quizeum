@@ -8,7 +8,8 @@ import { useListsSearch, type ListsVisibility } from '@/hooks/useListsSearch';
 import { ListsVisibilityTabs } from '@/components/lists/lists-visibility-tabs';
 import { ListsSearchBar } from '@/components/lists/lists-search-bar';
 import { ListsGrid } from '@/components/lists/lists-grid';
-import listStyles from '@/components/lists/lists.module.css';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export function ListsClient() {
   const router = useRouter();
@@ -35,7 +36,10 @@ export function ListsClient() {
 
   return (
     <div data-testid="lists-page-container">
-      <Link href="/list/create" className={`btn btn-accent ${listStyles.createLink}`}>
+      <Link
+        href="/list/create"
+        className={cn(buttonVariants(), 'mb-4 w-fit self-start')}
+      >
         リストを作成
       </Link>
       <ListsSearchBar keyword={keyword} onKeywordChange={setKeyword} />

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useId, useState } from 'react';
-import styles from './result-question-details-accordion.module.css';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface ResultQuestionDetailsAccordionProps {
   questionId: string;
@@ -15,28 +16,24 @@ export function ResultQuestionDetailsAccordion({
   children,
 }: ResultQuestionDetailsAccordionProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const panelId = useId();
 
   return (
-    <div className={styles.accordion}>
+    <div className="w-full rounded-lg border border-border">
       <button
         type="button"
-        className={styles.accordionHeader}
+        className={cn(
+          'flex w-full items-center justify-between px-3 py-3 text-left text-sm font-medium hover:bg-muted/50',
+        )}
         data-testid={`result-question-accordion-${questionId}`}
         aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => setOpen((value) => !value)}
       >
-        <span>{open ? '回答と解説を隠す' : '回答と解説を表示'}</span>
-        <span className={styles.accordionChevron} aria-hidden>
-          {open ? '▾' : '▸'}
+        {open ? '回答と解説を隠す' : '回答と解説を表示'}
+        <span className="text-muted-foreground" aria-hidden>
+          {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </span>
       </button>
-      {open && (
-        <div id={panelId} className={styles.accordionPanel}>
-          {children}
-        </div>
-      )}
+      {open && <div className="border-t px-3 pb-4 pt-2">{children}</div>}
     </div>
   );
 }

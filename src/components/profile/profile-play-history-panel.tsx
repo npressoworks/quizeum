@@ -9,10 +9,12 @@ import {
   PlayHistoryApiError,
 } from '@/lib/play-history-client';
 import type { PlayHistoryEntry } from '@/types';
-import panelStyles from './profile-play-history-panel.module.css';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 
 export interface ProfilePlayHistoryPanelProps {
-  /** プレイ履歴タブが選択されているとき true */
   isActive: boolean;
 }
 
@@ -77,93 +79,85 @@ export function ProfilePlayHistoryPanel({ isActive }: ProfilePlayHistoryPanelPro
   }
 
   return (
-    <div className={panelStyles.panel} data-testid="play-history-section">
+    <div data-testid="play-history-section">
       {loading && items.length === 0 && (
-        <div className={panelStyles.loading}>
-          <History size={20} style={{ verticalAlign: 'middle', marginRight: 8 }} />
+        <div className="flex items-center py-8 text-muted-foreground">
+          <History size={20} className="mr-2" />
           プレイ履歴を読み込み中...
         </div>
       )}
 
       {error && items.length === 0 && (
-        <div className={panelStyles.errorState}>
-          <p>{error}</p>
-          {errorStatus === 401 ? (
-            <Link href="/login" className="btn btn-primary" style={{ marginTop: 12 }}>
-              ログインする
-            </Link>
-          ) : (
-            <button
-              type="button"
-              className={`btn btn-secondary ${panelStyles.retryBtn}`}
-              onClick={handleRetry}
-            >
-              <RefreshCw size={16} style={{ marginRight: 6 }} />
-              再試行
-            </button>
-          )}
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            <p>{error}</p>
+            {errorStatus === 401 ? (
+              <Link href="/login" className={cn(buttonVariants())}>
+                ログインする
+              </Link>
+            ) : (
+              <Button type="button" variant="secondary" onClick={handleRetry}>
+                <RefreshCw size={16} />
+                再試行
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {!loading && !error && items.length === 0 && (
-        <div className={panelStyles.emptyState}>まだプレイ履歴がありません</div>
+        <div className="py-12 text-center text-muted-foreground">まだプレイ履歴がありません</div>
       )}
 
       {items.length > 0 && (
-        <ul className={panelStyles.list}>
+        <ul className="flex flex-col gap-3">
           {items.map((entry) => (
-            <li
-              key={entry.attemptId}
-              className={panelStyles.entry}
-              data-testid="play-history-entry"
-            >
-              <div className={panelStyles.entryMain}>
-                <Link
-                  href={`/quiz/${entry.quizId}`}
-                  className={panelStyles.quizLink}
-                >
-                  {entry.quizTitle}
-                </Link>
-                <span className={panelStyles.score}>
-                  {entry.score} / {entry.totalQuestions} 正解
-                </span>
-              </div>
-              <div className={panelStyles.metaRow}>
-                <span className={panelStyles.modeBadge}>
-                  {getAttemptModeLabel(entry.mode)}
-                </span>
-                <span>{entry.elapsedSeconds} 秒</span>
-                <span>
-                  {entry.completedAt.toLocaleDateString('ja-JP', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </span>
-                <Link
-                  href={`/quiz/${entry.quizId}`}
-                  className="btn btn-secondary"
-                  style={{ padding: '4px 12px', fontSize: '0.8rem' }}
-                >
-                  もう一度プレイ
-                </Link>
-              </div>
+            <li key={entry.attemptId}>
+              <Card data-testid="play-history-entry">
+                <CardContent className="flex flex-col gap-2 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Link href={`/quiz/${entry.quizId}`} className="font-semibold text-primary hover:underline">
+                      {entry.quizTitle}
+                    </Link>
+                    <span className="text-sm font-medium">
+                      {entry.score} / {entry.totalQuestions} 正解
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    <Badge variant="secondary">{getAttemptModeLabel(entry.mode)}</Badge>
+                    <span>{entry.elapsedSeconds} 秒</span>
+                    <span>
+                      {entry.completedAt.toLocaleDateString('ja-JP', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                    <Link
+                      href={`/quiz/${entry.quizId}`}
+                      className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                    >
+                      もう一度プレイ
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             </li>
           ))}
         </ul>
       )}
 
       {nextCursor && !error && (
-        <div className={panelStyles.loadMoreWrap}>
-          <button
+        <div className="mt-4 flex justify-center">
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             data-testid="play-history-load-more"
             onClick={handleLoadMore}
             disabled={loadingMore}
           >
             {loadingMore ? '読み込み中...' : 'もっと見る'}
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Quiz } from '@/types';
-import styles from './success.module.css';
+import { successClasses as styles } from './success-classes';
 import { 
   Check, 
   Copy, 

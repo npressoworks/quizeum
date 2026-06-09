@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { listActiveGenres } from '@/services/quiz';
 import { ReviewClient } from './review-client';
 import { ReviewSkeleton } from '@/components/ui/review-skeleton';
-import styles from './review.module.css';
+import { reviewClasses as styles } from './review-classes';
 
 export default async function ReviewPage() {
   return (

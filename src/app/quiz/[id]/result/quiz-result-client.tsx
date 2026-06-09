@@ -34,7 +34,7 @@ import {
 import { ResultSkeleton } from '@/components/quiz/result-skeleton';
 import { ResultQuestionDetailsAccordion } from '@/components/quiz/result-question-details-accordion';
 import { DifficultyVoteStars } from '@/components/quiz/difficulty-vote-stars';
-import styles from './result.module.css';
+import { resultClasses as styles } from './result-classes';
 
 interface QuizResultClientProps {
   quiz: Quiz;
@@ -716,7 +716,7 @@ export function QuizResultClient({
           </button>
         </div>
 
-        <div className={styles.scoreCircle}>
+        <div className={styles.scoreCircle} data-testid="quiz-result-score-circle">
           <span className={styles.scoreVal}>{attempt.score}</span>
           <span className={styles.scoreLabel}>/ {attempt.totalQuestions} 問 正解</span>
         </div>

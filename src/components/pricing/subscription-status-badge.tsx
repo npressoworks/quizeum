@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Crown } from 'lucide-react';
-import styles from './subscription-status-badge.module.css';
+import { Badge } from '@/components/ui/badge';
 
 interface SubscriptionStatusBadgeProps {
   visible: boolean;
@@ -12,9 +12,9 @@ export function SubscriptionStatusBadge({ visible }: SubscriptionStatusBadgeProp
   if (!visible) return null;
 
   return (
-    <span className={styles.badge} data-testid="subscription-status-badge">
-      <Crown size={14} aria-hidden />
+    <Badge variant="secondary" className="gap-1" data-testid="subscription-status-badge">
+      <Crown size={14} />
       Pro 契約中
-    </span>
+    </Badge>
   );
 }

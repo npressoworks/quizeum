@@ -12,8 +12,16 @@ import { filterGenreSuggestions } from '@/lib/filter-genre-suggestions';
 import type { GenreMetadata, TagMetadata } from '@/types';
 import type { HomeFeedFilters } from '@/lib/home-feed-filters';
 import type { QuizFormat } from '@/lib/quiz-format';
-import styles from '@/app/page.module.css';
-import carouselStyles from './explore-carousel.module.css';
+import { Button } from '@/components/ui/button';
+import { badgeVariants } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 /** 難易度ラベルマップ */
 const DIFFICULTY_LABELS: Record<number, string> = {
@@ -94,12 +102,12 @@ export function ExploreSearchSection({
       onGenreSelect?.(genreId);
       setGenreSearchQuery('');
     },
-    [onGenreSelect]
+    [onGenreSelect],
   );
 
   const quickTags = useMemo(
     () => weeklyTags.filter((tagId) => !filters.tagChips.includes(tagId)).slice(0, 5),
-    [weeklyTags, filters.tagChips]
+    [weeklyTags, filters.tagChips],
   );
 
   const handleQuickChip = (tagId: string) => {
@@ -110,18 +118,22 @@ export function ExploreSearchSection({
 
   return (
     <section
-      className={styles.searchSection}
+      className="flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm max-md:p-4"
       data-testid={testId ?? (lockedGenreId ? 'genre-explore-search' : undefined)}
     >
       <div
-        className={`${styles.searchBar} ${showExploreCarousels ? styles.searchBarSticky : ''}`}
+        className={cn(
+          'flex gap-3 max-md:flex-col max-md:items-stretch',
+          showExploreCarousels &&
+            'sticky top-0 z-[80] -mx-1 bg-background/95 px-1 py-2 backdrop-blur-sm',
+        )}
         data-testid={
           showExploreCarousels
             ? (stickySearchBarTestId ?? 'home-search-bar-sticky')
             : undefined
         }
       >
-        <div className={styles.searchFieldWrapper}>
+        <div className="relative flex flex-1 items-center">
           <UnifiedSearchField
             tagChips={filters.tagChips}
             onTagChipsChange={(tagChips) => onFiltersChange({ tagChips })}
@@ -134,29 +146,33 @@ export function ExploreSearchSection({
             onClearAll={onClearAll}
           />
         </div>
-        <button
+        <Button
           type="button"
-          className={styles.filterToggleBtn}
+          variant="outline"
+          className="shrink-0 max-md:justify-center"
           onClick={() => setShowFilters(!showFilters)}
         >
           <SlidersHorizontal size={18} />
           フィルター
-        </button>
+        </Button>
       </div>
 
       {activeFilterChipsSlot}
 
       {showQuickSearch && !errorWeekly && (loadingWeekly || quickTags.length > 0) && (
-        <div className={styles.quickSearch} data-testid="quick-search-tags">
-          <span className={styles.quickSearchLabel}>クイック検索:</span>
+        <div className="flex flex-wrap items-center gap-2" data-testid="quick-search-tags">
+          <span className="text-xs font-semibold text-muted-foreground">クイック検索:</span>
           {loadingWeekly ? (
-            <span className={styles.quickSearchLoading}>読み込み中...</span>
+            <span className="text-xs text-muted-foreground">読み込み中...</span>
           ) : (
             quickTags.map((tagId) => (
               <button
                 key={tagId}
                 type="button"
-                className={styles.quickChip}
+                className={cn(
+                  badgeVariants({ variant: 'secondary' }),
+                  'cursor-pointer hover:bg-secondary/80',
+                )}
                 data-testid={`quick-search-chip-${tagId}`}
                 onClick={() => handleQuickChip(tagId)}
               >
@@ -168,14 +184,11 @@ export function ExploreSearchSection({
       )}
 
       {showFilters && (
-        <div className={styles.filterPanel}>
+        <div className="flex animate-fade-in flex-col gap-5 border-t pt-4">
           {showExploreCarousels && onGenreSelect && onFormatSelect && (
             <>
-              <div className={styles.exploreCarouselBlock} data-testid="home-genre-carousel-block">
-                <div
-                  className={carouselStyles.genreSearchWrap}
-                  data-testid="genre-explore-search-field"
-                >
+              <div className="flex flex-col gap-2" data-testid="home-genre-carousel-block">
+                <div className="mb-3" data-testid="genre-explore-search-field">
                   <GenreSearchField
                     genres={genres}
                     query={genreSearchQuery}
@@ -197,41 +210,37 @@ export function ExploreSearchSection({
                   }
                 />
               </div>
-              <div className={styles.exploreCarouselBlock} data-testid="home-format-carousel-block">
+              <div className="flex flex-col gap-2" data-testid="home-format-carousel-block">
                 <FormatCarousel selectedFormat={selectedFormat} onSelect={onFormatSelect} />
               </div>
             </>
           )}
 
-          {/* ── 難易度スライダー ── */}
-          <div className={styles.filterGroupFull}>
-            <div className={styles.filterLabelRow}>
-              <span className={styles.filterLabel}>難易度</span>
-              <span className={styles.filterValue}>
+          <div className="flex w-full flex-col gap-2.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-semibold text-muted-foreground">難易度</span>
+              <span className="text-sm font-bold text-primary">
                 {filters.difficultyMin === filters.difficultyMax
                   ? `Lv.${filters.difficultyMin}（${DIFFICULTY_LABELS[filters.difficultyMin]}）`
                   : `Lv.${filters.difficultyMin} 〜 Lv.${filters.difficultyMax}`}
               </span>
             </div>
 
-            <div className={styles.dualSliderWrapper}>
-              {/* トラック背景（選択範囲のハイライト用） */}
+            <div className="explore-dual-slider">
               <div
-                className={styles.sliderTrackHighlight}
+                className="explore-slider-highlight"
                 style={{
                   left: `${((filters.difficultyMin - 1) / 4) * 100}%`,
                   right: `${((5 - filters.difficultyMax) / 4) * 100}%`,
                 }}
               />
-
-              {/* Min スライダー */}
               <input
                 type="range"
                 min={1}
                 max={5}
                 step={1}
                 value={filters.difficultyMin}
-                className={styles.rangeSlider}
+                className="explore-range-input"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   onFiltersChange({
@@ -241,15 +250,13 @@ export function ExploreSearchSection({
                 }}
                 aria-label="難易度最小値"
               />
-
-              {/* Max スライダー */}
               <input
                 type="range"
                 min={1}
                 max={5}
                 step={1}
                 value={filters.difficultyMax}
-                className={styles.rangeSlider}
+                className="explore-range-input"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   onFiltersChange({
@@ -261,45 +268,40 @@ export function ExploreSearchSection({
               />
             </div>
 
-            {/* 目盛りラベル */}
-            <div className={styles.sliderTicks}>
+            <div className="flex justify-between px-0.5">
               {[1, 2, 3, 4, 5].map((lv) => (
-                <span key={lv} className={styles.sliderTick}>
+                <span key={lv} className="select-none text-xs font-semibold text-muted-foreground">
                   {lv}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* ── 問題数 ── */}
-          <div className={styles.filterGroupFull}>
-            <div className={styles.filterLabelRow}>
-              <span className={styles.filterLabel}>問題数</span>
-              <span className={styles.filterValue}>
+          <div className="flex w-full flex-col gap-2.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-semibold text-muted-foreground">問題数</span>
+              <span className="text-sm font-bold text-primary">
                 {filters.minQuestions === filters.maxQuestions
                   ? `${filters.minQuestions} 問`
                   : `${filters.minQuestions} 〜 ${filters.maxQuestions} 問`}
               </span>
             </div>
 
-            <div className={styles.dualSliderWrapper}>
-              {/* 選択範囲のハイライトトラック */}
+            <div className="explore-dual-slider">
               <div
-                className={styles.sliderTrackHighlight}
+                className="explore-slider-highlight"
                 style={{
                   left: `${((filters.minQuestions - 1) / 49) * 100}%`,
                   right: `${((50 - filters.maxQuestions) / 49) * 100}%`,
                 }}
               />
-
-              {/* Min スライダー */}
               <input
                 type="range"
                 min={1}
                 max={50}
                 step={1}
                 value={filters.minQuestions}
-                className={styles.rangeSlider}
+                className="explore-range-input"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   onFiltersChange({
@@ -309,15 +311,13 @@ export function ExploreSearchSection({
                 }}
                 aria-label="最小問題数"
               />
-
-              {/* Max スライダー */}
               <input
                 type="range"
                 min={1}
                 max={50}
                 step={1}
                 value={filters.maxQuestions}
-                className={styles.rangeSlider}
+                className="explore-range-input"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   onFiltersChange({
@@ -329,41 +329,44 @@ export function ExploreSearchSection({
               />
             </div>
 
-            {/* 目盛りラベル（10問刻み） */}
-            <div className={styles.sliderTicks}>
+            <div className="flex justify-between px-0.5">
               {[1, 10, 20, 30, 40, 50].map((n) => (
-                <span key={n} className={styles.sliderTick}>
+                <span key={n} className="select-none text-xs font-semibold text-muted-foreground">
                   {n}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* ── プレイ状況 ── */}
-          <div className={styles.filterGroup}>
-            <span className={styles.filterLabel}>プレイ状況</span>
-            <select
-              className={styles.filterSelect}
+          <div className="flex flex-col gap-2.5">
+            <span className="text-sm font-semibold text-muted-foreground">プレイ状況</span>
+            <Select
               value={playStatus}
               disabled={playStatusDisabled}
-              title={
-                playStatusDisabled ? 'ログインするとプレイ状況で絞り込めます' : undefined
-              }
-              onChange={(e) =>
-                onPlayStatusChange(e.target.value as 'all' | 'unplayed' | 'played')
+              onValueChange={(value) =>
+                onPlayStatusChange(value as 'all' | 'unplayed' | 'played')
               }
             >
-              <option value="all">すべて表示</option>
-              <option value="unplayed">未プレイのみ</option>
-              <option value="played">プレイ済みのみ</option>
-            </select>
+              <SelectTrigger
+                className="w-full"
+                title={
+                  playStatusDisabled ? 'ログインするとプレイ状況で絞り込めます' : undefined
+                }
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">すべて表示</SelectItem>
+                <SelectItem value="unplayed">未プレイのみ</SelectItem>
+                <SelectItem value="played">プレイ済みのみ</SelectItem>
+              </SelectContent>
+            </Select>
             {playStatusDisabled && (
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              <p className="mt-1 text-xs text-muted-foreground">
                 プレイ状況で絞り込むにはログインが必要です
               </p>
             )}
           </div>
-
         </div>
       )}
     </section>

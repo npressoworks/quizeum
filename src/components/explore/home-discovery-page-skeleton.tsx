@@ -1,26 +1,25 @@
 import React from 'react';
-import discoveryStyles from '@/app/home-discovery.module.css';
 import { QuizCarouselSkeleton } from './quiz-carousel-skeleton';
 import { GenreCarouselSkeleton } from './genre-carousel-skeleton';
 
 export function HomeDiscoveryPageSkeleton() {
   return (
-    <div className={discoveryStyles.page} data-testid="home-discovery-page-skeleton">
-      <section className={discoveryStyles.section} data-testid="home-discovery-trending">
-        <div className={discoveryStyles.sectionHeader}>
-          <h2 className={discoveryStyles.sectionTitle}>おすすめクイズ</h2>
+    <div className="flex flex-col" data-testid="home-discovery-page-skeleton">
+      <section className="mb-10" data-testid="home-discovery-trending">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold">おすすめクイズ</h2>
         </div>
         <QuizCarouselSkeleton />
       </section>
-      <section className={discoveryStyles.section} data-testid="home-discovery-genres">
-        <div className={discoveryStyles.sectionHeader}>
-          <h2 className={discoveryStyles.sectionTitle}>おすすめジャンル</h2>
+      <section className="mb-10" data-testid="home-discovery-genres">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold">おすすめジャンル</h2>
         </div>
         <GenreCarouselSkeleton />
       </section>
-      <section className={discoveryStyles.section} data-testid="home-discovery-latest">
-        <div className={discoveryStyles.sectionHeader}>
-          <h2 className={discoveryStyles.sectionTitle}>新着クイズ</h2>
+      <section className="mb-10" data-testid="home-discovery-latest">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold">新着クイズ</h2>
         </div>
         <QuizCarouselSkeleton />
       </section>

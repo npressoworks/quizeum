@@ -7,6 +7,11 @@ import { LayoutWrapper } from "@/components/layout/layout-wrapper";
 import { PostHogProvider } from "./providers";
 import { PostHogPageView } from "./PostHogPageView";
 import { getThemeInitScript } from "@/lib/theme";
+import { Geist, Geist_Mono } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "quizeum - クイズ投稿・管理SNS",
@@ -21,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" suppressHydrationWarning>
+    <html lang="ja" suppressHydrationWarning className={cn(geistSans.variable, geistMono.variable, "font-sans")}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: getThemeInitScript() }} />
       </head>

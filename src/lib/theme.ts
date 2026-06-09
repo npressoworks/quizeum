@@ -30,6 +30,13 @@ export function writeStoredTheme(theme: Theme): void {
   }
 }
 
+export function applyThemeToDocument(theme: Theme): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  root.classList.toggle('dark', theme === 'dark');
+}
+
 export function getThemeInitScript(): string {
-  return `(function(){try{var k='${THEME_STORAGE_KEY}';var v=localStorage.getItem(k);var t=(v==='light'||v==='dark')?v:'${DEFAULT_THEME}';document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='${DEFAULT_THEME}';}})();`;
+  return `(function(){try{var k='${THEME_STORAGE_KEY}';var v=localStorage.getItem(k);var t=(v==='light'||v==='dark')?v:'${DEFAULT_THEME}';var r=document.documentElement;r.dataset.theme=t;r.classList.toggle('dark',t==='dark');}catch(e){var r=document.documentElement;r.dataset.theme='${DEFAULT_THEME}';r.classList.add('dark');}})();`;
 }

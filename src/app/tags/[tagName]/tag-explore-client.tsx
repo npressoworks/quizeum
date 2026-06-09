@@ -11,8 +11,13 @@ import { useActiveGenres } from '@/hooks/useActiveGenres';
 import { ExploreSortTabs } from '@/components/explore/explore-sort-tabs';
 import { QuizCard } from '@/components/quiz/quiz-card';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
+import {
+  discoveryGridClass,
+  discoveryPageContainerClass,
+  exploreBackLinkClass,
+  explorePageHeaderClass,
+} from '@/lib/discovery-layout';
 import { Quiz, GenreMetadata } from '@/types';
-import styles from '../../page.module.css';
 
 interface TagExploreClientProps {
   tagName: string;
@@ -23,8 +28,7 @@ interface TagExploreClientProps {
 export function TagExploreClient({ tagName, initialQuizzes, initialGenres }: TagExploreClientProps) {
   const router = useRouter();
   const { user } = useAuth();
-  
-  // 初期データを hook に渡す
+
   const { genreLabelById } = useActiveGenres(initialGenres);
 
   const [activeSort, setActiveSort] = useState<QuizListSort>('latest');
@@ -33,7 +37,6 @@ export function TagExploreClient({ tagName, initialQuizzes, initialGenres }: Tag
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [isFirstRender, setIsFirstRender] = useState(true);
 
-  // ソート切り替え時のフェッチ
   useEffect(() => {
     if (isFirstRender) {
       setIsFirstRender(false);
@@ -62,7 +65,6 @@ export function TagExploreClient({ tagName, initialQuizzes, initialGenres }: Tag
     };
   }, [tagName, activeSort]);
 
-  // ブックマーク情報の非同期読み込み
   useEffect(() => {
     let cancelled = false;
 
@@ -102,42 +104,17 @@ export function TagExploreClient({ tagName, initialQuizzes, initialGenres }: Tag
   };
 
   return (
-    <div className={styles.container} data-testid="tag-explore-page">
-      <Link
-        href="/"
-        className={styles.backBtn}
-        style={{
-          alignSelf: 'flex-start',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: 'var(--text-muted)',
-        }}
-      >
+    <div className={discoveryPageContainerClass} data-testid="tag-explore-page">
+      <Link href="/" className={exploreBackLinkClass}>
         <ArrowLeft size={16} /> 戻る
       </Link>
 
-      <div
-        style={{
-          borderBottom: '1px solid var(--border-light)',
-          paddingBottom: '20px',
-          marginBottom: '10px',
-        }}
-      >
-        <h1
-          style={{
-            fontSize: '2rem',
-            fontWeight: 800,
-            color: 'var(--text-main)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <Tag size={28} style={{ color: 'var(--color-primary)' }} />
+      <div className={explorePageHeaderClass}>
+        <h1 className="flex items-center gap-2 text-3xl font-extrabold text-foreground">
+          <Tag size={28} className="text-primary" />
           #{tagName} のクイズ一覧
         </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
+        <p className="mt-2 text-muted-foreground">
           タグ「{tagName}」に関連する公開クイズを表示しています。
         </p>
       </div>
@@ -145,17 +122,17 @@ export function TagExploreClient({ tagName, initialQuizzes, initialGenres }: Tag
       <ExploreSortTabs activeSort={activeSort} onSortChange={setActiveSort} />
 
       {loading ? (
-        <div className={styles.grid}>
+        <div className={discoveryGridClass}>
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
       ) : quizzes.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+        <div className="py-10 text-center text-muted-foreground">
           該当するクイズがありませんでした。
         </div>
       ) : (
-        <div className={styles.grid}>
+        <div className={discoveryGridClass}>
           {quizzes.map((quiz) => (
             <QuizCard
               key={quiz.id}

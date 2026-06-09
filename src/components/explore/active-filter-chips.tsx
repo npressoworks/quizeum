@@ -9,7 +9,8 @@ import {
 import { EXPLORE_FORMAT_OPTIONS } from '@/lib/explore-formats';
 import { hasActiveExploreFilters } from '@/lib/explore-filter-active';
 import type { SearchPlayStatus } from '@/lib/search-url-state';
-import styles from './active-filter-chips.module.css';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 export type FilterChipKey =
   | 'genre'
@@ -134,29 +135,30 @@ export function ActiveFilterChips({
   }
 
   return (
-    <div className={styles.row} data-testid="search-active-filters">
-      <div className={styles.chips}>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-0 py-2" data-testid="search-active-filters">
+      <div className="flex flex-1 flex-wrap gap-2">
         {chips.map((chip) => (
-          <span
+          <Badge
             key={`${chip.key}-${chip.value ?? chip.label}`}
-            className={styles.chip}
+            variant="secondary"
+            className="gap-1.5 py-1 pr-1 pl-3 text-xs"
             data-testid={`search-active-filter-${chip.key}${chip.value ? `-${chip.value}` : ''}`}
           >
-            <span className={styles.chipLabel}>{chip.label}</span>
+            <span>{chip.label}</span>
             <button
               type="button"
-              className={styles.removeBtn}
+              className="inline-flex rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label={`${chip.label} を解除`}
               onClick={() => onRemove(chip.key, chip.value)}
             >
               <X size={14} aria-hidden />
             </button>
-          </span>
+          </Badge>
         ))}
       </div>
-      <button type="button" className={styles.clearAllBtn} onClick={onClearAll}>
+      <Button type="button" variant="link" size="sm" className="h-auto shrink-0 p-0" onClick={onClearAll}>
         すべてクリア
-      </button>
+      </Button>
     </div>
   );
 }

@@ -6,7 +6,9 @@ import { resolveQuizFormat } from '@/lib/quiz-format';
 import { getDifficultyColor } from '@/lib/difficulty-color';
 import { formatReviewScorePercent } from '@/services/review-utils';
 import { FormatLabel } from '@/components/quiz/format-label';
-import styles from './quiz-card.module.css';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface QuizCardProps {
   quiz: Quiz;
@@ -37,33 +39,24 @@ export function QuizCard({
     onPlayClick(quiz.id || '');
   };
 
-  const getFallbackClass = (genre: string) => {
-    switch (genre) {
-      case 'programming':
-        return styles.gradientProgramming;
-      case 'web-front':
-      case 'web':
-        return styles.gradientWeb;
-      default:
-        return styles.gradientDefault;
-    }
-  };
-
   const formatValue = resolveQuizFormat({ format: quiz.format, questions: quiz.questions ?? [] });
   const genreLabel = genreDisplayName ?? quiz.genre;
 
   const content = (
     <>
-      <div className={styles.thumbnailContainer}>
+      <div className="relative aspect-video w-full overflow-hidden rounded-t-xl bg-muted">
         {quiz.thumbnailUrl ? (
-          <img src={quiz.thumbnailUrl} alt={quiz.title} className={styles.thumbnail} />
+          <img src={quiz.thumbnailUrl} alt={quiz.title} className="size-full object-cover" />
         ) : (
-          <div className={`${styles.thumbnailPlaceholder} ${getFallbackClass(quiz.genre)}`}>
-            <span className={styles.genreIcon}>💡</span>
+          <div className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+            <span className="text-4xl">💡</span>
           </div>
         )}
         <button
-          className={`${styles.bookmarkBtn} ${isBookmarked ? styles.active : ''}`}
+          className={cn(
+            'absolute top-2 right-2 rounded-full border border-border bg-background/80 p-2 backdrop-blur-sm transition-colors hover:bg-muted',
+            isBookmarked && 'text-emerald-500'
+          )}
           onClick={handleBookmarkClick}
           data-testid="quiz-card-bookmark-btn"
           data-analytics="quiz-bookmark-toggle"
@@ -78,63 +71,63 @@ export function QuizCard({
         </button>
       </div>
 
-      <div className={styles.content}>
-        <div className={styles.titleRow}>
-          <h3 className={styles.title}>{quiz.title}</h3>
+      <CardContent className="flex flex-1 flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="line-clamp-2 min-h-[2.75rem] text-base font-semibold leading-snug text-foreground">
+            {quiz.title}
+          </h3>
           {quiz.reviewScore != null && (
-            <span className={styles.rating} data-testid="quiz-card-review-score">
+            <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground" data-testid="quiz-card-review-score">
               <ThumbsUp size={14} aria-hidden />
               {formatReviewScorePercent(quiz.reviewScore)}
             </span>
           )}
         </div>
 
-        <p className={styles.description}>{quiz.description}</p>
+        <p className="line-clamp-2 min-h-[2.5rem] text-sm text-muted-foreground">{quiz.description}</p>
 
-        <div className={styles.meta}>
-          <span className={styles.author}>作者: {quiz.authorName || '名無しさん'}</span>
-          <span className={styles.questionCount}>問題数: {quiz.questionCount}問</span>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>作者: {quiz.authorName || '名無しさん'}</span>
+          <span>問題数: {quiz.questionCount}問</span>
         </div>
 
-        <div className={styles.metaRow}>
-          <span className={styles.difficultyStar} data-testid="quiz-card-difficulty" style={{ fontFamily: 'monospace' }}>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span data-testid="quiz-card-difficulty" style={{ fontFamily: 'monospace' }}>
             <span style={{ color: getDifficultyColor(quiz.difficulty) }}>{'★'.repeat(quiz.difficulty)}</span>
-            <span style={{ color: 'var(--text-muted)' }}>{'☆'.repeat(Math.max(0, 5 - quiz.difficulty))}</span>
+            <span className="text-muted-foreground">{'☆'.repeat(Math.max(0, 5 - quiz.difficulty))}</span>
           </span>
-          <span className={styles.genreLabel} data-testid="quiz-card-genre">
+          <span className="rounded-md bg-muted px-2 py-0.5 text-muted-foreground" data-testid="quiz-card-genre">
             {genreLabel}
           </span>
-          <FormatLabel
-            format={formatValue}
-            className={styles.formatLabel}
-            testId="quiz-card-format"
-          />
+          <FormatLabel format={formatValue} testId="quiz-card-format" />
         </div>
 
-        <button
-          className={styles.playBtn}
+        <Button
+          className="mt-auto w-full"
           onClick={handlePlayClick}
           data-testid="play-btn"
           data-analytics="quiz-play-start-card"
           type="button"
         >
           挑戦する
-        </button>
-      </div>
+        </Button>
+      </CardContent>
     </>
   );
 
+  const cardClass = 'h-full overflow-hidden transition-shadow hover:shadow-md';
+
   if (href) {
     return (
-      <Link href={href} className={styles.quizCard} data-testid="quiz-card">
-        {content}
+      <Link href={href} className="block h-full" data-testid="quiz-card">
+        <Card className={cardClass}>{content}</Card>
       </Link>
     );
   }
 
   return (
-    <div
-      className={styles.quizCard}
+    <Card
+      className={cn(cardClass, 'cursor-pointer')}
       data-testid="quiz-card"
       onClick={() => onPlayClick(quiz.id || '')}
       onKeyDown={(e) => {
@@ -144,6 +137,6 @@ export function QuizCard({
       tabIndex={0}
     >
       {content}
-    </div>
+    </Card>
   );
 }

@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('マイクイズ', () => {
-  test('未ログイン時はログインへリダイレクトされる', async ({ page }) => {
+  test('未ログイン時はログインへリダイレクトされる', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
     await page.goto('/my-quiz');
     await expect(page).toHaveURL(/\/login/);
+    await context.close();
   });
 
   test('ログイン後にマイクイズページが表示される', async ({ page }) => {

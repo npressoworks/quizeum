@@ -3,7 +3,7 @@ import { getQuiz } from '@/services/quiz';
 import { obfuscateQuickPressQuestions } from '@/lib/quick-press-obfuscate';
 import { PlaySkeleton } from '@/components/quiz/play-skeleton';
 import { QuizPlayClientBoundary } from './quiz-play-client';
-import styles from './play.module.css';
+import { playClasses as styles } from './play-classes';
 
 interface PageProps {
   params: Promise<{ id: string }>;

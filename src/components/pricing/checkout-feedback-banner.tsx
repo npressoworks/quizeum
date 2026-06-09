@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CheckCircle2, Info } from 'lucide-react';
-import styles from './checkout-feedback-banner.module.css';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export type CheckoutFeedbackVariant = 'success' | 'canceled';
 
@@ -23,20 +23,21 @@ export function CheckoutFeedbackBanner({
   const isSuccess = variant === 'success';
 
   return (
-    <div
-      className={`${styles.banner} ${isSuccess ? styles.success : styles.canceled}`}
+    <Alert
+      variant={isSuccess ? 'default' : 'destructive'}
       role="status"
       data-testid={`checkout-feedback-${variant}`}
+      className={isSuccess ? 'border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400' : undefined}
     >
-      {isSuccess ? <CheckCircle2 size={20} aria-hidden /> : <Info size={20} aria-hidden />}
-      <div className={styles.messageGroup}>
-        <p className={styles.message}>{MESSAGES[variant]}</p>
+      {isSuccess ? <CheckCircle2 className="size-4" /> : <Info className="size-4" />}
+      <AlertDescription>
+        <p>{MESSAGES[variant]}</p>
         {pendingWebhook && (
-          <p className={styles.pendingNote} data-testid="checkout-pending-webhook">
+          <p className="mt-1 text-sm opacity-80" data-testid="checkout-pending-webhook">
             契約状態の反映に少し時間がかかる場合があります。しばらく待ってからページを再読み込みしてください。
           </p>
         )}
-      </div>
-    </div>
+      </AlertDescription>
+    </Alert>
   );
 }

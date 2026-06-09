@@ -13,7 +13,9 @@ import {
   Check,
 } from 'lucide-react';
 import { NotificationsSkeleton } from '@/components/ui/notifications-skeleton';
-import styles from './notifications.module.css';
+import { Button } from '@/components/ui/button';
+import { CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export function NotificationsClient() {
   const { user: currentUser, loading: authLoading } = useAuth();
@@ -49,7 +51,7 @@ export function NotificationsClient() {
     try {
       if (!notif.isRead) {
         await markAsRead(notif.id);
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n)
         );
       }
@@ -89,16 +91,16 @@ export function NotificationsClient() {
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'follow':
-        return <UserPlus size={20} className={styles.iconFollow} />;
+        return <UserPlus size={20} className="text-blue-500" />;
       case 'correction_resolved':
-        return <CheckCircle size={20} className={styles.iconSuccess} />;
+        return <CheckCircle size={20} className="text-green-500" />;
       case 'bookmark':
-        return <Heart size={20} className={styles.iconHeart} />;
+        return <Heart size={20} className="text-pink-500" />;
       case 'badge_unlocked':
-        return <Bell size={20} className={styles.iconSuccess} />;
+        return <Bell size={20} className="text-green-500" />;
       case 'quiz_review_warning':
       default:
-        return <AlertTriangle size={20} className={styles.iconWarning} />;
+        return <AlertTriangle size={20} className="text-amber-500" />;
     }
   };
 
@@ -122,64 +124,66 @@ export function NotificationsClient() {
   const hasUnread = notifications.some(n => !n.isRead);
 
   return (
-    <div data-testid="notifications-page-container">
+    <CardContent data-testid="notifications-page-container">
       {hasUnread && (
-        <div className={styles.cardHeader} style={{ paddingTop: 0, borderBottom: 'none' }}>
-          <span />
-          <button onClick={handleAllRead} className={styles.allReadBtn}>
+        <div className="mb-4 flex justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={handleAllRead}>
             <Check size={16} />
             <span>すべて既読にする</span>
-          </button>
+          </Button>
         </div>
       )}
 
-      <div className={styles.listContainer}>
-            {notifications.length === 0 ? (
-              <div className={styles.emptyState}>
-                <Bell size={40} className={styles.emptyIcon} />
-                <p>届いている通知はありません。</p>
-              </div>
-            ) : (
-              <div className={styles.notificationList}>
-                {notifications.map((notif) => (
-                  <div 
-                    key={notif.id} 
-                    onClick={() => handleNotificationClick(notif)}
-                    className={`${styles.notificationCard} ${!notif.isRead ? styles.unreadCard : ''}`}
-                  >
-                    <div className={styles.iconWrapper}>
-                      {notif.senderAvatar ? (
-                        <img 
-                          src={notif.senderAvatar} 
-                          alt={notif.senderName || 'Sender'} 
-                          className={styles.senderAvatar}
-                        />
-                      ) : (
-                        <div className={styles.fallbackIcon}>
-                          {getNotificationIcon(notif.type)}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={styles.contentWrapper}>
-                      <p className={styles.message}>{getNotificationMessage(notif)}</p>
-                      <span className={styles.timestamp}>
-                        {new Date(notif.createdAt).toLocaleDateString('ja-JP', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-
-                    {!notif.isRead && <div className={styles.unreadDot} />}
+      {notifications.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-center text-muted-foreground">
+          <Bell size={40} />
+          <p>届いている通知はありません。</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {notifications.map((notif) => (
+            <div
+              key={notif.id}
+              onClick={() => handleNotificationClick(notif)}
+              className={cn(
+                'relative flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50',
+                !notif.isRead && 'border-primary/30 bg-primary/5'
+              )}
+            >
+              <div className="shrink-0">
+                {notif.senderAvatar ? (
+                  <img
+                    src={notif.senderAvatar}
+                    alt={notif.senderName || 'Sender'}
+                    className="size-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                    {getNotificationIcon(notif.type)}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-      </div>
-    </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-snug">{getNotificationMessage(notif)}</p>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {new Date(notif.createdAt).toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+
+              {!notif.isRead && (
+                <span className="absolute top-4 right-4 size-2 rounded-full bg-primary" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
   );
 }

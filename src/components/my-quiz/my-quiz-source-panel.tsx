@@ -2,7 +2,8 @@
 
 import React from 'react';
 import type { MyQuizSourceFlags } from '@/lib/my-quiz-pool';
-import styles from './my-quiz.module.css';
+import { Toggle } from '@/components/ui/toggle';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface MyQuizSourcePanelProps {
   flags: MyQuizSourceFlags;
@@ -18,25 +19,26 @@ const SOURCES: { key: keyof MyQuizSourceFlags; label: string; testId: string }[]
 
 export function MyQuizSourcePanel({ flags, onChange }: MyQuizSourcePanelProps) {
   return (
-    <section className={styles.section}>
-      <h2 className={styles.sectionTitle}>取得元</h2>
-      <div className={styles.sourceChipGrid} role="group" aria-label="問題の取得元">
-        {SOURCES.map((src) => {
-          const active = flags[src.key];
-          return (
-            <button
+    <Card>
+      <CardHeader>
+        <CardTitle>取得元</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="問題の取得元">
+          {SOURCES.map((src) => (
+            <Toggle
               key={src.key}
-              type="button"
-              className={`${styles.sourceChip} ${active ? styles.sourceChipActive : ''}`}
-              aria-pressed={active}
+              variant="outline"
+              pressed={flags[src.key]}
+              onPressedChange={(pressed) => onChange({ ...flags, [src.key]: pressed })}
               data-testid={src.testId}
-              onClick={() => onChange({ ...flags, [src.key]: !active })}
+              aria-pressed={flags[src.key]}
             >
               {src.label}
-            </button>
-          );
-        })}
-      </div>
-    </section>
+            </Toggle>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

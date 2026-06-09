@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Check, User } from 'lucide-react';
 import { getFreePlanForUi } from '@/lib/pricing-display';
 import type { PricingUiCtaMode } from '@/lib/pricing-entitlement';
-import styles from './free-plan-card.module.css';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 interface FreePlanCardProps {
   ctaMode: PricingUiCtaMode;
@@ -23,43 +30,49 @@ export function FreePlanCard({ ctaMode }: FreePlanCardProps) {
   };
 
   return (
-    <article className={`${styles.card} glass-card`} data-testid="pricing-free-card">
-      <div className={styles.header}>
-        <User size={24} className={styles.icon} aria-hidden />
-        <h2 className={styles.planName}>{plan.displayName}</h2>
-      </div>
+    <Card data-testid="pricing-free-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <User size={24} className="text-muted-foreground" />
+          {plan.displayName}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div>
+          <p className="text-3xl font-bold">¥0</p>
+          <p className="text-sm text-muted-foreground">ずっと無料</p>
+        </div>
 
-      <p className={styles.price}>¥0</p>
-      <p className={styles.priceNote}>ずっと無料</p>
+        <ul className="flex flex-col gap-2">
+          {plan.featureBullets.map((feature) => (
+            <li key={feature.id} className="flex items-start gap-2 text-sm">
+              <Check size={16} className="mt-0.5 shrink-0 text-primary" />
+              <span>{feature.label}</span>
+            </li>
+          ))}
+        </ul>
 
-      <ul className={styles.featureList}>
-        {plan.featureBullets.map((feature) => (
-          <li key={feature.id} className={styles.featureItem}>
-            <Check size={16} aria-hidden />
-            <span>{feature.label}</span>
-          </li>
-        ))}
-      </ul>
-
-      {isCurrentPlan ? (
-        <span className={styles.currentBadge} data-testid="pricing-free-current">
-          利用中
-        </span>
-      ) : ctaMode === 'guest' ? (
-        <button
-          type="button"
-          className={`${styles.ctaBtn} btn`}
-          onClick={handleCta}
-          data-testid="pricing-free-start-btn"
-          aria-label="無料で始める"
-        >
-          無料で始める
-        </button>
-      ) : (
-        <span className={styles.includedNote} data-testid="pricing-free-included">
-          基本プラン
-        </span>
-      )}
-    </article>
+        {isCurrentPlan ? (
+          <Badge variant="secondary" data-testid="pricing-free-current">
+            利用中
+          </Badge>
+        ) : ctaMode === 'guest' ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleCta}
+            data-testid="pricing-free-start-btn"
+            aria-label="無料で始める"
+          >
+            無料で始める
+          </Button>
+        ) : (
+          <span className="text-sm text-muted-foreground" data-testid="pricing-free-included">
+            基本プラン
+          </span>
+        )}
+      </CardContent>
+    </Card>
   );
 }

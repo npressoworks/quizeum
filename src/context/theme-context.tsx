@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   DEFAULT_THEME,
+  applyThemeToDocument,
   readStoredTheme,
   writeStoredTheme,
   type Theme,
@@ -15,24 +16,18 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function applyThemeToDom(theme: Theme): void {
-  if (typeof document !== 'undefined') {
-    document.documentElement.dataset.theme = theme;
-  }
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
     const stored = readStoredTheme();
     setThemeState(stored);
-    applyThemeToDom(stored);
+    applyThemeToDocument(stored);
   }, []);
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
-    applyThemeToDom(next);
+    applyThemeToDocument(next);
     writeStoredTheme(next);
   }, []);
 

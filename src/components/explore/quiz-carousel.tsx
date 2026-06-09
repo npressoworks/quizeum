@@ -6,7 +6,14 @@ import type { Quiz } from '@/types';
 import { QuizCard } from '@/components/quiz/quiz-card';
 import { useAuth } from '@/context/auth-context';
 import { toggleBookmark } from '@/services/bookmark';
-import styles from './explore-carousel.module.css';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  HorizontalScrollCarousel,
+  carouselErrorClass,
+  carouselStatusClass,
+  quizCarouselSlotClass,
+} from './horizontal-scroll-carousel';
 
 export interface QuizCarouselProps {
   quizzes: Quiz[];
@@ -59,30 +66,30 @@ export function QuizCarousel({
   );
 
   if (loading) {
-    return <p className={styles.status}>クイズを読み込み中...</p>;
+    return <p className={carouselStatusClass}>クイズを読み込み中...</p>;
   }
 
   if (error) {
     return (
-      <p className={`${styles.status} ${styles.error}`} role="alert">
+      <p className={cn(carouselStatusClass, carouselErrorClass)} role="alert">
         {error}
         {onRetry && (
-          <button type="button" className={styles.retryBtn} onClick={onRetry}>
+          <Button type="button" variant="link" size="sm" className="ml-2 h-auto p-0" onClick={onRetry}>
             再試行
-          </button>
+          </Button>
         )}
       </p>
     );
   }
 
   if (quizzes.length === 0) {
-    return <p className={styles.status}>{emptyMessage}</p>;
+    return <p className={carouselStatusClass}>{emptyMessage}</p>;
   }
 
   return (
-    <div className={`${styles.carousel} ${styles.quizCarousel}`} data-testid="quiz-carousel">
+    <HorizontalScrollCarousel className="pt-3" data-testid="quiz-carousel">
       {quizzes.map((quiz) => (
-        <div key={quiz.id} className={styles.quizSlot}>
+        <div key={quiz.id} className={quizCarouselSlotClass}>
           <QuizCard
             quiz={quiz}
             href={quiz.id ? `/quiz/${quiz.id}` : undefined}
@@ -93,6 +100,6 @@ export function QuizCarousel({
           />
         </div>
       ))}
-    </div>
+    </HorizontalScrollCarousel>
   );
 }

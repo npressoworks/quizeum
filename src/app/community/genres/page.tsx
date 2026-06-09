@@ -1,14 +1,5 @@
 /**
  * ジャンル新設申請・投票画面
- *
- * 機能:
- * - 認証ユーザー向け「申請フォーム」タブ: 英語ID・日本語名・PNG/JPEG/GIFアイコン（SVG不可、最大2MB）
- * - モデレータ以上向け「投票」タブ: 保留中ジャンル申請への賛否投票
- * - 可決条件達成時のシステム自動反映と成功アラート表示
- * - 「承認・否決履歴」タブ: 完了済み申請の閲覧
- *
- * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
- * Boundary: CommunityGenres-Request, CommunityGenres-Vote
  */
 'use client';
 
@@ -20,26 +11,34 @@ import {
   where,
   getDocs,
   orderBy,
-  doc,
-  updateDoc,
-  increment,
   onSnapshot,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { useAuth } from '@/context/auth-context';
-import {
-  submitGenreRequest,
-  voteGenreRequest,
-} from '@/services/tagMerge';
+import { submitGenreRequest, voteGenreRequest } from '@/services/tagMerge';
 import { uploadImage, getGenreIconPath } from '@/services/storage';
-import styles from './genres.module.css';
 import {
   validateGenreIconFile,
   GENRE_ICON_ACCEPT,
 } from '@/lib/genre-icon-upload';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2 } from 'lucide-react';
 
-/** ジャンル申請の型定義 */
 interface GenreRequest {
   id: string;
   genreId: string;
@@ -71,7 +70,6 @@ export default function CommunityGenresPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // フォーム状態
   const [formGenreId, setFormGenreId] = useState('');
   const [formDisplayName, setFormDisplayName] = useState('');
   const [formIconFile, setFormIconFile] = useState<File | null>(null);
@@ -79,9 +77,6 @@ export default function CommunityGenresPage() {
   const [iconError, setIconError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // -------------------------------------------------------------------
-  // 権限チェック
-  // -------------------------------------------------------------------
   const TIER_RANK: Record<string, number> = {
     newcomer: 0,
     contributor: 1,
@@ -98,59 +93,57 @@ export default function CommunityGenresPage() {
     }
   }, [user, loading, router]);
 
-  // -------------------------------------------------------------------
-  // 保留中ジャンル申請のリアルタイム取得 (Req 3.2)
-  // -------------------------------------------------------------------
   useEffect(() => {
     if (!user) return;
 
     const q = query(
       collection(db, 'genreRequests'),
       where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const requests = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      } as GenreRequest));
+      const requests = snapshot.docs.map(
+        (d) =>
+          ({
+            id: d.id,
+            ...d.data(),
+          }) as GenreRequest,
+      );
       setPendingRequests(requests);
     });
 
     return () => unsubscribe();
   }, [user]);
 
-  // -------------------------------------------------------------------
-  // 履歴データの取得 (Req 3.5)
-  // -------------------------------------------------------------------
   useEffect(() => {
     if (activeTab !== 'history' || !user) return;
 
-    setFetchLoading(true);
+    let cancelled = false;
     const fetchHistory = async () => {
+      setFetchLoading(true);
       try {
         const q = query(
           collection(db, 'genreRequests'),
           where('status', 'in', ['approved', 'rejected']),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'desc'),
         );
         const snap = await getDocs(q);
         setHistoryRequests(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as GenreRequest))
+          snap.docs.map((d) => ({ id: d.id, ...d.data() }) as GenreRequest),
         );
       } catch (err) {
         console.error('履歴取得エラー:', err);
       } finally {
-        setFetchLoading(false);
+        if (!cancelled) setFetchLoading(false);
       }
     };
-    fetchHistory();
+    void fetchHistory();
+    return () => {
+      cancelled = true;
+    };
   }, [activeTab, user]);
 
-  // -------------------------------------------------------------------
-  // アイコンファイル選択バリデーション (Req 3.1)
-  // -------------------------------------------------------------------
   const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setIconError(null);
@@ -166,16 +159,11 @@ export default function CommunityGenresPage() {
     }
 
     setFormIconFile(file);
-
-    // プレビュー生成
     const reader = new FileReader();
     reader.onload = (ev) => setIconPreviewUrl(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
-  // -------------------------------------------------------------------
-  // ジャンル申請フォーム送信 (Req 3.1)
-  // -------------------------------------------------------------------
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !formIconFile) {
@@ -183,10 +171,9 @@ export default function CommunityGenresPage() {
       return;
     }
 
-    // genreId バリデーション（小文字・ハイフン区切り）
     if (!/^[a-z][a-z0-9-]*$/.test(formGenreId)) {
       setErrorMessage(
-        'ジャンルIDは小文字の英数字とハイフンのみ使用できます（例: my-genre）。'
+        'ジャンルIDは小文字の英数字とハイフンのみ使用できます（例: my-genre）。',
       );
       return;
     }
@@ -196,20 +183,12 @@ export default function CommunityGenresPage() {
     setErrorMessage(null);
 
     try {
-      // 1. Firebase Storage にアイコンをアップロード
-      // MIMEタイプから拡張子を抽出 (image/jpeg -> jpeg/jpg, image/png -> png, image/gif -> gif)
       let extension = formIconFile.type.split('/')[1] || 'png';
       if (extension === 'jpeg') extension = 'jpg';
       const path = getGenreIconPath(formGenreId, extension);
       const iconUrl = await uploadImage(formIconFile, path);
 
-      // 2. ジャンル申請をFirestoreに保存
-      await submitGenreRequest(
-        formGenreId,
-        formDisplayName,
-        iconUrl,
-        user.id
-      );
+      await submitGenreRequest(formGenreId, formDisplayName, iconUrl, user.id);
 
       setSuccessMessage(`「${formDisplayName}」のジャンル申請を送信しました。`);
       setFormGenreId('');
@@ -217,21 +196,17 @@ export default function CommunityGenresPage() {
       setFormIconFile(null);
       setIconPreviewUrl(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('申請送信エラー:', err);
-      setErrorMessage(err.message || '申請の送信に失敗しました。');
+      setErrorMessage(
+        err instanceof Error ? err.message : '申請の送信に失敗しました。',
+      );
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  // -------------------------------------------------------------------
-  // モデレータ投票 (Req 3.3, 3.4)
-  // -------------------------------------------------------------------
-  const handleVote = async (
-    genreRequest: GenreRequest,
-    vote: 'approve' | 'reject'
-  ) => {
+  const handleVote = async (genreRequest: GenreRequest, vote: 'approve' | 'reject') => {
     if (!user || !isModerator) return;
 
     setVoteLoading(genreRequest.id + vote);
@@ -241,7 +216,7 @@ export default function CommunityGenresPage() {
 
     try {
       await voteGenreRequest(genreRequest.id, user.id, vote);
-      
+
       const weight = user.moderationTier === 'senior_moderator' ? 2 : 1;
       const isApprove = vote === 'approve';
       const nextWeightedFor = genreRequest.weightedVotesFor + (isApprove ? weight : 0);
@@ -251,24 +226,21 @@ export default function CommunityGenresPage() {
 
       if (nextWeightedFor >= 5 && approveRate >= 0.8) {
         setAutoApprovalAlert(
-          `🎉 ジャンル「${genreRequest.displayName}」が可決され、ジャンルが追加されました！`
+          `🎉 ジャンル「${genreRequest.displayName}」が可決され、ジャンルが追加されました！`,
         );
       } else {
         setSuccessMessage(
-          vote === 'approve' ? '👍 賛成票を投じました。' : '👎 反対票を投じました。'
+          vote === 'approve' ? '👍 賛成票を投じました。' : '👎 反対票を投じました。',
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('投票エラー:', err);
-      setErrorMessage(err.message || '投票に失敗しました。');
+      setErrorMessage(err instanceof Error ? err.message : '投票に失敗しました。');
     } finally {
       setVoteLoading(null);
     }
   };
 
-  // -------------------------------------------------------------------
-  // 日付フォーマット
-  // -------------------------------------------------------------------
   const formatDate = (date: Date | Timestamp) => {
     const d = date instanceof Timestamp ? date.toDate() : date;
     return d.toLocaleDateString('ja-JP', {
@@ -278,18 +250,16 @@ export default function CommunityGenresPage() {
     });
   };
 
-  // 賛成率
   const calcApprovalRate = (req: GenreRequest) => {
     const totalWeight = req.weightedVotesFor + req.weightedVotesAgainst;
     if (totalWeight === 0) return 0;
     return Math.round((req.weightedVotesFor / totalWeight) * 100);
   };
 
-  // ローディング
   if (loading) {
     return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner} />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="size-8 animate-spin" />
         <p>読み込んでいます...</p>
       </div>
     );
@@ -298,331 +268,302 @@ export default function CommunityGenresPage() {
   if (!user) return null;
 
   return (
-    <div className={styles.pageContainer}>
-      {/* ページヘッダー */}
-      <header className={styles.pageHeader}>
-        <div className={styles.headerBadge}>🎭 コミュニティ</div>
-        <h1 className={styles.pageTitle}>ジャンル新設申請</h1>
-        <p className={styles.pageSubtitle}>
+    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+      <header className="space-y-2">
+        <Badge variant="secondary">🎭 コミュニティ</Badge>
+        <h1 className="text-2xl font-bold">ジャンル新設申請</h1>
+        <p className="text-sm text-muted-foreground">
           新しいジャンルを申請し、モデレータの投票で承認されればカタログに追加されます。
         </p>
         {isSeniorModerator && (
-          <div className={styles.seniorBadge}>
-            ⚡ シニアモデレータ — 投票の重み: <strong>x2</strong>
-          </div>
+          <Badge variant="outline">⚡ シニアモデレータ — 投票の重み: x2</Badge>
         )}
       </header>
 
-      {/* 自動可決アラート (Req 3.4) */}
       {autoApprovalAlert && (
-        <div className={styles.alertAutoApproval}>
-          {autoApprovalAlert}
-        </div>
+        <Alert>
+          <AlertDescription>{autoApprovalAlert}</AlertDescription>
+        </Alert>
       )}
-
-      {/* フィードバックメッセージ */}
       {successMessage && (
-        <div className={styles.alertSuccess}>✅ {successMessage}</div>
+        <Alert>
+          <AlertDescription>✅ {successMessage}</AlertDescription>
+        </Alert>
       )}
       {errorMessage && (
-        <div className={styles.alertError}>⚠️ {errorMessage}</div>
+        <Alert variant="destructive">
+          <AlertDescription>⚠️ {errorMessage}</AlertDescription>
+        </Alert>
       )}
 
-      {/* タブナビゲーション */}
-      <div className={styles.tabNav}>
-        <button
-          id="tab-request"
-          className={`${styles.tabBtn} ${activeTab === 'request' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('request')}
-        >
-          📝 申請フォーム
-        </button>
-        {isModerator && (
-          <button
-            id="tab-vote"
-            className={`${styles.tabBtn} ${activeTab === 'vote' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('vote')}
-          >
-            🗳️ 投票
-            {pendingRequests.length > 0 && (
-              <span className={styles.tabBadge}>{pendingRequests.length}</span>
-            )}
-          </button>
-        )}
-        <button
-          id="tab-history"
-          className={`${styles.tabBtn} ${activeTab === 'history' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          📜 承認・否決履歴
-        </button>
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
+        <TabsList>
+          <TabsTrigger id="tab-request" value="request">
+            📝 申請フォーム
+          </TabsTrigger>
+          {isModerator && (
+            <TabsTrigger id="tab-vote" value="vote">
+              🗳️ 投票
+              {pendingRequests.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {pendingRequests.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          )}
+          <TabsTrigger id="tab-history" value="history">
+            📜 承認・否決履歴
+          </TabsTrigger>
+        </TabsList>
 
-      {/* タブコンテンツ */}
-      <div className={styles.tabContent}>
-
-        {/* ============================================================
-            申請フォームタブ (Req 3.1)
-            ============================================================ */}
-        {activeTab === 'request' && (
-          <div className={styles.formCard}>
-            <h2 className={styles.formTitle}>新ジャンルを申請する</h2>
-            <p className={styles.formDescription}>
-              認証済みのユーザーなら誰でもジャンル追加を申請できます。
-              モデレータの投票で可決されれば自動的に追加されます。
-            </p>
-            <form onSubmit={handleSubmitRequest} className={styles.form}>
-              {/* ジャンルID */}
-              <div className={styles.formGroup}>
-                <label htmlFor="genreId" className={styles.formLabel}>
-                  ジャンルID（英語・小文字・ハイフン区切り）
-                </label>
-                <input
-                  id="genreId"
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="例: japanese-history"
-                  value={formGenreId}
-                  onChange={(e) => setFormGenreId(e.target.value.toLowerCase())}
-                  pattern="[a-z][a-z0-9\-]*"
-                  required
-                />
-                <span className={styles.inputHint}>
-                  小文字の英数字とハイフンのみ使用できます
-                </span>
-              </div>
-
-              {/* 日本語表示名 */}
-              <div className={styles.formGroup}>
-                <label htmlFor="displayName" className={styles.formLabel}>
-                  ジャンル名（日本語）
-                </label>
-                <input
-                  id="displayName"
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="例: 日本史"
-                  value={formDisplayName}
-                  onChange={(e) => setFormDisplayName(e.target.value)}
-                  required
-                />
-              </div>
-
-              {/* アイコンアップロード */}
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>
-                  アイコン画像（PNG / JPEG / GIF、最大2MB）
-                </label>
-                <div
-                  className={styles.uploadArea}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {iconPreviewUrl ? (
-                    <div className={styles.iconPreview}>
-                      <img src={iconPreviewUrl} alt="アイコンプレビュー" className={styles.iconPreviewImg} />
-                      <span className={styles.iconPreviewName}>{formIconFile?.name}</span>
-                    </div>
-                  ) : (
-                    <div className={styles.uploadPlaceholder}>
-                      <span className={styles.uploadIcon}>🖼️</span>
-                      <span className={styles.uploadText}>クリックしてファイルを選択</span>
-                      <span className={styles.uploadHint}>PNG, JPEG, GIF（最大2MB）</span>
-                    </div>
-                  )}
+        <TabsContent value="request" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>新ジャンルを申請する</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                認証済みのユーザーなら誰でもジャンル追加を申請できます。
+                モデレータの投票で可決されれば自動的に追加されます。
+              </p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmitRequest} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="genreId">ジャンルID（英語・小文字・ハイフン区切り）</Label>
+                  <Input
+                    id="genreId"
+                    type="text"
+                    placeholder="例: japanese-history"
+                    value={formGenreId}
+                    onChange={(e) => setFormGenreId(e.target.value.toLowerCase())}
+                    pattern="[a-z][a-z0-9\-]*"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    小文字の英数字とハイフンのみ使用できます
+                  </p>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  id="iconFile"
-                  type="file"
-                  accept={GENRE_ICON_ACCEPT}
-                  onChange={handleIconChange}
-                  className={styles.hiddenInput}
-                />
-                {iconError && (
-                  <span className={styles.inputError}>{iconError}</span>
-                )}
-              </div>
 
-              <button
-                type="submit"
-                id="submit-genre-btn"
-                className={styles.submitBtn}
-                disabled={submitLoading || !formIconFile || !!iconError}
-              >
-                {submitLoading ? (
-                  <>
-                    <span className={styles.btnSpinner} /> アップロード中...
-                  </>
-                ) : (
-                  '🚀 ジャンルを申請する'
-                )}
-              </button>
-            </form>
-          </div>
-        )}
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">ジャンル名（日本語）</Label>
+                  <Input
+                    id="displayName"
+                    type="text"
+                    placeholder="例: 日本史"
+                    value={formDisplayName}
+                    onChange={(e) => setFormDisplayName(e.target.value)}
+                    required
+                  />
+                </div>
 
-        {/* ============================================================
-            投票タブ (Req 3.2, 3.3, 3.4)
-            ============================================================ */}
-        {activeTab === 'vote' && isModerator && (
-          <div>
+                <div className="space-y-2">
+                  <Label>アイコン画像（PNG / JPEG / GIF、最大2MB）</Label>
+                  <div
+                    className="cursor-pointer rounded-lg border border-dashed p-6 text-center transition-colors hover:bg-muted/50"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {iconPreviewUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <img
+                          src={iconPreviewUrl}
+                          alt="アイコンプレビュー"
+                          className="size-16 rounded-md object-cover"
+                        />
+                        <span className="text-sm text-muted-foreground">{formIconFile?.name}</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 text-muted-foreground">
+                        <span className="text-2xl">🖼️</span>
+                        <p className="text-sm">クリックしてファイルを選択</p>
+                        <p className="text-xs">PNG, JPEG, GIF（最大2MB）</p>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    id="iconFile"
+                    type="file"
+                    accept={GENRE_ICON_ACCEPT}
+                    onChange={handleIconChange}
+                    className="hidden"
+                  />
+                  {iconError && <p className="text-sm text-destructive">{iconError}</p>}
+                </div>
+
+                <Button
+                  type="submit"
+                  id="submit-genre-btn"
+                  disabled={submitLoading || !formIconFile || !!iconError}
+                >
+                  {submitLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> アップロード中...
+                    </>
+                  ) : (
+                    '🚀 ジャンルを申請する'
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {isModerator && (
+          <TabsContent value="vote" className="mt-4">
             {pendingRequests.length === 0 ? (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>✨</div>
-                <p>現在、投票待ちのジャンル申請はありません。</p>
-              </div>
+              <Card>
+                <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+                  <span className="text-3xl">✨</span>
+                  <p>現在、投票待ちのジャンル申請はありません。</p>
+                </CardContent>
+              </Card>
             ) : (
-              <div className={styles.requestList}>
+              <div className="space-y-4">
                 {pendingRequests.map((req) => {
                   const approvalRate = calcApprovalRate(req);
                   return (
-                    <div key={req.id} className={styles.requestCard}>
-                      {/* アイコンとジャンル情報 */}
-                      <div className={styles.genreInfo}>
-                        <div className={styles.genreIcon}>
-                          {req.iconImageUrl ? (
-                            <img src={req.iconImageUrl} alt={req.displayName} className={styles.genreIconImg} />
-                          ) : (
-                            <span>🎭</span>
+                    <Card key={req.id}>
+                      <CardContent className="space-y-4 p-6">
+                        <div className="flex gap-4">
+                          <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+                            {req.iconImageUrl ? (
+                              <img
+                                src={req.iconImageUrl}
+                                alt={req.displayName}
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              <span>🎭</span>
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">{req.displayName}</h3>
+                            <code className="text-xs text-muted-foreground">{req.genreId}</code>
+                            <p className="text-xs text-muted-foreground">
+                              申請日: {formatDate(req.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>賛成率</span>
+                            <span className="font-medium">{approvalRate}%</span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full bg-primary transition-all"
+                              style={{ width: `${approvalRate}%` }}
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            <span>👍 {req.weightedVotesFor}</span>
+                            <span>👎 {req.weightedVotesAgainst}</span>
+                            <span>
+                              合計: {req.weightedVotesFor + req.weightedVotesAgainst} / 可決条件:
+                              重み5以上 & 80%以上
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isSeniorModerator && (
+                            <Badge variant="outline">⚡ 投票の重み: x2</Badge>
                           )}
-                        </div>
-                        <div className={styles.genreDetails}>
-                          <h3 className={styles.genreDisplayName}>
-                            {req.displayName}
-                          </h3>
-                          <code className={styles.genreId}>{req.genreId}</code>
-                          <span className={styles.genreDate}>
-                            申請日: {formatDate(req.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* プログレスバー */}
-                      <div className={styles.progressSection}>
-                        <div className={styles.progressHeader}>
-                          <span className={styles.progressLabel}>賛成率</span>
-                          <span className={styles.progressValue}>
-                            {approvalRate}%
-                          </span>
-                        </div>
-                        <div className={styles.progressBar}>
-                          <div
-                            className={styles.progressFill}
-                            style={{ width: `${approvalRate}%` }}
-                          />
-                        </div>
-                        <div className={styles.voteWeights}>
-                          <span className={styles.voteFor}>
-                            👍 {req.weightedVotesFor}
-                          </span>
-                          <span className={styles.voteAgainst}>
-                            👎 {req.weightedVotesAgainst}
-                          </span>
-                          <span className={styles.voteTotal}>
-                            合計: {req.weightedVotesFor + req.weightedVotesAgainst} / 可決条件: 重み5以上 & 80%以上
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 投票ボタン */}
-                      <div className={styles.voteActions}>
-                        {isSeniorModerator && (
-                          <span className={styles.weightBadge}>
-                            ⚡ 投票の重み: x2
-                          </span>
-                        )}
-                        <div className={styles.voteBtns}>
-                          <button
+                          <Button
                             id={`genre-vote-approve-${req.id}`}
-                            className={`${styles.voteBtn} ${styles.voteApproveBtn}`}
+                            variant="outline"
                             onClick={() => handleVote(req, 'approve')}
                             disabled={voteLoading !== null}
                           >
                             {voteLoading === req.id + 'approve' ? (
-                              <span className={styles.btnSpinner} />
+                              <Loader2 className="size-4 animate-spin" />
                             ) : (
                               '👍 賛成'
                             )}
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             id={`genre-vote-reject-${req.id}`}
-                            className={`${styles.voteBtn} ${styles.voteRejectBtn}`}
+                            variant="destructive"
                             onClick={() => handleVote(req, 'reject')}
                             disabled={voteLoading !== null}
                           >
                             {voteLoading === req.id + 'reject' ? (
-                              <span className={styles.btnSpinner} />
+                              <Loader2 className="size-4 animate-spin" />
                             ) : (
                               '👎 反対'
                             )}
-                          </button>
+                          </Button>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
             )}
-          </div>
+          </TabsContent>
         )}
 
-        {/* ============================================================
-            承認・否決履歴タブ (Req 3.5)
-            ============================================================ */}
-        {activeTab === 'history' && (
-          <div>
-            {fetchLoading ? (
-              <div className={styles.loadingInner}>
-                <div className={styles.spinner} />
-              </div>
-            ) : historyRequests.length === 0 ? (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>📜</div>
+        <TabsContent value="history" className="mt-4">
+          {fetchLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : historyRequests.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+                <span className="text-3xl">📜</span>
                 <p>まだ完了したジャンル申請はありません。</p>
-              </div>
-            ) : (
-              <div className={styles.historyList}>
-                {historyRequests.map((req) => (
-                  <div
-                    key={req.id}
-                    className={`${styles.historyCard} ${
-                      req.status === 'approved'
-                        ? styles.historyApproved
-                        : styles.historyRejected
-                    }`}
-                  >
-                    <div className={styles.historyIcon}>
-                      {req.iconImageUrl ? (
-                        <img src={req.iconImageUrl} alt={req.displayName} className={styles.genreIconImg} />
-                      ) : (
-                        <span>🎭</span>
-                      )}
-                    </div>
-                    <div className={styles.historyDetails}>
-                      <span className={styles.historyDisplayName}>
-                        {req.displayName}
-                      </span>
-                      <code className={styles.historyGenreId}>{req.genreId}</code>
-                      <span className={styles.historyDate}>
-                        {formatDate(req.createdAt)}
-                      </span>
-                    </div>
-                    <div
-                      className={`${styles.historyStatus} ${
-                        req.status === 'approved'
-                          ? styles.statusApproved
-                          : styles.statusRejected
-                      }`}
-                    >
-                      {req.status === 'approved' ? '✅ 承認' : '❌ 否決'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ジャンル</TableHead>
+                      <TableHead>ID</TableHead>
+                      <TableHead>申請日</TableHead>
+                      <TableHead>結果</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historyRequests.map((req) => (
+                      <TableRow key={req.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {req.iconImageUrl ? (
+                              <img
+                                src={req.iconImageUrl}
+                                alt={req.displayName}
+                                className="size-8 rounded object-cover"
+                              />
+                            ) : (
+                              <span>🎭</span>
+                            )}
+                            {req.displayName}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <code className="text-xs">{req.genreId}</code>
+                        </TableCell>
+                        <TableCell>{formatDate(req.createdAt)}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={req.status === 'approved' ? 'default' : 'destructive'}
+                          >
+                            {req.status === 'approved' ? '✅ 承認' : '❌ 否決'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

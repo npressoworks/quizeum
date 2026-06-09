@@ -14,7 +14,8 @@ import {
   useQuestionAttachSearch,
   type QuestionAttachTab,
 } from '@/hooks/useQuestionAttachSearch';
-import styles from '@/app/list/create/edit.module.css';
+import { listEditorClasses as styles } from '@/components/quiz-list/list-editor-classes';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GripVertical, Plus, Search, Trash2 } from 'lucide-react';
 
 export interface QuestionListAttachPanelProps {
@@ -104,35 +105,39 @@ export function QuestionListAttachPanel({
     <div data-testid="question-list-attach-panel">
       {panelDisabled && (
         <p
-          style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}
+          className="mb-3 text-sm text-muted-foreground"
           data-testid="question-attach-disabled-hint"
         >
           リストを一度保存すると、問題の検索・アタッチが有効になります。
         </p>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={activeTab === tab.id ? 'btn btn-primary' : 'btn btn-secondary'}
-            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-            onClick={() => setActiveTab(tab.id)}
-            data-testid={`question-attach-tab-${tab.id}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as QuestionAttachTab)}
+        className="mb-3"
+      >
+        <TabsList className="h-auto flex-wrap">
+          {TABS.map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className="text-xs"
+              data-testid={`question-attach-tab-${tab.id}`}
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {activeTab === 'public-explore' && (
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+        <p className="mb-2 text-xs text-muted-foreground">
           探索は直近公開クイズの問題から検索します（全件保証なし）
         </p>
       )}
 
-      <div className={styles.searchBar} style={{ marginBottom: 12 }}>
+      <div className={`${styles.searchBar} mb-3`}>
         <input
           type="text"
           className={styles.input}
@@ -141,24 +146,23 @@ export function QuestionListAttachPanel({
           onChange={(e) => setKeyword(e.target.value)}
           disabled={panelDisabled}
           data-testid="question-attach-keyword"
-          style={{ padding: '10px 14px', fontSize: '0.9rem' }}
         />
-        <span style={{ padding: 10, opacity: 0.6 }}>
+        <span className="p-2.5 opacity-60">
           <Search size={16} />
         </span>
       </div>
 
       {(attachError || error) && (
-        <p role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.85rem', marginBottom: 8 }}>
+        <p role="alert" className="mb-2 text-sm text-destructive">
           {attachError || error}
         </p>
       )}
 
-      <div className={styles.searchList} style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 20 }}>
+      <div className={`${styles.searchList} mb-5 max-h-[220px]`}>
         {loading ? (
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>読み込み中...</span>
+          <span className="text-sm text-muted-foreground">読み込み中...</span>
         ) : candidates.length === 0 ? (
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>該当する問題がありません</span>
+          <span className="text-sm text-muted-foreground">該当する問題がありません</span>
         ) : (
           candidates.map((c) => (
             <div key={c.questionId} className={styles.searchItem}>
@@ -180,12 +184,12 @@ export function QuestionListAttachPanel({
         )}
       </div>
 
-      <span className={styles.label} style={{ display: 'block', marginBottom: 8 }}>
+      <span className={`${styles.label} mb-2 block`}>
         アタッチ済み問題
       </span>
       <div className={styles.attachedList}>
         {attached.length === 0 ? (
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>まだ問題がありません</span>
+          <span className="text-sm text-muted-foreground">まだ問題がありません</span>
         ) : (
           attached.map((entry, idx) => (
             <div
@@ -201,14 +205,12 @@ export function QuestionListAttachPanel({
                 <div className={styles.dragHandle}>
                   <GripVertical size={16} />
                 </div>
-                <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.9rem' }}>
-                  #{idx + 1}
-                </span>
+                <span className="text-sm font-extrabold text-primary">#{idx + 1}</span>
                 <div>
                   <div className={styles.attachedItemTitle}>
                     {entry.question.questionText.slice(0, 60)}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <div className="text-xs text-muted-foreground">
                     {entry.parentQuizTitle}
                   </div>
                 </div>

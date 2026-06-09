@@ -5,30 +5,28 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Home, Search, Bell, Bookmark, User as UserIcon } from 'lucide-react';
-import styles from './bottom-nav.module.css';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { isHomeActive, isSearchActive } from './nav-active';
 
-function isHomeActive(pathname: string | null): boolean {
-  return pathname === '/';
-}
+const bottomNavLinkBase =
+  'flex h-full flex-1 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground';
 
-function isSearchActive(pathname: string | null): boolean {
-  return pathname === '/search' || (pathname?.startsWith('/search/') ?? false);
-}
+const bottomNavLinkActive = 'active text-primary';
 
 export const BottomNav: React.FC = () => {
   const { user } = useAuth();
   const pathname = usePathname();
 
-  // クイズプレイ画面では非表示にする
   if (pathname && pathname.includes('/play')) {
     return null;
   }
 
   return (
-    <nav className={`${styles.bottomNav} glass-card`}>
+    <nav className="fixed inset-x-0 bottom-0 z-[90] flex h-[60px] items-center justify-around border-t border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
       <Link
         href="/"
-        className={`${styles.navLink} ${isHomeActive(pathname) ? styles.active : ''}`}
+        className={cn(bottomNavLinkBase, isHomeActive(pathname) && bottomNavLinkActive)}
         data-testid="bottom-nav-home"
       >
         <Home size={22} />
@@ -36,7 +34,7 @@ export const BottomNav: React.FC = () => {
 
       <Link
         href="/search"
-        className={`${styles.navLink} ${isSearchActive(pathname) ? styles.active : ''}`}
+        className={cn(bottomNavLinkBase, isSearchActive(pathname) && bottomNavLinkActive)}
         data-testid="bottom-nav-search"
       >
         <Search size={22} />
@@ -46,7 +44,7 @@ export const BottomNav: React.FC = () => {
         <>
           <Link
             href="/notifications"
-            className={`${styles.navLink} ${pathname === '/notifications' ? styles.active : ''}`}
+            className={cn(bottomNavLinkBase, pathname === '/notifications' && bottomNavLinkActive)}
             data-testid="bottom-nav-notifications"
           >
             <Bell size={22} />
@@ -54,7 +52,7 @@ export const BottomNav: React.FC = () => {
 
           <Link
             href="/bookmarks"
-            className={`${styles.navLink} ${pathname === '/bookmarks' ? styles.active : ''}`}
+            className={cn(bottomNavLinkBase, pathname === '/bookmarks' && bottomNavLinkActive)}
             data-testid="bottom-nav-bookmarks"
           >
             <Bookmark size={22} />
@@ -62,11 +60,19 @@ export const BottomNav: React.FC = () => {
 
           <Link
             href={`/profile/${user.id}`}
-            className={`${styles.navLink} ${pathname && pathname.includes(`/profile/${user.id}`) ? styles.active : ''}`}
+            className={cn(
+              bottomNavLinkBase,
+              pathname?.includes(`/profile/${user.id}`) && bottomNavLinkActive,
+            )}
             data-testid="bottom-nav-profile"
           >
             {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt={user.displayName} className={styles.avatar} />
+              <Avatar size="sm" className="size-6">
+                <AvatarImage src={user.avatarUrl} alt={user.displayName} />
+                <AvatarFallback>
+                  <UserIcon size={16} />
+                </AvatarFallback>
+              </Avatar>
             ) : (
               <UserIcon size={22} />
             )}

@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import styles from './explore-carousel.module.css';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface ExploreAccordionProps {
   testId: string;
@@ -19,20 +20,22 @@ export function ExploreAccordion({
   children,
 }: ExploreAccordionProps) {
   return (
-    <div className={styles.accordion}>
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card px-4">
       <button
         type="button"
-        className={styles.accordionHeader}
+        className={cn(
+          'flex w-full items-center justify-between py-3 text-left text-sm font-semibold text-card-foreground',
+        )}
         data-testid={testId}
         aria-expanded={open}
         onClick={onToggle}
       >
         {title}
-        <span className={styles.accordionChevron} aria-hidden>
-          {open ? '▾' : '▸'}
+        <span className="text-muted-foreground" aria-hidden>
+          {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </span>
       </button>
-      {open && <div className={styles.accordionPanel}>{children}</div>}
+      {open && <div className="pb-4">{children}</div>}
     </div>
   );
 }

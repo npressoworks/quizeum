@@ -1,5 +1,4 @@
 import { MarkdownContent } from './markdown-content';
-import markdownStyles from './markdown.module.css';
 
 type MarkdownPreviewProps = {
   markdown: string;
@@ -11,8 +10,13 @@ export function MarkdownPreview({ markdown }: MarkdownPreviewProps) {
   }
 
   return (
-    <div className={markdownStyles.preview} aria-live="polite">
-      <p className={markdownStyles.previewLabel}>プレビュー</p>
+    <div
+      className="mt-2.5 rounded-md border border-border bg-muted/50 px-3.5 py-3"
+      aria-live="polite"
+    >
+      <p className="mb-2 text-[0.7rem] font-semibold tracking-wide text-muted-foreground uppercase">
+        プレビュー
+      </p>
       <MarkdownContent markdown={markdown} />
     </div>
   );

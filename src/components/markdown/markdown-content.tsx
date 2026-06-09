@@ -1,5 +1,5 @@
 import { parseMarkdownToHtml } from '@/lib/security/sanitize';
-import markdownStyles from './markdown.module.css';
+import { cn } from '@/lib/utils';
 
 type MarkdownContentProps = {
   markdown: string;
@@ -19,7 +19,10 @@ export function MarkdownContent({
 
   return (
     <Tag
-      className={[className, markdownStyles.content].filter(Boolean).join(' ')}
+      className={cn(
+        '[&_a]:text-primary [&_a]:underline [&_strong]:font-bold',
+        className
+      )}
       dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(markdown) }}
     />
   );

@@ -6,7 +6,7 @@ import { QuizDualLeaderboard } from '@/components/quiz/quiz-dual-leaderboard';
 import { DetailSkeleton } from '@/components/quiz/detail-skeleton';
 import { LeaderboardSkeleton } from '@/components/quiz/leaderboard-skeleton';
 import { getQuiz } from '@/services/quiz';
-import styles from './page.module.css';
+import { detailClasses as styles } from './detail-classes';
 
 interface PageProps {
   params: Promise<{ id: string }>;

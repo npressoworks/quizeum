@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { QuizListType } from '@/types';
+import { Label } from '@/components/ui/label';
 
 export interface ListTypeSelectorProps {
   value: QuizListType;
@@ -11,8 +12,11 @@ export interface ListTypeSelectorProps {
 
 export function ListTypeSelector({ value, onChange, disabled = false }: ListTypeSelectorProps) {
   return (
-    <div data-testid="list-type-selector" role="radiogroup" aria-label="リスト種別">
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: disabled ? 'default' : 'pointer' }}>
+    <div data-testid="list-type-selector" role="radiogroup" aria-label="リスト種別" className="grid gap-2">
+      <Label
+        className="mb-0 flex cursor-pointer items-center gap-2 font-normal"
+        style={{ cursor: disabled ? 'default' : 'pointer' }}
+      >
         <input
           type="radio"
           name="list-type"
@@ -21,10 +25,14 @@ export function ListTypeSelector({ value, onChange, disabled = false }: ListType
           checked={value === 'quiz'}
           onChange={() => onChange('quiz')}
           disabled={disabled}
+          className="size-4 accent-primary"
         />
         <span>クイズリスト（収録単位: クイズ）</span>
-      </label>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: disabled ? 'default' : 'pointer' }}>
+      </Label>
+      <Label
+        className="mb-0 flex cursor-pointer items-center gap-2 font-normal"
+        style={{ cursor: disabled ? 'default' : 'pointer' }}
+      >
         <input
           type="radio"
           name="list-type"
@@ -33,11 +41,12 @@ export function ListTypeSelector({ value, onChange, disabled = false }: ListType
           checked={value === 'question'}
           onChange={() => onChange('question')}
           disabled={disabled}
+          className="size-4 accent-primary"
         />
         <span>問題リスト（収録単位: 問題）</span>
-      </label>
+      </Label>
       {disabled && (
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 8 }}>
+        <p className="mt-2 text-xs text-muted-foreground">
           作成後のリスト種別は変更できません。
         </p>
       )}

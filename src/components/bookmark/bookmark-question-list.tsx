@@ -4,7 +4,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Bookmark } from 'lucide-react';
 import { BookmarkedQuestionEntry } from '@/types';
-import styles from './bookmark.module.css';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 function excerpt(text: string, maxLen = 80): string {
   const trimmed = text.trim();
@@ -22,20 +23,21 @@ export function BookmarkQuestionList({ questions, onRemove }: BookmarkQuestionLi
 
   if (questions.length === 0) {
     return (
-      <div className={styles.emptyState} data-testid="bookmarks-empty-question">
-        <h2 style={{ color: 'var(--text-main)', marginBottom: '8px' }}>ブックマークした問題がありません</h2>
-        <p style={{ color: 'var(--text-muted)' }}>プレイ中や結果画面から問題をブックマークできます。</p>
-      </div>
+      <Card className="py-16 text-center" data-testid="bookmarks-empty-question">
+        <CardContent>
+          <h2 className="mb-2 text-lg font-semibold">ブックマークした問題がありません</h2>
+          <p className="text-muted-foreground">プレイ中や結果画面から問題をブックマークできます。</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div className="flex flex-col gap-3">
       {questions.map((entry) => (
-        <div key={entry.question.id} className={styles.cardRow}>
+        <Card key={entry.question.id} className="flex flex-row items-stretch overflow-hidden">
           <div
-            className={styles.questionCard}
-            style={{ flex: 1 }}
+            className="flex flex-1 cursor-pointer flex-col gap-2 p-4 transition-colors hover:bg-muted/30"
             role="button"
             tabIndex={0}
             onClick={() =>
@@ -51,23 +53,27 @@ export function BookmarkQuestionList({ questions, onRemove }: BookmarkQuestionLi
               }
             }}
           >
-            <p className={styles.questionExcerpt}>{excerpt(entry.question.questionText)}</p>
-            <p className={styles.questionMeta}>
+            <p className="font-medium leading-snug">{excerpt(entry.question.questionText)}</p>
+            <p className="text-sm text-muted-foreground">
               親クイズ: {entry.parentQuizTitle}
               {entry.bookmarkedAt && (
                 <> · {entry.bookmarkedAt.toLocaleDateString('ja-JP')}</>
               )}
             </p>
           </div>
-          <button
-            type="button"
-            className={`${styles.bookmarkToggleBtn} ${styles.bookmarked}`}
-            onClick={() => onRemove(entry.question.id)}
-            title="ブックマーク解除"
-          >
-            <Bookmark size={20} fill="#00ff66" color="#00ff66" />
-          </button>
-        </div>
+          <div className="flex items-center border-l px-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-primary"
+              onClick={() => onRemove(entry.question.id)}
+              title="ブックマーク解除"
+            >
+              <Bookmark size={20} className="fill-primary text-primary" />
+            </Button>
+          </div>
+        </Card>
       ))}
     </div>
   );

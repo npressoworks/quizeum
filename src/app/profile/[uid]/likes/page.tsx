@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { LikesClient } from './likes-client';
 import { LikesSkeleton } from '@/components/profile/likes-skeleton';
-import styles from './likes.module.css';
 
 type PageProps = {
   params: Promise<{ uid: string }>;
@@ -13,9 +12,12 @@ export default async function LikesPage({ params }: PageProps) {
   const { uid } = await params;
 
   return (
-    <main className={styles.main}>
-      <div className={styles.container}>
-        <Link href={`/profile/${uid}`} className={styles.backButton}>
+    <main className="mx-auto w-full max-w-3xl px-4 py-6">
+      <div className="flex flex-col gap-6">
+        <Link
+          href={`/profile/${uid}`}
+          className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
           <ArrowLeft size={16} />
           <span>プロフィールに戻る</span>
         </Link>

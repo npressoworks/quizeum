@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { exportQuizzes } from '@/services/quiz';
 import { Download, Plus } from 'lucide-react';
-import styles from './dashboard.module.css';
+import { Button } from '@/components/ui/button';
 
 export function DashboardActions() {
   const router = useRouter();
@@ -16,13 +16,13 @@ export function DashboardActions() {
     try {
       const dataPackage = await exportQuizzes(user.id);
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-        JSON.stringify(dataPackage, null, 2)
+        JSON.stringify(dataPackage, null, 2),
       )}`;
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', jsonString);
       downloadAnchor.setAttribute(
         'download',
-        `quizeum_export_${user.displayName}_${new Date().toISOString().split('T')[0]}.json`
+        `quizeum_export_${user.displayName}_${new Date().toISOString().split('T')[0]}.json`,
       );
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
@@ -33,44 +33,33 @@ export function DashboardActions() {
   };
 
   return (
-    <div className={styles.actions}>
-      <button
+    <div className="flex flex-wrap gap-3">
+      <Button
         type="button"
-        className="btn btn-secondary"
+        variant="secondary"
         onClick={handleExportAll}
         data-analytics="creator-export-all"
-        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
       >
-        <Download size={16} />
+        <Download className="size-4" />
         クイズ一括エクスポート
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className="btn btn-outline"
+        variant="outline"
         onClick={() => router.push('/list/create')}
         data-analytics="creator-create-list"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: 'var(--text-main)',
-          border: '1px solid var(--border-light)',
-          background: 'rgba(255, 255, 255, 0.05)',
-        }}
       >
-        <Plus size={16} />
+        <Plus className="size-4" />
         リストを新規作成
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className="btn btn-primary"
         onClick={() => router.push('/quiz/create')}
         data-analytics="creator-create-quiz"
-        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
       >
-        <Plus size={16} />
+        <Plus className="size-4" />
         クイズを新規作成
-      </button>
+      </Button>
     </div>
   );
 }

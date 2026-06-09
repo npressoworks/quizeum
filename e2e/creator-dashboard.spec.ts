@@ -13,20 +13,10 @@ test.describe('クリエイターダッシュボード E2Eテスト', () => {
     await expect(page.locator('h1').filter({ hasText: /ダッシュボード|クイズ管理/ }).first()).toBeVisible();
 
     // 2. 自身が作成したクイズ一覧が表示されることを確認
-    const quizList = page.locator('[data-testid="creator-quiz-list"]').first()
-      .or(page.locator('div').filter({ hasText: /作成したクイズ/ }).first());
-    
-    if (await quizList.isVisible()) {
-      await expect(quizList).toBeVisible();
-    }
+    await expect(page.getByTestId('creator-quiz-list')).toBeVisible({ timeout: 15000 });
 
     // 3. ダッシュボードに統計情報が表示されることを確認
-    const statsSection = page.locator('[data-testid="stats-section"]').first()
-      .or(page.locator('div').filter({ hasText: /総プレイ数|ブックマーク|評価/ }).first());
-    
-    if (await statsSection.isVisible()) {
-      await expect(statsSection).toBeVisible();
-    }
+    await expect(page.getByTestId('stats-section')).toBeVisible({ timeout: 15000 });
   });
 
   test('F-902: 問題別解答分析（アナリティクス）が表示されること', async ({ page }) => {

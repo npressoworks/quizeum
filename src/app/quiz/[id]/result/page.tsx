@@ -9,7 +9,7 @@ import { QuizResultClientBoundary } from './quiz-result-client';
 import { RecommendListClient } from './recommend-list-client';
 import { ResultSkeleton } from '@/components/quiz/result-skeleton';
 import { RecommendSkeleton } from '@/components/quiz/recommend-skeleton';
-import styles from './result.module.css';
+import { resultClasses as styles } from './result-classes';
 
 interface PageProps {
   params: Promise<{ id: string }>;

@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { GenreMetadata } from '@/types';
 import { buildSearchUrlQuery } from '@/lib/search-url-state';
-import styles from './explore-carousel.module.css';
+import { Button } from '@/components/ui/button';
+import { HorizontalScrollCarousel, genreFormatCardClass } from './horizontal-scroll-carousel';
 
 export type GenreCarouselMode = 'filter' | 'navigate';
 
@@ -43,41 +44,42 @@ export function GenreCarousel({
     }
     onSelect?.(selectedGenreId === genreId ? '' : genreId);
   };
+
   if (loading) {
-    return <p className={styles.status}>ジャンルを読み込み中...</p>;
+    return <p className="px-1 py-2 text-sm text-muted-foreground">ジャンルを読み込み中...</p>;
   }
 
   if (error) {
     return (
-      <p className={`${styles.status} ${styles.error}`} role="alert">
+      <p className="px-1 py-2 text-sm text-destructive" role="alert">
         {error}
         {onRetry && (
-          <button type="button" className={styles.retryBtn} onClick={onRetry}>
+          <Button type="button" variant="link" className="ml-2 h-auto p-0" onClick={onRetry}>
             再試行
-          </button>
+          </Button>
         )}
       </p>
     );
   }
 
   if (genres.length === 0) {
-    return <p className={styles.status}>{emptyMessage}</p>;
+    return <p className="px-1 py-2 text-sm text-muted-foreground">{emptyMessage}</p>;
   }
 
   return (
-    <div className={styles.carousel} data-testid="genre-carousel">
+    <HorizontalScrollCarousel data-testid="genre-carousel" className="gap-3 px-0.5 pb-3">
       {genres.map((genre) => {
         const selected = !isNavigateMode && selectedGenreId === genre.id;
         return (
           <button
             key={genre.id}
             type="button"
-            className={`${styles.card} ${selected ? styles.cardSelected : ''}`}
+            className={genreFormatCardClass(selected)}
             data-testid={`genre-carousel-card-${genre.id}`}
             aria-pressed={isNavigateMode ? undefined : selected}
             onClick={() => handleGenreClick(genre.id)}
           >
-            <div className={styles.cardIcon}>
+            <div className="mb-2 flex min-h-9 items-center justify-center text-2xl">
               {genre.iconImageUrl ? (
                 <Image
                   src={genre.iconImageUrl}
@@ -90,10 +92,10 @@ export function GenreCarousel({
                 <span aria-hidden>📚</span>
               )}
             </div>
-            <span className={styles.cardLabel}>{genre.displayName}</span>
+            <span className="text-sm font-semibold leading-tight">{genre.displayName}</span>
           </button>
         );
       })}
-    </div>
+    </HorizontalScrollCarousel>
   );
 }

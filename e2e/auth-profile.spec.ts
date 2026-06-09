@@ -30,14 +30,13 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     const createQuizBtn = page.locator('text=作問する');
     await expect(createQuizBtn).toBeVisible();
     
-    // 7. アバターボタンをクリックしてドロップダウンを開く
-    // avatarButton のクラスまたは画像要素を探してクリック
-    const avatarBtn = page.locator('header img, aside img, nav img').filter({ visible: true }).first();
-    await expect(avatarBtn).toBeVisible();
-    await avatarBtn.click({ force: true });
+    // 7. プロフィールドロップダウンを開く
+    const profileBtn = page.getByTestId('sidebar-profile-btn');
+    await expect(profileBtn).toBeVisible();
+    await profileBtn.click();
     
     // 8. 「マイページ」リンクをクリック
-    const myPageLink = page.locator('text=マイページ');
+    const myPageLink = page.getByRole('menuitem', { name: 'マイページ' });
     await expect(myPageLink).toBeVisible();
     await myPageLink.click();
     
@@ -74,8 +73,7 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     }
     
     // 11. ログアウト処理の検証
-    // ヘッダーのアバターを再度クリックしてドロップダウンを開く
-    await avatarBtn.click({ force: true });
+    await profileBtn.click();
     
     // 「ログアウト」ボタンをクリック
     const logoutBtn = page.locator('text=ログアウト');
@@ -102,10 +100,10 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     await e2eLoginBtn.click();
     await expect(page).toHaveURL('/');
 
-    const avatar = page.locator('header img, aside img, nav img').filter({ visible: true }).first();
-    await expect(avatar).toBeVisible({ timeout: 10000 });
-    await avatar.click({ force: true });
-    await page.locator('text=マイページ').click();
+    const profileBtn = page.getByTestId('sidebar-profile-btn');
+    await expect(profileBtn).toBeVisible({ timeout: 10000 });
+    await profileBtn.click();
+    await page.getByRole('menuitem', { name: 'マイページ' }).click();
     await expect(page).toHaveURL(/\/profile\//);
 
     const historyTab = page.locator('[data-testid="profile-tab-history"]');

@@ -1,25 +1,22 @@
 import React from 'react';
-import styles from './connections-skeleton.module.css';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 
 export function LikesSkeleton() {
   return (
-    <div className={styles.container} data-testid="likes-skeleton">
-      <div className={styles.card}>
-        <div className={`${styles.title} ${styles.pulse}`} />
-        <div className={styles.tabs}>
-          <div className={`${styles.tab} ${styles.pulse}`} />
-          <div className={`${styles.tab} ${styles.pulse}`} />
-        </div>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className={styles.row}>
-            <div className={`${styles.avatar} ${styles.pulse}`} />
-            <div>
-              <div className={`${styles.lineName} ${styles.pulse}`} />
-              <div className={`${styles.lineBio} ${styles.pulse}`} />
-            </div>
+    <div data-testid="likes-skeleton">
+      <Card>
+        <CardContent className="flex flex-col gap-4 pt-6">
+          <Skeleton className="h-7 w-40" />
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-36" />
+            <Skeleton className="h-9 w-36" />
           </div>
-        ))}
-      </div>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

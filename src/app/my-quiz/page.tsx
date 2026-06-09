@@ -1,6 +1,5 @@
 import React, { Suspense } from 'react';
 import { MyQuizClient } from './my-quiz-client';
-import styles from './my-quiz.module.css';
 
 export const metadata = {
   title: 'マイクイズ | quizeum',
@@ -8,10 +7,10 @@ export const metadata = {
 
 export default function MyQuizPage() {
   return (
-    <div className={styles.container} data-testid="my-quiz-page">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-5 py-10" data-testid="my-quiz-page">
       <header>
-        <h1 className={styles.title}>マイクイズ</h1>
-        <p className={styles.desc}>
+        <h1 className="text-3xl font-extrabold tracking-tight">マイクイズ</h1>
+        <p className="mt-2 text-muted-foreground">
           自作・ブックマークから問題を集め、フィルタして連続プレイできます。
         </p>
       </header>

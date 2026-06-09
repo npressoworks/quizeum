@@ -5,9 +5,12 @@ import { Search, X } from 'lucide-react';
 import { filterTagSuggestions } from '@/lib/filter-tag-suggestions';
 import { normalizeTag } from '@/services/quiz-validation';
 import type { TagMetadata } from '@/types';
-import styles from './unified-search-field.module.css';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useWeeklyTopSearch } from '@/hooks/useWeeklyTrends';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface UnifiedSearchFieldProps {
   tagChips: string[];
@@ -21,6 +24,9 @@ export interface UnifiedSearchFieldProps {
   onClearAll: () => void;
   disabled?: boolean;
 }
+
+const suggestPanelClass =
+  'absolute z-30 top-[calc(100%+4px)] left-0 right-0 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md';
 
 export function UnifiedSearchField({
   tagChips,
@@ -68,7 +74,7 @@ export function UnifiedSearchField({
     if (token.startsWith('#')) token = token.slice(1);
     const normalized = normalizeTag(token);
     if (!normalized || tagChips.includes(normalized)) return false;
-    addRecentKeyword(normalized); // 履歴に追加
+    addRecentKeyword(normalized);
     onTagChipsChange([...tagChips, normalized]);
     return true;
   };
@@ -78,7 +84,7 @@ export function UnifiedSearchField({
   };
 
   const pickTag = (tagId: string) => {
-    addRecentKeyword(tagId); // 履歴に追加
+    addRecentKeyword(tagId);
     if (!tagChips.includes(tagId)) {
       onTagChipsChange([...tagChips, tagId]);
     }
@@ -89,29 +95,29 @@ export function UnifiedSearchField({
   const suggestDisabled = disabled || tagsLoading;
 
   return (
-    <div className={styles.wrap} ref={wrapRef} data-testid="unified-search-field">
-      <Search className={styles.searchIcon} size={18} />
-      <div className={styles.fieldRow}>
-        <div className={styles.inputArea}>
-          <div className={styles.chipRow} data-testid="search-tag-chips">
+    <div className="relative flex flex-1 items-stretch" ref={wrapRef} data-testid="unified-search-field">
+      <Search className="pointer-events-none absolute left-4 top-1/2 z-10 size-[18px] -translate-y-1/2 text-muted-foreground" />
+      <div className="flex min-h-12 w-full items-center rounded-lg border border-input bg-background py-1.5 pr-12 pl-11 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap gap-1.5" data-testid="search-tag-chips">
             {tagChips.map((chip) => (
-              <span key={chip} className={styles.chip} data-testid="search-tag-chip">
+              <Badge key={chip} variant="secondary" className="gap-1 py-0.5 pr-1 pl-2 text-xs" data-testid="search-tag-chip">
                 {tagLabelById.get(chip) ?? chip}
                 <button
                   type="button"
-                  className={styles.chipRemove}
+                  className="inline-flex rounded-full p-0.5 hover:bg-muted"
                   aria-label={`タグ ${tagLabelById.get(chip) ?? chip} を削除`}
                   onClick={() => removeChip(chip)}
                 >
                   ×
                 </button>
-              </span>
+              </Badge>
             ))}
           </div>
-          <input
+          <Input
             id={inputId}
             type="text"
-            className={styles.input}
+            className="h-8 min-w-[120px] flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
             placeholder="タイトル、説明文、作成者、タグでクイズを検索..."
             value={keyword}
             disabled={disabled}
@@ -140,7 +146,7 @@ export function UnifiedSearchField({
                 } else if (tryAddChip(keyword)) {
                   onKeywordChange('');
                 } else if (trimmed) {
-                  addRecentKeyword(trimmed); // キーワードを履歴に追加
+                  addRecentKeyword(trimmed);
                   setOpen(false);
                 }
                 return;
@@ -159,28 +165,30 @@ export function UnifiedSearchField({
         </div>
       </div>
       {showClear && (
-        <button
+        <Button
           type="button"
-          className={styles.clearBtn}
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground"
           onClick={onClearAll}
           aria-label="クリア"
           data-testid="search-clear-btn"
         >
           <X size={18} />
-        </button>
+        </Button>
       )}
 
       {open && !keyword.trim() && tagChips.length === 0 && (
-        <div className={styles.smartSuggest} data-testid="search-smart-suggest" role="listbox">
+        <div className={cn(suggestPanelClass, 'max-h-80')} data-testid="search-smart-suggest" role="listbox">
           {recentKeywords.length > 0 && (
-            <div data-testid="recent-keywords-section" className={styles.section}>
-              <div className={styles.sectionTitle}>最近の検索</div>
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            <div data-testid="recent-keywords-section" className="py-1 not-last:border-b not-last:border-border">
+              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">最近の検索</div>
+              <ul className="m-0 list-none p-0">
                 {recentKeywords.map((word) => (
                   <li
                     key={word}
                     role="option"
-                    className={styles.option}
+                    className="cursor-pointer px-3 py-2.5 text-sm hover:bg-muted"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       addRecentKeyword(word);
@@ -201,58 +209,59 @@ export function UnifiedSearchField({
           )}
 
           {!errorWeekly && (
-            <>
-              <div data-testid="weekly-top-keywords-section" className={styles.section}>
-                <div className={styles.sectionTitle}>今週の人気キーワード</div>
-                {loadingWeekly ? (
-                  <div className={styles.loading}>読み込み中...</div>
-                ) : (
-                  <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                    {weeklyKeywords.map((word) => (
-                      <li
-                        key={word}
-                        role="option"
-                        className={styles.option}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          addRecentKeyword(word);
-                          onKeywordChange(word);
-                          setOpen(false);
-                        }}
-                      >
-                        {word}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </>
+            <div data-testid="weekly-top-keywords-section" className="py-1">
+              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">今週の人気キーワード</div>
+              {loadingWeekly ? (
+                <div className="px-3 py-2.5 text-sm text-muted-foreground">読み込み中...</div>
+              ) : (
+                <ul className="m-0 list-none p-0">
+                  {weeklyKeywords.map((word) => (
+                    <li
+                      key={word}
+                      role="option"
+                      className="cursor-pointer px-3 py-2.5 text-sm hover:bg-muted"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        addRecentKeyword(word);
+                        onKeywordChange(word);
+                        setOpen(false);
+                      }}
+                    >
+                      {word}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </div>
       )}
 
       {open && keyword.trim().length > 0 && !suggestDisabled && suggestions.length > 0 && (
-        <ul className={styles.list} role="listbox">
+        <ul className={suggestPanelClass} role="listbox">
           {suggestions.map((item, i) => (
             <li
               key={item.id}
               role="option"
               aria-selected={i === highlight}
-              className={`${styles.option} ${i === highlight ? styles.optionActive : ''}`}
+              className={cn(
+                'cursor-pointer px-3 py-2.5 text-sm',
+                i === highlight && 'bg-muted'
+              )}
               data-testid={`search-suggest-tag-${item.id}`}
               onMouseDown={(e) => {
                 e.preventDefault();
                 pickTag(item.id);
               }}
             >
-              <span className={styles.optionKind}>タグ</span>
+              <span className="mr-1.5 text-xs text-muted-foreground">タグ</span>
               {item.tagName ?? item.id}
             </li>
           ))}
         </ul>
       )}
       {open && keyword.trim().length > 0 && tagsError && (
-        <p className={styles.errorHint} role="alert">
+        <p className="mt-1 text-xs text-destructive" role="alert">
           {tagsError}
         </p>
       )}

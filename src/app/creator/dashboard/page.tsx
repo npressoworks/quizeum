@@ -2,15 +2,14 @@ import React, { Suspense } from 'react';
 import { DashboardActions } from './dashboard-actions';
 import { CreatorDashboardClient } from './dashboard-client';
 import { StatsSkeleton } from '@/components/charts/stats-skeleton';
-import styles from './dashboard.module.css';
 
 export default function CreatorDashboardPage() {
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>作家ダッシュボード</h1>
-          <p style={{ color: 'var(--text-muted)' }}>
+    <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold md:text-3xl">作家ダッシュボード</h1>
+          <p className="text-sm text-muted-foreground">
             あなたの作品のパフォーマンス管理と改善を行いましょう。
           </p>
         </div>

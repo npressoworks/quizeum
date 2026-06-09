@@ -61,7 +61,7 @@ describe('Header Component (Mobile Mini Header)', () => {
     expect(screen.queryByRole('link', { name: 'ログイン' })).not.toBeInTheDocument();
     expect(screen.getByTestId('mobile-header-create-btn')).toBeInTheDocument();
     expect(screen.getByTestId('header-profile-btn')).toBeInTheDocument();
-    expect(screen.getByAltText('ななみ')).toBeInTheDocument();
+    expect(screen.getByText('な')).toBeInTheDocument();
   });
 
   it('クイズプレイ画面（/play/）では非表示になること', () => {

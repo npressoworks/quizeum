@@ -1,16 +1,24 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Trophy } from 'lucide-react';
 import { getLeaderboardFirstPlay, getLeaderboardReplay } from '@/lib/leaderboard-ranking';
 import type { LeaderboardRecord, Quiz } from '@/types';
-import styles from './quiz-dual-leaderboard.module.css';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 export interface QuizDualLeaderboardProps {
   quiz: Quiz;
 }
-
-type BoardTab = 'firstPlay' | 'replay';
 
 function formatCompletedAt(value: Date): string {
   const d = value instanceof Date ? value : new Date(value);
@@ -19,9 +27,9 @@ function formatCompletedAt(value: Date): string {
 }
 
 function rankClass(index: number): string {
-  if (index === 0) return styles.rank1;
-  if (index === 1) return styles.rank2;
-  if (index === 2) return styles.rank3;
+  if (index === 0) return 'font-bold text-amber-500';
+  if (index === 1) return 'font-bold text-slate-400';
+  if (index === 2) return 'font-bold text-amber-700';
   return '';
 }
 
@@ -35,43 +43,41 @@ function LeaderboardTable({
   rowKeyPrefix: string;
 }) {
   if (entries.length === 0) {
-    return <div className={styles.emptyLeaderboard}>まだ記録がありません。</div>;
+    return <p className="py-6 text-center text-sm text-muted-foreground">まだ記録がありません。</p>;
   }
 
   return (
-    <div className={styles.tableWrapper} data-testid={tableTestId}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th className={styles.th}>順位</th>
-            <th className={styles.th}>ユーザー名</th>
-            <th className={styles.th}>正解数</th>
-            <th className={styles.th}>合計時間</th>
-            <th className={styles.th}>達成日</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div data-testid={tableTestId}>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>順位</TableHead>
+            <TableHead>ユーザー名</TableHead>
+            <TableHead>正解数</TableHead>
+            <TableHead>合計時間</TableHead>
+            <TableHead>達成日</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {entries.map((record, index) => (
-            <tr
+            <TableRow
               key={`${rowKeyPrefix}-${record.userId}-${index}`}
               data-testid="leaderboard-entry"
             >
-              <td className={`${styles.td} ${rankClass(index)}`}>#{index + 1}</td>
-              <td className={styles.td}>{record.displayName || '名無しさん'}</td>
-              <td className={styles.td}>{record.score}</td>
-              <td className={styles.td}>{record.elapsedSeconds} 秒</td>
-              <td className={styles.td}>{formatCompletedAt(record.completedAt)}</td>
-            </tr>
+              <TableCell className={cn(rankClass(index))}>#{index + 1}</TableCell>
+              <TableCell>{record.displayName || '名無しさん'}</TableCell>
+              <TableCell>{record.score}</TableCell>
+              <TableCell>{record.elapsedSeconds} 秒</TableCell>
+              <TableCell>{formatCompletedAt(record.completedAt)}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
 
 export function QuizDualLeaderboard({ quiz }: QuizDualLeaderboardProps) {
-  const [activeTab, setActiveTab] = useState<BoardTab>('firstPlay');
-
   const firstPlayEntries = useMemo(
     () => getLeaderboardFirstPlay(quiz).slice(0, 5),
     [quiz]
@@ -82,50 +88,39 @@ export function QuizDualLeaderboard({ quiz }: QuizDualLeaderboardProps) {
   );
 
   return (
-    <section className={styles.leaderboardSection} data-testid="quiz-leaderboard">
-      <div className={styles.sectionHeader}>
-        <Trophy size={20} aria-hidden />
-        クイズランキング
-      </div>
-
-      <div className={styles.tabBar} role="tablist" aria-label="クイズランキングの種類">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'firstPlay'}
-          className={`${styles.tab} ${activeTab === 'firstPlay' ? styles.tabActive : ''}`}
-          data-testid="quiz-leaderboard-tab-first"
-          onClick={() => setActiveTab('firstPlay')}
-        >
-          初回プレイランキング（上位5名）
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'replay'}
-          className={`${styles.tab} ${activeTab === 'replay' ? styles.tabActive : ''}`}
-          data-testid="quiz-leaderboard-tab-replay"
-          onClick={() => setActiveTab('replay')}
-        >
-          リプレイランキング（上位5名）
-        </button>
-      </div>
-
-      <div role="tabpanel">
-        {activeTab === 'firstPlay' ? (
-          <LeaderboardTable
-            entries={firstPlayEntries}
-            tableTestId="highscore-leaderboard"
-            rowKeyPrefix="first"
-          />
-        ) : (
-          <LeaderboardTable
-            entries={replayEntries}
-            tableTestId="replay-leaderboard"
-            rowKeyPrefix="replay"
-          />
-        )}
-      </div>
-    </section>
+    <Card data-testid="quiz-leaderboard">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Trophy size={20} aria-hidden />
+          クイズランキング
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="firstPlay">
+          <TabsList className="mb-4 h-auto w-full flex-wrap">
+            <TabsTrigger value="firstPlay" data-testid="quiz-leaderboard-tab-first" className="flex-1">
+              初回プレイランキング（上位5名）
+            </TabsTrigger>
+            <TabsTrigger value="replay" data-testid="quiz-leaderboard-tab-replay" className="flex-1">
+              リプレイランキング（上位5名）
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="firstPlay">
+            <LeaderboardTable
+              entries={firstPlayEntries}
+              tableTestId="highscore-leaderboard"
+              rowKeyPrefix="first"
+            />
+          </TabsContent>
+          <TabsContent value="replay">
+            <LeaderboardTable
+              entries={replayEntries}
+              tableTestId="replay-leaderboard"
+              rowKeyPrefix="replay"
+            />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

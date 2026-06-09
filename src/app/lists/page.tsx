@@ -2,32 +2,24 @@ import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, List } from 'lucide-react';
 import { ListsClient } from './lists-client';
-import styles from './lists.module.css';
-import cardStyles from '../page.module.css';
+import {
+  exploreBackLinkClass,
+  listsPageContainerClass,
+} from '@/lib/discovery-layout';
 
 export default function ListsPage() {
   return (
-    <div className={styles.container}>
-      <Link
-        href="/"
-        className={cardStyles.backBtn}
-        style={{
-          alignSelf: 'flex-start',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: 'var(--text-muted)',
-        }}
-      >
+    <div className={listsPageContainerClass}>
+      <Link href="/" className={exploreBackLinkClass}>
         <ArrowLeft size={16} /> ホームに戻る
       </Link>
 
-      <div className={styles.titleSection}>
-        <h1 className={styles.title}>
+      <div className="border-b border-border pb-5">
+        <h1 className="flex items-center gap-3 text-3xl font-extrabold text-foreground">
           <List size={32} />
           リスト
         </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
+        <p className="mt-2 text-muted-foreground">
           公開リストを探索するか、自分の非公開リストを管理できます。
         </p>
       </div>

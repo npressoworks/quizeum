@@ -3,29 +3,32 @@ import Link from 'next/link';
 import { ArrowLeft, Bell } from 'lucide-react';
 import { NotificationsClient } from './notifications-client';
 import { NotificationsSkeleton } from '@/components/ui/notifications-skeleton';
-import styles from './notifications.module.css';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function NotificationsPage() {
   return (
-    <main className={styles.main}>
-      <div className={styles.container}>
-        <Link href="/" className={styles.backButton}>
+    <main className="mx-auto w-full max-w-3xl px-4 py-6">
+      <div className="flex flex-col gap-6">
+        <Link
+          href="/"
+          className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
           <ArrowLeft size={16} />
           <span>ホームに戻る</span>
         </Link>
 
-        <div className={`${styles.notificationsCard} glass-card`}>
-          <div className={styles.cardHeader}>
-            <div className={styles.titleWrapper}>
-              <Bell size={24} className={styles.bellIcon} />
-              <h1 className={styles.title}>通知一覧</h1>
-            </div>
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell size={24} className="text-primary" />
+              通知一覧
+            </CardTitle>
+          </CardHeader>
 
           <Suspense fallback={<NotificationsSkeleton data-testid="notifications-skeleton" />}>
             <NotificationsClient />
           </Suspense>
-        </div>
+        </Card>
       </div>
     </main>
   );

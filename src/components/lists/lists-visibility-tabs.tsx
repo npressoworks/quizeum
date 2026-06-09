@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { ListsVisibility } from '@/hooks/useListsSearch';
-import styles from './lists.module.css';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ListsVisibilityTabsProps {
   activeTab: ListsVisibility;
@@ -16,18 +16,23 @@ const TABS: { id: ListsVisibility; label: string; testId: string }[] = [
 
 export function ListsVisibilityTabs({ activeTab, onTabChange }: ListsVisibilityTabsProps) {
   return (
-    <div className={styles.tabBar} data-testid="lists-visibility-tabs">
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabActive : ''}`}
-          data-testid={tab.testId}
-          onClick={() => onTabChange(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </div>
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onTabChange(value as ListsVisibility)}
+      data-testid="lists-visibility-tabs"
+    >
+      <TabsList className="mb-5 h-auto w-full justify-start gap-2 bg-transparent p-0">
+        {TABS.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            data-testid={tab.testId}
+            className="rounded-lg border border-border px-5 py-2.5 data-active:border-primary data-active:bg-primary/10"
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

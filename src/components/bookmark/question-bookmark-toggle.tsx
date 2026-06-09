@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Bookmark } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { toggleBookmark } from '@/services/bookmark';
-import styles from './bookmark.module.css';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface QuestionBookmarkToggleProps {
   questionId: string;
@@ -54,23 +55,24 @@ export function QuestionBookmarkToggle({
   };
 
   return (
-    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-      <button
+    <span className="inline-flex flex-col items-center">
+      <Button
         type="button"
-        className={`${styles.bookmarkToggleBtn} ${bookmarked ? styles.bookmarked : ''}`}
+        variant="ghost"
+        size="icon-sm"
         onClick={handleClick}
         disabled={busy}
         title={bookmarked ? 'ブックマーク解除' : 'ブックマーク登録'}
         data-testid={`question-bookmark-toggle-${questionId}`}
+        className={cn(bookmarked && 'text-primary')}
       >
-        <Bookmark 
-          size={18} 
-          color={bookmarked ? '#00ff66' : 'currentColor'} 
-          fill={bookmarked ? '#00ff66' : 'none'} 
+        <Bookmark
+          size={18}
+          className={cn(bookmarked && 'fill-primary text-primary')}
         />
-      </button>
+      </Button>
       {error && (
-        <span style={{ fontSize: '0.7rem', color: '#ff4d6d', maxWidth: 120, textAlign: 'center' }}>
+        <span className="max-w-[120px] text-center text-[0.7rem] text-destructive">
           {error}
         </span>
       )}

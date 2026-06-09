@@ -14,7 +14,16 @@ import {
   ClipboardList,
   Settings,
 } from 'lucide-react';
-import styles from './header.module.css';
+import { buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export const Header: React.FC = () => {
   const { user, loading } = useAuth();
@@ -37,98 +46,102 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className={`${styles.header} glass-card`}>
-      <div className={styles.container}>
-        <Link href="/" className={styles.logo}>
-          <span className="text-neon-primary">Quiz</span>
-          <span className="text-neon-accent">eum</span>
+    <header className="sticky top-0 z-[90] border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
+      <div className="flex items-center justify-between gap-5 px-4 py-3">
+        <Link href="/" className="flex items-center text-xl font-extrabold tracking-tight">
+          <span>Quiz</span>
+          <span>eum</span>
         </Link>
 
-        <div className={styles.actions}>
+        <div className="flex items-center gap-4">
           {loading ? (
-            <div className={styles.skeletonAvatar} />
+            <Skeleton className="size-8 rounded-full" />
           ) : user ? (
-            <div className={styles.userWrapper}>
+            <div className="flex items-center gap-4">
               <Link
                 href="/quiz/create"
-                className={styles.createBtn}
+                className="flex items-center justify-center text-muted-foreground transition-colors hover:text-primary"
                 data-testid="mobile-header-create-btn"
                 data-analytics="nav-create-quiz"
               >
                 <PlusCircle size={20} />
               </Link>
 
-              <div className={styles.profileContainer}>
-                {popupOpen && (
-                  <>
-                    <div className={styles.backdrop} onClick={() => setPopupOpen(false)} />
-                    <div
-                      className={`${styles.popupMenu} glass-card animate-fade-in`}
-                      data-testid="header-profile-popup"
-                    >
+              <DropdownMenu open={popupOpen} onOpenChange={setPopupOpen}>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="flex items-center rounded-full"
+                      data-testid="header-profile-btn"
+                    />
+                  }
+                >
+                  <Avatar size="sm" className="size-8">
+                    <AvatarImage src={user.avatarUrl} alt={user.displayName} />
+                    <AvatarFallback>{user.displayName.slice(0, 1)}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={12}
+                  className="w-[200px]"
+                  data-testid="header-profile-popup"
+                >
+                  <DropdownMenuItem
+                    render={
                       <Link
                         href="/lists"
-                        className={styles.popupItem}
                         onClick={() => setPopupOpen(false)}
                         data-testid="header-nav-lists"
-                      >
-                        <List size={18} />
-                        <span>リスト</span>
-                      </Link>
+                      />
+                    }
+                  >
+                    <List size={18} />
+                    <span>リスト</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
                       <Link
                         href="/my-quiz"
-                        className={styles.popupItem}
                         onClick={() => setPopupOpen(false)}
                         data-testid="header-nav-my-quiz"
-                      >
-                        <ClipboardList size={18} />
-                        <span>マイクイズ</span>
-                      </Link>
-                      <Link
-                        href={`/profile/${user.id}`}
-                        className={styles.popupItem}
-                        onClick={() => setPopupOpen(false)}
-                      >
-                        <UserIcon size={18} />
-                        <span>マイページ</span>
-                      </Link>
+                      />
+                    }
+                  >
+                    <ClipboardList size={18} />
+                    <span>マイクイズ</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
+                      <Link href={`/profile/${user.id}`} onClick={() => setPopupOpen(false)} />
+                    }
+                  >
+                    <UserIcon size={18} />
+                    <span>マイページ</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
                       <Link
                         href="/settings"
-                        className={styles.popupItem}
                         onClick={() => setPopupOpen(false)}
                         data-testid="header-settings-link"
-                      >
-                        <Settings size={18} />
-                        <span>設定</span>
-                      </Link>
-                      <hr className={styles.divider} />
-                      <button
-                        onClick={handleLogout}
-                        className={`${styles.popupItem} ${styles.logoutItem}`}
-                        data-analytics="auth-logout"
-                      >
-                        <LogOut size={18} />
-                        <span>ログアウト</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className={styles.profileBtn}
-                  onClick={() => setPopupOpen(!popupOpen)}
-                  data-testid="header-profile-btn"
-                >
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.displayName}
-                    className={styles.avatar}
-                  />
-                </button>
-              </div>
+                      />
+                    }
+                  >
+                    <Settings size={18} />
+                    <span>設定</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={handleLogout} data-analytics="auth-logout">
+                    <LogOut size={18} />
+                    <span>ログアウト</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : (
-            <Link href="/login" className={`${styles.loginBtn} btn btn-accent`} data-analytics="nav-login">
+            <Link href="/login" className={buttonVariants({ size: 'sm' })} data-analytics="nav-login">
               ログイン
             </Link>
           )}

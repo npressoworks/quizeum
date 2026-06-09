@@ -1,5 +1,6 @@
 import React from 'react';
-import styles from './detail-skeleton.module.css';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface DetailSkeletonProps {
   'data-testid'?: string;
@@ -7,38 +8,31 @@ interface DetailSkeletonProps {
 
 export function DetailSkeleton({ 'data-testid': testId = 'quiz-detail-skeleton' }: DetailSkeletonProps) {
   return (
-    <div className={styles.skeletonCard} data-testid={testId}>
-      {/* ヘッダー・タイトル部分 */}
-      <div className={styles.header}>
-        <div className={`${styles.genre} ${styles.pulse}`} />
-        <div className={`${styles.title} ${styles.pulse}`} />
-      </div>
-
-      {/* メタバッジ部分 */}
-      <div className={styles.badges}>
-        <div className={`${styles.badge} ${styles.pulse}`} />
-        <div className={`${styles.badge} ${styles.pulse}`} />
-        <div className={`${styles.badge} ${styles.pulse}`} />
-      </div>
-
-      {/* サムネイル画像プレースホルダー */}
-      <div className={`${styles.thumbnail} ${styles.pulse}`} />
-
-      {/* 作者情報部分 */}
-      <div className={styles.authorSection}>
-        <div className={`${styles.avatar} ${styles.pulse}`} />
-        <div className={styles.authorInfo}>
-          <div className={`${styles.lineShort} ${styles.pulse}`} />
-          <div className={`${styles.lineMedium} ${styles.pulse}`} />
+    <Card className="w-full" data-testid={testId}>
+      <CardContent className="flex flex-col gap-4 pt-6">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-8 w-3/4" />
         </div>
-      </div>
-
-      {/* 説明文部分 */}
-      <div className={styles.description}>
-        <div className={`${styles.lineFull} ${styles.pulse}`} />
-        <div className={`${styles.lineFull} ${styles.pulse}`} />
-        <div className={`${styles.lineMedium} ${styles.pulse}`} />
-      </div>
-    </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-6 w-20" />
+          <Skeleton className="h-6 w-20" />
+          <Skeleton className="h-6 w-20" />
+        </div>
+        <Skeleton className="aspect-video w-full rounded-lg" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-full" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

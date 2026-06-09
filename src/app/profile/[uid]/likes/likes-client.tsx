@@ -6,22 +6,24 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { getSentReactions, getReceivedReactions, Reaction } from '@/services/reaction';
 import { getUser } from '@/services/user';
-import { Heart, ExternalLink, MessageSquare } from 'lucide-react';
+import { Heart, ExternalLink } from 'lucide-react';
 import { User } from '@/types';
 import { LikesSkeleton } from '@/components/profile/likes-skeleton';
-import styles from './likes.module.css';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export function LikesClient() {
   const { uid } = useParams() as { uid: string };
-  const { user: currentUser, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [sentList, setSentList] = useState<Reaction[]>([]);
   const [receivedList, setReceivedList] = useState<Reaction[]>([]);
   const [activeTab, setActiveTab] = useState<'sent' | 'received'>('sent');
   const [loading, setLoading] = useState(true);
-
-  const isMyProfile = currentUser?.id === uid;
 
   useEffect(() => {
     async function loadLikesData() {
@@ -59,10 +61,12 @@ export function LikesClient() {
 
   if (!profileUser) {
     return (
-      <div className={styles.errorContainer}>
-        <h2>ユーザーが見つかりません</h2>
-        <p>お探しのユーザーのリアクション履歴は存在しません。</p>
-        <Link href="/" className="btn btn-primary">ホームに戻る</Link>
+      <div className="flex flex-col items-center gap-4 py-16 text-center">
+        <h2 className="text-xl font-semibold">ユーザーが見つかりません</h2>
+        <p className="text-muted-foreground">お探しのユーザーのリアクション履歴は存在しません。</p>
+        <Link href="/" className={cn(buttonVariants())}>
+          ホームに戻る
+        </Link>
       </div>
     );
   }
@@ -70,60 +74,51 @@ export function LikesClient() {
   const currentList = activeTab === 'sent' ? sentList : receivedList;
 
   return (
-    <div className={`${styles.likesCard} glass-card animate-fade-in`} data-testid="likes-page-container">
-          <div className={styles.cardHeader}>
-            <div className={styles.titleWrapper}>
-              <Heart size={24} className={styles.heartIcon} />
-              <h1 className={styles.title}>リアクション履歴</h1>
-            </div>
-          </div>
+    <Card data-testid="likes-page-container">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Heart size={24} className="text-pink-500" />
+          リアクション履歴
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'sent' | 'received')}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="sent">送ったリアクション ({sentList.length})</TabsTrigger>
+            <TabsTrigger value="received">受け取ったリアクション ({receivedList.length})</TabsTrigger>
+          </TabsList>
 
-          {/* Tabs */}
-          <div className={styles.tabsContainer}>
-            <button
-              className={`${styles.tabButton} ${activeTab === 'sent' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('sent')}
-            >
-              <span>送ったリアクション ({sentList.length})</span>
-            </button>
-            <button
-              className={`${styles.tabButton} ${activeTab === 'received' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('received')}
-            >
-              <span>受け取ったリアクション ({receivedList.length})</span>
-            </button>
-          </div>
-
-          {/* List */}
-          <div className={styles.listContainer}>
+          <TabsContent value={activeTab}>
             {currentList.length === 0 ? (
-              <div className={styles.emptyState}>
-                <Heart size={40} className={styles.emptyIcon} />
+              <div className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
+                <Heart size={40} />
                 <p>
-                  {activeTab === 'sent' 
-                    ? '送ったリアクション（お礼）はまだありません。' 
+                  {activeTab === 'sent'
+                    ? '送ったリアクション（お礼）はまだありません。'
                     : '獲得したリアクション（感謝）はまだありません。'}
                 </p>
               </div>
             ) : (
-              <div className={styles.reactionList}>
+              <div className="flex flex-col gap-3">
                 {currentList.map((item) => (
-                  <Link 
-                    key={item.id} 
+                  <Link
+                    key={item.id}
                     href={`/quiz/${item.quizId}`}
-                    className={styles.reactionCard}
+                    className={cn(
+                      'flex items-start justify-between gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50'
+                    )}
                   >
-                    <div className={styles.cardContent}>
-                      <div className={styles.quizInfo}>
-                        <span className={styles.badge}>QUIZ</span>
-                        <h3 className={styles.quizTitle}>{item.quizTitle}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Badge variant="outline">QUIZ</Badge>
+                        <h3 className="truncate font-semibold">{item.quizTitle}</h3>
                       </div>
-                      <p className={styles.message}>
-                        {activeTab === 'sent' 
-                          ? 'このクイズをプレイし、作成者に感謝のリアクションを送信しました。' 
+                      <p className="text-sm text-muted-foreground">
+                        {activeTab === 'sent'
+                          ? 'このクイズをプレイし、作成者に感謝のリアクションを送信しました。'
                           : 'プレイヤーがこのクイズをプレイし、あなたに感謝のリアクションを送ってくれました！'}
                       </p>
-                      <span className={styles.timestamp}>
+                      <span className="mt-2 block text-xs text-muted-foreground">
                         {new Date(item.createdAt).toLocaleDateString('ja-JP', {
                           year: 'numeric',
                           month: 'long',
@@ -133,12 +128,14 @@ export function LikesClient() {
                         })}
                       </span>
                     </div>
-                    <ExternalLink size={18} className={styles.linkIcon} />
+                    <ExternalLink size={18} className="shrink-0 text-muted-foreground" />
                   </Link>
                 ))}
               </div>
             )}
-          </div>
-    </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

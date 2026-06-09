@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getFormatDescription, getFormatIcon, getFormatLabel } from '@/lib/quiz-format-labels';
-import styles from './format-label.module.css';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface FormatLabelProps {
   format: string;
@@ -53,23 +54,28 @@ export function FormatLabel({ format, className, testId }: FormatLabelProps) {
     <>
       <span
         ref={rootRef}
-        className={`${styles.root} ${className ?? ''}`}
-        data-testid={testId}
-        tabIndex={0}
-        aria-label={`${label}: ${description}`}
+        className="inline-flex"
         onMouseEnter={showTooltip}
         onMouseLeave={hideTooltip}
         onFocus={showTooltip}
         onBlur={hideTooltip}
       >
-        {icon} {label}
+        <Badge
+          variant="outline"
+          className={cn('cursor-help', className)}
+          data-testid={testId}
+          tabIndex={0}
+          aria-label={`${label}: ${description}`}
+        >
+          {icon} {label}
+        </Badge>
       </span>
       {open &&
         createPortal(
           <span
             role="tooltip"
-            className={styles.tooltip}
-            style={{ top: position.top, left: position.left }}
+            className="pointer-events-none fixed z-50 max-w-xs -translate-x-1/2 -translate-y-full rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md"
+            style={{ top: position.top - 8, left: position.left }}
           >
             {description}
           </span>,

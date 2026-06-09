@@ -11,7 +11,8 @@ import { MyQuizSearchSection } from '@/components/my-quiz/my-quiz-search-section
 import { MyQuizFilteredTable } from '@/components/my-quiz/my-quiz-filtered-table';
 import { MyQuizPlaySettings } from '@/components/my-quiz/my-quiz-play-settings';
 import { MyQuizPreviewBar } from '@/components/my-quiz/my-quiz-preview-bar';
-import myQuizStyles from '@/components/my-quiz/my-quiz.module.css';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 export function MyQuizClient() {
   const router = useRouter();
@@ -32,14 +33,16 @@ export function MyQuizClient() {
   }
 
   return (
-    <div className={myQuizStyles.stack} data-testid="my-quiz-content">
+    <div className="flex flex-col gap-5" data-testid="my-quiz-content">
       {pool.error && (
-        <div role="alert" data-testid="my-quiz-pool-error">
-          <p>{pool.error}</p>
-          <button type="button" className="btn btn-secondary" onClick={() => pool.refetch()}>
-            再試行
-          </button>
-        </div>
+        <Alert variant="destructive" data-testid="my-quiz-pool-error">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <p>{pool.error}</p>
+            <Button type="button" variant="secondary" size="sm" onClick={() => pool.refetch()}>
+              再試行
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       <MyQuizSourcePanel flags={pool.sourceFlags} onChange={pool.setSourceFlags} />

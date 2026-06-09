@@ -17,7 +17,6 @@ import { StatsSkeleton } from '@/components/charts/stats-skeleton';
 import { ChartsSkeleton } from '@/components/charts/charts-skeleton';
 import { QuizListSkeleton } from '@/components/quiz/quiz-list-skeleton';
 import { FeedbackSkeleton } from '@/components/quiz/feedback-skeleton';
-import styles from './dashboard.module.css';
 
 export function CreatorDashboardClient() {
   const router = useRouter();
@@ -100,7 +99,7 @@ export function CreatorDashboardClient() {
         <ChartsSection />
       )}
 
-      <div className={styles.dashboardGrid}>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {quizzes === null ? (
           <QuizListSkeleton data-testid="quiz-list-skeleton" />
         ) : (

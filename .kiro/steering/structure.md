@@ -52,9 +52,9 @@
 **Example**: `/src/hooks/useBookmarkFeed.ts`, `/src/hooks/useQuestionAttachSearch.ts`。
 
 ### スタイル定義 (Styles)
-**Location**: `/src/app/globals.css`（グローバル）、`/src/styles/`（共有トークン）  
-**Purpose**: グローバルスタイルとテーマの CSS 変数。コンポーネント固有スタイルは CSS Modules を各コンポーネント隣に配置。  
-**Example**: `/src/app/globals.css`, `/src/styles/variables.css`。
+**Location**: `/src/app/globals.css`（Tailwind + shadcn テーマ）、`/src/styles/variables.css`（移行期 legacy トークン）、`/src/components/ui/`（shadcn プリミティブ）、各コンポーネント隣の CSS Modules（未移行ドメイン）  
+**Purpose**: `globals.css` が Tailwind CSS v4 と shadcn CSS 変数の正。`variables.css` は未移行 CSS Modules 向け legacy トークン（全スライス完了後に削除予定）。新規 UI は shadcn プリミティブ + Tailwind。未移行コンポーネントは CSS Modules を継続利用。  
+**Example**: `/src/app/globals.css`, `/src/lib/utils.ts`（`cn()`）, `/src/components/ui/button.tsx`, `/src/styles/variables.css`。
 
 ### テスト (Tests)
 **Location**: `/tests/`（Jest）、`/e2e/`（Playwright）  

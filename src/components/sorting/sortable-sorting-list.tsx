@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-import styles from './sortable-sorting-list.module.css';
+import { cn } from '@/lib/utils';
 
 export type SortableSortingItem = {
   id: string;
@@ -60,19 +60,25 @@ function SortableRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`${styles.item} ${isDragging ? styles.itemDragging : ''} ${itemClassName ?? ''}`}
+      className={cn(
+        'flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3.5 py-3 transition-[box-shadow,border-color]',
+        isDragging && 'z-1 border-primary opacity-85 shadow-lg',
+        itemClassName
+      )}
     >
       <button
         type="button"
-        className={styles.dragHandle}
+        className="flex shrink-0 cursor-grab touch-none items-center justify-center rounded-sm border-none bg-transparent p-1 text-muted-foreground hover:bg-primary/10 hover:text-foreground active:cursor-grabbing"
         aria-label={`${index + 1}番目の要素を並び替え`}
         {...attributes}
         {...listeners}
       >
         <GripVertical size={18} aria-hidden />
       </button>
-      {showIndex && <span className={styles.itemIndex}>{index + 1}</span>}
-      <div className={styles.itemBody}>{children}</div>
+      {showIndex && (
+        <span className="min-w-6 shrink-0 text-sm font-bold text-primary">{index + 1}</span>
+      )}
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -104,7 +110,7 @@ export function SortableSortingList({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        <div className={`${styles.list} ${listClassName ?? ''}`}>
+        <div className={cn('flex flex-col gap-2.5', listClassName)}>
           {items.map((item, index) => (
             <SortableRow
               key={item.id}

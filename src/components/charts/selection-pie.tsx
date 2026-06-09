@@ -1,12 +1,11 @@
 'use client';
 
 import React from 'react';
-
-interface PieSegment {
-  label: string;
-  percentage: number;
-  color: string;
-}
+import { Cell, Pie, PieChart } from 'recharts';
+import {
+  ChartContainer,
+  type ChartConfig,
+} from '@/components/ui/chart';
 
 interface SelectionPieProps {
   data: {
@@ -15,95 +14,89 @@ interface SelectionPieProps {
   }[];
 }
 
-const COLORS = [
-  '#9d4edd', // primary
-  '#00f5d4', // accent
-  '#ff0054', // danger
-  '#ffbd00', // warning
-  '#00bbf9', // blue
+const PIE_COLORS = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
 ];
 
 export const SelectionPie: React.FC<SelectionPieProps> = ({ data }) => {
   const total = data.reduce((sum, item) => sum + item.count, 0);
-  
+
   if (total === 0) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '180px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+      <div className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
         解答データがまだありません
       </div>
     );
   }
 
-  // 割合と色を割り当て
-  let accumulatedPercent = 0;
-  const segments: PieSegment[] = data.map((item, idx) => {
-    const percent = Math.round((item.count / total) * 100);
-    const color = COLORS[idx % COLORS.length];
-    const segment = {
-      label: item.label,
-      percentage: percent,
-      color,
-    };
-    accumulatedPercent += percent;
-    return segment;
-  });
+  const chartData = data.map((item, idx) => ({
+    name: item.label,
+    value: item.count,
+    segmentKey: `segment-${idx}`,
+  }));
 
-  // conic-gradient のスタイリングを動的生成
-  let gradientParts: string[] = [];
-  let currentAngle = 0;
-  
-  segments.forEach((seg) => {
-    const nextAngle = currentAngle + (seg.percentage / 100) * 360;
-    gradientParts.push(`${seg.color} ${currentAngle}deg ${nextAngle}deg`);
-    currentAngle = nextAngle;
-  });
+  const chartConfig = Object.fromEntries(
+    chartData.map((item, idx) => [
+      item.segmentKey,
+      {
+        label: item.name,
+        color: PIE_COLORS[idx % PIE_COLORS.length],
+      },
+    ]),
+  ) satisfies ChartConfig;
 
-  const chartStyle = {
-    width: '140px',
-    height: '140px',
-    borderRadius: '50%',
-    background: `conic-gradient(${gradientParts.join(', ')})`,
-    position: 'relative' as const,
-    boxShadow: '0 0 20px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  };
-
-  // ドーナツチャートにするための内円
-  const innerCircleStyle = {
-    width: '75px',
-    height: '75px',
-    borderRadius: '50%',
-    background: '#151126', // bg-surface-solid と同等
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: 'inset 0 0 8px rgba(0, 0, 0, 0.6)',
-  };
+  const segments = data.map((item, idx) => ({
+    label: item.label,
+    percentage: Math.round((item.count / total) * 100),
+    color: PIE_COLORS[idx % PIE_COLORS.length],
+  }));
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '10px 0' }}>
-      {/* ドーナツチャート */}
-      <div style={chartStyle}>
-        <div style={innerCircleStyle}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>合計回答</span>
-          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>{total}</span>
+    <div className="flex items-center gap-6 py-2">
+      <div className="relative shrink-0">
+        <ChartContainer config={chartConfig} className="mx-0 aspect-square h-[140px] w-[140px]">
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={38}
+              outerRadius={65}
+              strokeWidth={2}
+              stroke="var(--background)"
+            >
+              {chartData.map((entry) => (
+                <Cell key={entry.segmentKey} fill={`var(--color-${entry.segmentKey})`} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ChartContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xs font-medium text-muted-foreground">合計回答</span>
+          <span className="text-lg font-bold">{total}</span>
         </div>
       </div>
 
-      {/* 凡例リスト */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div className="flex flex-1 flex-col gap-2">
         {segments.map((seg, idx) => (
-          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
-              <span style={{ color: 'var(--text-main)', fontWeight: 500 }} title={seg.label}>
+          <div
+            key={idx}
+            className="flex items-center justify-between text-sm"
+          >
+            <div className="flex max-w-[140px] items-center gap-2 overflow-hidden">
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: seg.color }}
+              />
+              <span className="truncate font-medium" title={seg.label}>
                 {seg.label}
               </span>
             </div>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 700, marginLeft: '8px' }}>{seg.percentage}%</span>
+            <span className="ml-2 font-bold text-muted-foreground">{seg.percentage}%</span>
           </div>
         ))}
       </div>

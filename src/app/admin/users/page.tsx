@@ -1,25 +1,33 @@
 /**
  * システム管理者向けユーザー評判スコアリセット画面
- *
- * 機能:
- * - 特定のUIDに基づくユーザーの検索
- * - ユーザー詳細情報の表示（表示名、アバター、評判スコア、ティアー、退会ステータス）
- * - 評判スコア（0）およびモデレーションティアー（newcomer）の手動緊急リセット
- * - 10文字以上のリセット理由バリデーション
- * - 管理者ロール (admin) によるアクセス制限
- *
- * Requirements: 1.1, 1.2, 2.1, 2.2, 3.1, 3.3, 3.4, 4.2
- * Boundary: AdminUsersUI
  */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { getUserProfile } from '@/services/user';
 import { User } from '@/types';
-import styles from './users.module.css';
+import { ConfirmActionDialog } from '@/components/admin/confirm-action-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+
+type PendingAction = 'reset' | 'ban' | 'unban' | null;
 
 export default function AdminUsersPage() {
   const { user, firebaseUser, loading } = useAuth();
@@ -35,11 +43,11 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
-  // クライアントサイドアクセスガード (Super Adminのみ)
   const isAuthorized =
     (user?.moderationTier as string) === 'admin' ||
-    (user as any)?.role === 'admin';
+    (user as { role?: string })?.role === 'admin';
 
   useEffect(() => {
     if (!loading && !user) {
@@ -51,7 +59,6 @@ export default function AdminUsersPage() {
     }
   }, [user, loading, isAuthorized, router]);
 
-  // ユーザー検索処理
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchUid.trim()) return;
@@ -76,14 +83,8 @@ export default function AdminUsersPage() {
     }
   };
 
-  // 評判スコア＆ティアーのリセット処理
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeReset = async () => {
     if (!searchedUser || !firebaseUser) return;
-    if (reason.length < 10) {
-      setErrorMessage('リセット理由は10文字以上で入力してください。');
-      return;
-    }
 
     setActionLoading(true);
     setSuccessMessage(null);
@@ -95,11 +96,11 @@ export default function AdminUsersPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           targetUid: searchedUser.id,
-          reason: reason,
+          reason,
         }),
       });
 
@@ -111,26 +112,21 @@ export default function AdminUsersPage() {
 
       setSuccessMessage('ユーザーの信頼スコアと権限ティアーをリセットしました。');
       setReason('');
-
-      // 最新のユーザー情報を再取得
       const updatedUser = await getUserProfile(searchedUser.id);
       setSearchedUser(updatedUser);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('リセットエラー:', err);
-      setErrorMessage(err.message || 'リセット処理中にエラーが発生しました。');
+      setErrorMessage(
+        err instanceof Error ? err.message : 'リセット処理中にエラーが発生しました。',
+      );
     } finally {
       setActionLoading(false);
+      setPendingAction(null);
     }
   };
 
-  // BAN 処理
-  const handleBan = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeBan = async () => {
     if (!searchedUser || !firebaseUser) return;
-    if (banReason.length < 10) {
-      setErrorMessage('BAN理由は10文字以上で入力してください。');
-      return;
-    }
 
     setActionLoading(true);
     setSuccessMessage(null);
@@ -142,7 +138,7 @@ export default function AdminUsersPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           targetUid: searchedUser.id,
@@ -158,24 +154,21 @@ export default function AdminUsersPage() {
 
       setSuccessMessage('ユーザーアカウントを停止（BAN）しました。');
       setBanReason('');
-
-      // 最新のユーザー情報を再取得
       const updatedUser = await getUserProfile(searchedUser.id);
       setSearchedUser(updatedUser);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('BANエラー:', err);
-      setErrorMessage(err.message || 'BAN処理中にエラーが発生しました。');
+      setErrorMessage(
+        err instanceof Error ? err.message : 'BAN処理中にエラーが発生しました。',
+      );
     } finally {
       setActionLoading(false);
+      setPendingAction(null);
     }
   };
 
-  // UNBAN 処理
-  const handleUnban = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeUnban = async () => {
     if (!searchedUser || !firebaseUser) return;
-
-    if (!confirm('このユーザーのBANを解除しますか？')) return;
 
     setActionLoading(true);
     setSuccessMessage(null);
@@ -187,7 +180,7 @@ export default function AdminUsersPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           targetUid: searchedUser.id,
@@ -201,19 +194,45 @@ export default function AdminUsersPage() {
       }
 
       setSuccessMessage('ユーザーアカウントの停止（BAN）を解除しました。');
-
-      // 最新のユーザー情報を再取得
       const updatedUser = await getUserProfile(searchedUser.id);
       setSearchedUser(updatedUser);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('UNBANエラー:', err);
-      setErrorMessage(err.message || 'BAN解除処理中にエラーが発生しました。');
+      setErrorMessage(
+        err instanceof Error ? err.message : 'BAN解除処理中にエラーが発生しました。',
+      );
     } finally {
       setActionLoading(false);
+      setPendingAction(null);
     }
   };
 
-  // モデレーターのティアーラベル日本語表記
+  const handleResetRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchedUser) return;
+    if (reason.length < 10) {
+      setErrorMessage('リセット理由は10文字以上で入力してください。');
+      return;
+    }
+    setPendingAction('reset');
+  };
+
+  const handleBanRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchedUser) return;
+    if (banReason.length < 10) {
+      setErrorMessage('BAN理由は10文字以上で入力してください。');
+      return;
+    }
+    setPendingAction('ban');
+  };
+
+  const handleConfirmAction = () => {
+    if (pendingAction === 'reset') void executeReset();
+    else if (pendingAction === 'ban') void executeBan();
+    else if (pendingAction === 'unban') void executeUnban();
+  };
+
   const getTierLabel = (tier: string) => {
     const labels: Record<string, string> = {
       newcomer: 'Newcomer (新規)',
@@ -225,238 +244,284 @@ export default function AdminUsersPage() {
     return labels[tier] ?? tier;
   };
 
-  // 全体ローディング中
+  const confirmDialogProps = {
+    reset: {
+      title: '評判スコア・権限ティアーをリセットしますか？',
+      description:
+        '対象ユーザーの信頼スコアは 0 に、モデレーター権限ティアーは Newcomer に強制リセットされます。この操作は監査ログに記録されます。',
+      confirmLabel: 'リセットを実行',
+    },
+    ban: {
+      title: 'このユーザーをBANしますか？',
+      description:
+        '対象ユーザーは即座に強制ログアウトされ、すべての機能へのアクセスが遮断されます。この操作は監査ログに記録されます。',
+      confirmLabel: 'BANを実行',
+    },
+    unban: {
+      title: 'BANを解除しますか？',
+      description: 'このユーザーのアカウント停止を解除し、通常のアクセスを復帰させます。',
+      confirmLabel: 'BANを解除',
+    },
+  } as const;
+
   if (loading) {
     return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner} />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="size-8 animate-spin" />
         <p>認証情報を確認しています...</p>
       </div>
     );
   }
 
-  // 権限なし (ガード)
   if (!isAuthorized) return null;
 
   return (
-    <div className={styles.pageContainer}>
-      {/* 相互ナビゲーションリンク (Req 4.2) */}
-      <div className={styles.navHeader}>
-        <Link href="/admin/moderation" className={styles.backLink}>
+    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+      <div>
+        <Link
+          href="/admin/moderation"
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
           ← モデレーション審査キューに戻る
         </Link>
       </div>
 
-      {/* ページヘッダー */}
-      <header className={styles.pageHeader}>
-        <div className={styles.headerBadge}>🛡️ 特権管理者専用</div>
-        <h1 className={styles.pageTitle}>ユーザー評判管理</h1>
-        <p className={styles.pageSubtitle}>
+      <header className="space-y-2">
+        <Badge variant="secondary">🛡️ 特権管理者専用</Badge>
+        <h1 className="text-2xl font-bold">ユーザー評判管理</h1>
+        <p className="text-sm text-muted-foreground">
           不適切行為を行ったユーザーの信頼スコア（reputationScore）および権限ティアー（moderationTier）を強制的に初期値へリセットします。
         </p>
       </header>
 
-      {/* アラート表示 */}
       {successMessage && (
-        <div className={styles.alertSuccess}>
-          <span>✅</span> {successMessage}
-        </div>
+        <Alert>
+          <AlertDescription>✅ {successMessage}</AlertDescription>
+        </Alert>
       )}
       {errorMessage && (
-        <div className={styles.alertError}>
-          <span>⚠️</span> {errorMessage}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>⚠️ {errorMessage}</AlertDescription>
+        </Alert>
       )}
 
-      {/* 検索セクション (Req 2.1) */}
-      <section className={styles.searchSection}>
-        <h2 className={styles.sectionTitle}>ユーザー検索</h2>
-        <form onSubmit={handleSearch} className={styles.searchForm}>
-          <input
-            type="text"
-            placeholder="ユーザーUIDを入力..."
-            value={searchUid}
-            onChange={(e) => setSearchUid(e.target.value)}
-            disabled={fetchLoading || actionLoading}
-            className={styles.searchInput}
-            required
-          />
-          <button
-            type="submit"
-            disabled={fetchLoading || actionLoading}
-            className={styles.searchBtn}
-          >
-            {fetchLoading ? <span className={styles.btnSpinner} /> : '検索'}
-          </button>
-        </form>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">ユーザー検索</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="ユーザーUIDを入力..."
+              value={searchUid}
+              onChange={(e) => setSearchUid(e.target.value)}
+              disabled={fetchLoading || actionLoading}
+              required
+              className="flex-1"
+            />
+            <Button type="submit" disabled={fetchLoading || actionLoading}>
+              {fetchLoading ? <Loader2 className="size-4 animate-spin" /> : '検索'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      {/* 検索結果およびリセットフォーム (Req 2.1, 3.1, 3.2, 3.3) */}
       {searchedUser && (
-        <div className={styles.resultContainer}>
-          <section className={styles.userCard}>
-            <div className={styles.cardHeader}>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-start gap-4">
               <img
-                src={searchedUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${searchedUser.id}`}
+                src={
+                  searchedUser.avatarUrl ||
+                  `https://api.dicebear.com/7.x/bottts/svg?seed=${searchedUser.id}`
+                }
                 alt={searchedUser.displayName}
-                className={styles.avatar}
+                className="size-16 rounded-full border"
               />
-              <div className={styles.userInfo}>
-                <h3 className={styles.userName}>{searchedUser.displayName}</h3>
-                <p className={styles.userUid}>UID: {searchedUser.id}</p>
-                <div className={styles.userStatus}>
-                  {searchedUser.isBanned ? (
-                    <span className={`${styles.statusBadge} ${styles.banned}`}>BAN済み</span>
-                  ) : searchedUser.deleteStatus === 'delete_pending' ? (
-                    <span className={`${styles.statusBadge} ${styles.deleted}`}>退会申請中</span>
-                  ) : (
-                    <span className={`${styles.statusBadge} ${styles.active}`}>アクティブ</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.cardBody}>
-              <div className={styles.metaGrid}>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>現在の信頼スコア</span>
-                  <span className={styles.metaValue}>{searchedUser.reputationScore ?? 0} pt</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>現在の権限ティアー</span>
-                  <span className={styles.metaValue}>{getTierLabel(searchedUser.moderationTier)}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>公開クイズ数</span>
-                  <span className={styles.metaValue}>{searchedUser.createdQuizzesCount ?? 0}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>総プレイ回数</span>
-                  <span className={styles.metaValue}>{searchedUser.totalPlayCount ?? 0}</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* リセット実行フォーム */}
-          <section className={styles.resetSection}>
-            <h2 className={styles.resetTitle}>評判スコア・権限ティアーの初期化</h2>
-            <p className={styles.resetWarning}>
-              【注意】この操作を実行すると、対象ユーザーの信頼スコアは <strong>0</strong> に、モデレーター権限ティアーは <strong>Newcomer</strong> に強制リセットされます。実行履歴は監査ログとして保存されます。
-            </p>
-            <form onSubmit={handleReset} className={styles.resetForm}>
-              <div className={styles.formGroup}>
-                <label htmlFor="resetReason" className={styles.formLabel}>
-                  リセット理由（10文字以上必須）
-                </label>
-                <textarea
-                  id="resetReason"
-                  placeholder="ユーザーに評判スコアをリセットするに至った具体的な理由を入力してください..."
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  disabled={actionLoading}
-                  className={styles.reasonTextarea}
-                  rows={4}
-                  required
-                />
-                <span className={styles.charCount}>
-                  現在の文字数: {reason.length} 文字
-                </span>
-              </div>
-              <button
-                type="submit"
-                id="execute-reset-btn"
-                disabled={actionLoading || reason.length < 10}
-                className={styles.resetBtn}
-              >
-                {actionLoading ? (
-                  <>
-                    <span className={styles.btnSpinner} /> 処理中...
-                  </>
+              <div className="flex-1 space-y-1">
+                <CardTitle>{searchedUser.displayName}</CardTitle>
+                <p className="font-mono text-xs text-muted-foreground">UID: {searchedUser.id}</p>
+                {searchedUser.isBanned ? (
+                  <Badge variant="destructive">BAN済み</Badge>
+                ) : searchedUser.deleteStatus === 'delete_pending' ? (
+                  <Badge variant="secondary">退会申請中</Badge>
                 ) : (
-                  '🚨 評判と権限を緊急リセットする'
+                  <Badge variant="outline">アクティブ</Badge>
                 )}
-              </button>
-            </form>
-          </section>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>項目</TableHead>
+                    <TableHead>値</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>現在の信頼スコア</TableCell>
+                    <TableCell className="font-medium">
+                      {searchedUser.reputationScore ?? 0} pt
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>現在の権限ティアー</TableCell>
+                    <TableCell>{getTierLabel(searchedUser.moderationTier)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>公開クイズ数</TableCell>
+                    <TableCell>{searchedUser.createdQuizzesCount ?? 0}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>総プレイ回数</TableCell>
+                    <TableCell>{searchedUser.totalPlayCount ?? 0}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
-          {/* BAN / UNBAN 実行フォーム */}
-          <section className={styles.banSection}>
-            {searchedUser.isBanned ? (
-              <>
-                <h2 className={styles.banTitle}>アカウント停止の解除 (UNBAN)</h2>
-                <p className={styles.banWarning}>
-                  現在このユーザーはアカウントが停止（BAN）されています。<br />
-                  理由: <strong>{searchedUser.bannedReason || '（理由なし）'}</strong>
-                </p>
-                <button
-                  type="button"
-                  id="execute-unban-btn"
-                  onClick={handleUnban}
-                  disabled={actionLoading}
-                  className={styles.unbanBtn}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">評判スコア・権限ティアーの初期化</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                【注意】この操作を実行すると、対象ユーザーの信頼スコアは <strong>0</strong>{' '}
+                に、モデレーター権限ティアーは <strong>Newcomer</strong>{' '}
+                に強制リセットされます。実行履歴は監査ログとして保存されます。
+              </p>
+              <form onSubmit={handleResetRequest} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="resetReason">リセット理由（10文字以上必須）</Label>
+                  <Textarea
+                    id="resetReason"
+                    placeholder="ユーザーに評判スコアをリセットするに至った具体的な理由を入力してください..."
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    disabled={actionLoading}
+                    rows={4}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">現在の文字数: {reason.length} 文字</p>
+                </div>
+                <Button
+                  type="submit"
+                  id="execute-reset-btn"
+                  variant="destructive"
+                  disabled={actionLoading || reason.length < 10}
                 >
-                  {actionLoading ? (
+                  {actionLoading && pendingAction === 'reset' ? (
                     <>
-                      <span className={styles.btnSpinner} /> 処理中...
+                      <Loader2 className="size-4 animate-spin" /> 処理中...
                     </>
                   ) : (
-                    '🟢 アカウント停止を解除する'
+                    '🚨 評判と権限を緊急リセットする'
                   )}
-                </button>
-              </>
-            ) : (
-              <>
-                <h2 className={styles.banTitle}>アカウントの停止 (BAN)</h2>
-                <p className={styles.banWarning}>
-                  【注意】この操作を実行すると、対象ユーザーはシステムから即座に強制ログアウトされ、すべての機能へのアクセスが遮断されます。実行履歴は監査ログとして保存されます。
-                </p>
-                <form onSubmit={handleBan} className={styles.banForm}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="banReason" className={styles.formLabel}>
-                      BAN理由（10文字以上必須）
-                    </label>
-                    <textarea
-                      id="banReason"
-                      placeholder="ユーザーアカウントを停止する具体的な理由を入力してください..."
-                      value={banReason}
-                      onChange={(e) => setBanReason(e.target.value)}
-                      disabled={actionLoading}
-                      className={styles.reasonTextarea}
-                      rows={4}
-                      required
-                    />
-                    <span className={styles.charCount}>
-                      現在の文字数: {banReason.length} 文字
-                    </span>
-                  </div>
-                  <button
-                    type="submit"
-                    id="execute-ban-btn"
-                    disabled={actionLoading || banReason.length < 10}
-                    className={styles.banBtn}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {searchedUser.isBanned
+                  ? 'アカウント停止の解除 (UNBAN)'
+                  : 'アカウントの停止 (BAN)'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {searchedUser.isBanned ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    現在このユーザーはアカウントが停止（BAN）されています。
+                    <br />
+                    理由: <strong>{searchedUser.bannedReason || '（理由なし）'}</strong>
+                  </p>
+                  <Button
+                    type="button"
+                    id="execute-unban-btn"
+                    onClick={() => setPendingAction('unban')}
+                    disabled={actionLoading}
                   >
-                    {actionLoading ? (
+                    {actionLoading && pendingAction === 'unban' ? (
                       <>
-                        <span className={styles.btnSpinner} /> 処理中...
+                        <Loader2 className="size-4 animate-spin" /> 処理中...
                       </>
                     ) : (
-                      '🚨 このユーザーをBANする'
+                      '🟢 アカウント停止を解除する'
                     )}
-                  </button>
-                </form>
-              </>
-            )}
-          </section>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    【注意】この操作を実行すると、対象ユーザーはシステムから即座に強制ログアウトされ、すべての機能へのアクセスが遮断されます。実行履歴は監査ログとして保存されます。
+                  </p>
+                  <form onSubmit={handleBanRequest} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="banReason">BAN理由（10文字以上必須）</Label>
+                      <Textarea
+                        id="banReason"
+                        placeholder="ユーザーアカウントを停止する具体的な理由を入力してください..."
+                        value={banReason}
+                        onChange={(e) => setBanReason(e.target.value)}
+                        disabled={actionLoading}
+                        rows={4}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        現在の文字数: {banReason.length} 文字
+                      </p>
+                    </div>
+                    <Button
+                      type="submit"
+                      id="execute-ban-btn"
+                      variant="destructive"
+                      disabled={actionLoading || banReason.length < 10}
+                    >
+                      {actionLoading && pendingAction === 'ban' ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" /> 処理中...
+                        </>
+                      ) : (
+                        '🚨 このユーザーをBANする'
+                      )}
+                    </Button>
+                  </form>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* 検索したが見つからなかった場合 */}
       {hasSearched && !searchedUser && !fetchLoading && (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>🔍</div>
-          <p>指定されたUIDのユーザーが見つかりませんでした。入力されたUIDが正しいかご確認ください。</p>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+            <span className="text-3xl">🔍</span>
+            <p>
+              指定されたUIDのユーザーが見つかりませんでした。入力されたUIDが正しいかご確認ください。
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {pendingAction && (
+        <ConfirmActionDialog
+          open={!!pendingAction}
+          onOpenChange={(open) => {
+            if (!open && !actionLoading) setPendingAction(null);
+          }}
+          title={confirmDialogProps[pendingAction].title}
+          description={confirmDialogProps[pendingAction].description}
+          confirmLabel={confirmDialogProps[pendingAction].confirmLabel}
+          onConfirm={handleConfirmAction}
+          loading={actionLoading}
+        />
       )}
     </div>
   );

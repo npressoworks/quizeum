@@ -2,6 +2,8 @@
 
 import React, { useMemo } from 'react';
 import type { GenreMetadata } from '@/types';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 export interface GenreEditorSelectProps {
   value: string;
@@ -35,39 +37,36 @@ export function GenreEditorSelect({
     <div data-testid="genre-editor-select-wrap">
       {error && (
         <p
-          className="genre-editor-select-error"
+          className="genre-editor-select-error mb-2 text-sm text-destructive"
           role="alert"
-          style={{ color: 'var(--color-danger, #c62828)', fontSize: '0.85rem', marginBottom: 8 }}
         >
           {error}
           {onRetry && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onRetry}
-              style={{
-                marginLeft: 8,
-                padding: '4px 10px',
-                borderRadius: 6,
-                border: '1px solid var(--border-light)',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-              }}
+              className="ml-2 h-7 text-xs"
             >
               再試行
-            </button>
+            </Button>
           )}
         </p>
       )}
 
       {!error && !loading && genres.length === 0 && (
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 8 }}>
+        <p className="mb-2 text-sm text-muted-foreground">
           選択可能なジャンルがありません。新しいジャンルを申請してください。
         </p>
       )}
 
       <select
         data-testid="genre-editor-select"
-        className={selectClassName}
+        className={cn(
+          'w-full rounded-md border border-input bg-background px-4 py-3.5 text-base text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50',
+          selectClassName
+        )}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={selectDisabled}

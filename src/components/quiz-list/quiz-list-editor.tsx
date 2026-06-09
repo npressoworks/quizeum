@@ -18,7 +18,9 @@ import { QuizList, Quiz, QuizListType, resolveListType } from '@/types';
 import { ListTypeSelector } from '@/components/quiz-list/list-type-selector';
 import { QuestionListAttachPanel } from '@/components/quiz-list/question-list-attach-panel';
 import { ListEditorSkeleton } from '@/components/quiz-list/list-skeleton';
-import styles from '@/app/list/create/edit.module.css';
+import { listEditorClasses as styles } from '@/components/quiz-list/list-editor-classes';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Save,
   Download,
@@ -333,17 +335,14 @@ export const QuizListEditor: React.FC<QuizListEditorProps> = ({ listId, initialL
 
           <div className={styles.toggleRow}>
             <div>
-              <span style={{ fontWeight: 600, display: 'block', fontSize: '0.9rem' }}>一般公開する</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ONにすると全プレイヤーに公開されます。</span>
+              <Label className="mb-0 block text-sm font-semibold">一般公開する</Label>
+              <span className="text-xs text-muted-foreground">ONにすると全プレイヤーに公開されます。</span>
             </div>
-            <label className={styles.toggleSwitch}>
-              <input
-                type="checkbox"
-                checked={isPublished}
-                onChange={(e) => setIsPublished(e.target.checked)}
-              />
-              <span className={styles.slider}></span>
-            </label>
+            <Switch
+              checked={isPublished}
+              onCheckedChange={setIsPublished}
+              aria-label="一般公開する"
+            />
           </div>
 
           <div className={styles.formGroup} style={{ marginTop: 24 }}>

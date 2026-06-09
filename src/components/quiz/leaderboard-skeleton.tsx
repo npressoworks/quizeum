@@ -1,5 +1,6 @@
 import React from 'react';
-import styles from './leaderboard-skeleton.module.css';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface LeaderboardSkeletonProps {
   'data-testid'?: string;
@@ -7,33 +8,27 @@ interface LeaderboardSkeletonProps {
 
 export function LeaderboardSkeleton({ 'data-testid': testId = 'leaderboard-skeleton' }: LeaderboardSkeletonProps) {
   return (
-    <div className={styles.leaderboardSection} data-testid={testId}>
-      {/* タブバープレースホルダー */}
-      <div className={styles.tabBar}>
-        <div className={`${styles.tab} ${styles.pulse}`} />
-        <div className={`${styles.tab} ${styles.pulse}`} />
-      </div>
-
-      {/* テーブル枠プレースホルダー */}
-      <div className={styles.tableContainer}>
-        <div className={styles.tableHeader}>
-          <div className={`${styles.headerCell} ${styles.pulse}`} style={{ width: '10%' }} />
-          <div className={`${styles.headerCell} ${styles.pulse}`} style={{ width: '30%' }} />
-          <div className={`${styles.headerCell} ${styles.pulse}`} style={{ width: '20%' }} />
-          <div className={`${styles.headerCell} ${styles.pulse}`} style={{ width: '20%' }} />
-          <div className={`${styles.headerCell} ${styles.pulse}`} style={{ width: '20%' }} />
+    <Card className="w-full" data-testid={testId}>
+      <CardContent className="flex flex-col gap-4 pt-6">
+        <div className="flex gap-2">
+          <Skeleton className="h-10 flex-1 rounded-lg" />
+          <Skeleton className="h-10 flex-1 rounded-lg" />
         </div>
-        
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className={styles.tableRow}>
-            <div className={`${styles.cell} ${styles.pulse}`} style={{ width: '10%' }} />
-            <div className={`${styles.cell} ${styles.pulse}`} style={{ width: '30%' }} />
-            <div className={`${styles.cell} ${styles.pulse}`} style={{ width: '20%' }} />
-            <div className={`${styles.cell} ${styles.pulse}`} style={{ width: '20%' }} />
-            <div className={`${styles.cell} ${styles.pulse}`} style={{ width: '20%' }} />
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            {['10%', '30%', '20%', '20%', '20%'].map((w, i) => (
+              <Skeleton key={i} className="h-4" style={{ width: w }} />
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-2">
+              {['10%', '30%', '20%', '20%', '20%'].map((w, j) => (
+                <Skeleton key={j} className="h-8" style={{ width: w }} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

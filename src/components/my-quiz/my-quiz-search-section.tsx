@@ -25,8 +25,7 @@ import {
 import type { HomeFeedFilters } from '@/lib/home-feed-filters';
 import type { QuizFormat } from '@/lib/quiz-format';
 import type { GenreMetadata, TagMetadata } from '@/types';
-import styles from '@/app/page.module.css';
-import carouselStyles from '@/components/explore/explore-carousel.module.css';
+import { Button } from '@/components/ui/button';
 
 const DIFFICULTY_LABELS: Record<number, string> = {
   1: 'かんたん',
@@ -118,9 +117,12 @@ export function MyQuizSearchSection({
   };
 
   return (
-    <section className={styles.searchSection} data-testid="my-quiz-filters">
-      <div className={styles.searchBar}>
-        <div className={styles.searchFieldWrapper}>
+    <section
+      className="flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm max-md:p-4"
+      data-testid="my-quiz-filters"
+    >
+      <div className="flex gap-3 max-md:flex-col max-md:items-stretch">
+        <div className="relative flex flex-1 items-center">
           <UnifiedSearchField
             tagChips={filters.tagChips}
             onTagChipsChange={(tagChips) => patchFilters({ tagChips })}
@@ -133,15 +135,16 @@ export function MyQuizSearchSection({
             onClearAll={clearAll}
           />
         </div>
-        <button
+        <Button
           type="button"
-          className={styles.filterToggleBtn}
+          variant="outline"
+          className="shrink-0 max-md:justify-center"
           onClick={() => setShowFilters(!showFilters)}
           data-testid="my-quiz-filter-toggle"
         >
           <SlidersHorizontal size={18} />
           フィルター
-        </button>
+        </Button>
       </div>
 
       <ActiveFilterChips
@@ -154,33 +157,32 @@ export function MyQuizSearchSection({
       />
 
       {!errorWeekly && (loadingWeekly || quickTags.length > 0) && (
-        <div className={styles.quickSearch} data-testid="my-quiz-quick-search-tags">
-          <span className={styles.quickSearchLabel}>クイック検索:</span>
+        <div className="flex flex-wrap items-center gap-2" data-testid="my-quiz-quick-search-tags">
+          <span className="text-xs font-semibold text-muted-foreground">クイック検索:</span>
           {loadingWeekly ? (
-            <span className={styles.quickSearchLoading}>読み込み中...</span>
+            <span className="text-xs text-muted-foreground">読み込み中...</span>
           ) : (
             quickTags.map((tagId) => (
-              <button
+              <Button
                 key={tagId}
                 type="button"
-                className={styles.quickChip}
+                variant="secondary"
+                size="sm"
+                className="h-7 rounded-full px-3 text-xs"
                 data-testid={`my-quiz-quick-chip-${tagId}`}
                 onClick={() => handleQuickChip(tagId)}
               >
                 #{tagLabelById.get(tagId) ?? tagId}
-              </button>
+              </Button>
             ))
           )}
         </div>
       )}
 
       {showFilters && (
-        <div className={styles.filterPanel}>
-          <div className={styles.exploreCarouselBlock} data-testid="my-quiz-genre-carousel-block">
-            <div
-              className={carouselStyles.genreSearchWrap}
-              data-testid="my-quiz-genre-search-field"
-            >
+        <div className="flex animate-fade-in flex-col gap-5 border-t pt-4">
+          <div className="flex flex-col gap-2" data-testid="my-quiz-genre-carousel-block">
+            <div className="mb-3" data-testid="my-quiz-genre-search-field">
               <GenreSearchField
                 genres={genres}
                 query={genreSearchQuery}
@@ -203,36 +205,35 @@ export function MyQuizSearchSection({
             />
           </div>
 
-          <div className={styles.exploreCarouselBlock} data-testid="my-quiz-format-carousel-block">
+          <div className="flex flex-col gap-2" data-testid="my-quiz-format-carousel-block">
             <FormatCarousel selectedFormat={filters.format} onSelect={handleFormatSelect} />
           </div>
 
-          <div className={styles.filterGroupFull}>
-            <div className={styles.filterLabelRow}>
-              <span className={styles.filterLabel}>難易度</span>
-              <span className={styles.filterValue}>
+          <div className="flex w-full flex-col gap-2.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-semibold text-muted-foreground">難易度</span>
+              <span className="text-sm font-bold text-primary">
                 {filters.difficultyMin === filters.difficultyMax
                   ? `Lv.${filters.difficultyMin}（${DIFFICULTY_LABELS[filters.difficultyMin]}）`
                   : `Lv.${filters.difficultyMin} 〜 Lv.${filters.difficultyMax}`}
               </span>
             </div>
 
-            <div className={styles.dualSliderWrapper}>
+            <div className="explore-dual-slider">
               <div
-                className={styles.sliderTrackHighlight}
+                className="explore-slider-highlight"
                 style={{
                   left: `${((filters.difficultyMin - 1) / 4) * 100}%`,
                   right: `${((5 - filters.difficultyMax) / 4) * 100}%`,
                 }}
               />
-
               <input
                 type="range"
                 min={1}
                 max={5}
                 step={1}
                 value={filters.difficultyMin}
-                className={styles.rangeSlider}
+                className="explore-range-input"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   patchFilters({
@@ -243,14 +244,13 @@ export function MyQuizSearchSection({
                 aria-label="難易度最小値"
                 data-testid="my-quiz-filter-difficulty-min"
               />
-
               <input
                 type="range"
                 min={1}
                 max={5}
                 step={1}
                 value={filters.difficultyMax}
-                className={styles.rangeSlider}
+                className="explore-range-input"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   patchFilters({
@@ -263,9 +263,9 @@ export function MyQuizSearchSection({
               />
             </div>
 
-            <div className={styles.sliderTicks}>
+            <div className="flex justify-between px-0.5">
               {[1, 2, 3, 4, 5].map((lv) => (
-                <span key={lv} className={styles.sliderTick}>
+                <span key={lv} className="select-none text-xs font-semibold text-muted-foreground">
                   {lv}
                 </span>
               ))}

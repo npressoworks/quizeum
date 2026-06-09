@@ -3,6 +3,7 @@
  */
 
 import {
+  applyThemeToDocument,
   parseTheme,
   readStoredTheme,
   writeStoredTheme,
@@ -13,6 +14,8 @@ import {
 describe('theme', () => {
   beforeEach(() => {
     localStorage.clear();
+    document.documentElement.className = '';
+    document.documentElement.removeAttribute('data-theme');
   });
 
   test('parseTheme: valid values', () => {
@@ -29,5 +32,18 @@ describe('theme', () => {
     writeStoredTheme('light');
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
     expect(readStoredTheme()).toBe('light');
+  });
+
+  test('applyThemeToDocument sets data-theme and dark class for dark', () => {
+    applyThemeToDocument('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
+  test('applyThemeToDocument sets data-theme and removes dark class for light', () => {
+    applyThemeToDocument('dark');
+    applyThemeToDocument('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });

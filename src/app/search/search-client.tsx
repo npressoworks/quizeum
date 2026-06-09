@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import styles from '../page.module.css';
 import { toggleBookmark, getBookmarkedQuizIds } from '@/services/bookmark';
 import { useActiveGenres } from '@/hooks/useActiveGenres';
 import { useActiveTags } from '@/hooks/useActiveTags';
@@ -18,9 +17,8 @@ import {
 } from '@/components/explore/active-filter-chips';
 import { QuizCard } from '@/components/quiz/quiz-card';
 import { GridSkeleton } from '@/components/ui/grid-skeleton';
-import {
-  DEFAULT_HOME_FEED_FILTERS,
-} from '@/lib/home-feed-filters';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DEFAULT_HOME_FEED_FILTERS } from '@/lib/home-feed-filters';
 import { applyPlayStatusFilter } from '@/lib/apply-play-status-filter';
 import { MIN_VISIBLE_AFTER_PLAY_FILTER } from '@/lib/feed-visible-threshold';
 import type { QuizFormat } from '@/lib/quiz-format';
@@ -241,51 +239,39 @@ export function SearchClient({
         }
       />
 
-      <section className={styles.mainContent}>
-        <div className={styles.tabBar}>
-          <div
-            className={`${styles.tab} ${activeTab === 'latest' ? styles.tabActive : ''}`}
-            onClick={() => setTab('latest')}
-          >
-            新着順
-          </div>
-          <div
-            className={`${styles.tab} ${activeTab === 'popular' ? styles.tabActive : ''}`}
-            onClick={() => setTab('popular')}
-          >
-            人気順
-          </div>
-          <div
-            className={`${styles.tab} ${activeTab === 'trending' ? styles.tabActive : ''}`}
-            onClick={() => setTab('trending')}
-          >
-            トレンド
-          </div>
-          {user && (
-            <div
-              className={`${styles.tab} ${activeTab === 'timeline' ? styles.tabActive : ''}`}
-              onClick={() => setTab('timeline')}
-            >
-              フォローTL
-            </div>
-          )}
-        </div>
+      <section className="mt-6 flex flex-col gap-6">
+        <Tabs value={activeTab} onValueChange={(value) => setTab(value as typeof activeTab)}>
+          <TabsList variant="line" className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
+            <TabsTrigger value="latest" className="rounded-none px-2 py-3 data-active:bg-transparent">
+              新着順
+            </TabsTrigger>
+            <TabsTrigger value="popular" className="rounded-none px-2 py-3 data-active:bg-transparent">
+              人気順
+            </TabsTrigger>
+            <TabsTrigger value="trending" className="rounded-none px-2 py-3 data-active:bg-transparent">
+              トレンド
+            </TabsTrigger>
+            {user && (
+              <TabsTrigger value="timeline" className="rounded-none px-2 py-3 data-active:bg-transparent">
+                フォローTL
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </Tabs>
 
         {feedError && (
-          <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-danger, #c62828)' }}>
-            {feedError}
-          </div>
+          <div className="py-4 text-center text-destructive">{feedError}</div>
         )}
 
         {feedLoading ? (
           <GridSkeleton data-testid="search-feed-skeleton" />
         ) : displayQuizzes.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+          <div className="py-10 text-center text-muted-foreground">
             該当するクイズが見つかりませんでした。
           </div>
         ) : (
           <>
-            <div className={styles.grid}>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
               {displayQuizzes.map((quiz) => (
                 <QuizCard
                   key={quiz.id}
@@ -307,7 +293,7 @@ export function SearchClient({
               ref={loadMoreSentinelRef}
               data-testid="search-feed-load-more-sentinel"
               aria-hidden
-              style={{ height: 1 }}
+              className="h-px"
             />
           </>
         )}

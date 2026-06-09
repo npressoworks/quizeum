@@ -5,7 +5,7 @@ import { Trophy, Award, Flame } from 'lucide-react';
 import { db } from '@/lib/firebase/config';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { User as DBUser } from '@/types';
-import styles from './leaderboard.module.css';
+import { leaderboardClasses as styles } from './leaderboard-classes';
 
 interface LeaderboardUser {
   id: string;

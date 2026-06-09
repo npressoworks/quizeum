@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { PlaySkeleton } from '@/components/quiz/play-skeleton';
 import { TestPlayClientBoundary } from './test-play-client';
-import styles from '@/app/quiz/[id]/play/play.module.css';
+import { playClasses as styles } from '@/app/quiz/[id]/play/play-classes';
 
 export default function TestPlayPage() {
   return (

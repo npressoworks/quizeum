@@ -9,7 +9,6 @@ import { BookmarkQuizGrid } from '@/components/bookmark/bookmark-quiz-grid';
 import { BookmarkListGrid } from '@/components/bookmark/bookmark-list-grid';
 import { BookmarkQuestionList } from '@/components/bookmark/bookmark-question-list';
 import { BookmarksSkeleton } from '@/components/ui/bookmarks-skeleton';
-import styles from './bookmarks.module.css';
 
 export function BookmarksClient() {
   const router = useRouter();

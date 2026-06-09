@@ -5,7 +5,8 @@ import Link from 'next/link';
 import type { QuizList } from '@/types';
 import { resolveListType } from '@/types';
 import { ProfileListCard } from '@/components/profile/profile-list-card';
-import styles from '@/app/profile/[uid]/profile.module.css';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export type ProfileListFilter = 'all' | 'quiz' | 'question';
 
@@ -26,21 +27,11 @@ export function ProfileListsPanel({ lists, isMyProfile }: ProfileListsPanelProps
 
   if (lists.length === 0) {
     return (
-      <div
-        className={styles.gridContainer}
-        data-testid="profile-lists-panel"
-      >
-        <div
-          className={styles.emptyState}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}
-        >
-          <p>作成したリストはまだありません。</p>
+      <div className="py-12 text-center" data-testid="profile-lists-panel">
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-muted-foreground">作成したリストはまだありません。</p>
           {isMyProfile && (
-            <Link
-              href="/list/create"
-              className="btn btn-primary"
-              style={{ padding: '8px 20px', fontSize: '0.9rem' }}
-            >
+            <Link href="/list/create" className={cn(buttonVariants())}>
               新しいリストを作成する
             </Link>
           )}
@@ -50,18 +41,9 @@ export function ProfileListsPanel({ lists, isMyProfile }: ProfileListsPanelProps
   }
 
   return (
-    <div className={styles.gridContainer} data-testid="profile-lists-panel">
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          marginBottom: 16,
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div data-testid="profile-lists-panel">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
           {(
             [
               { id: 'all' as const, label: 'すべて' },
@@ -69,47 +51,34 @@ export function ProfileListsPanel({ lists, isMyProfile }: ProfileListsPanelProps
               { id: 'question' as const, label: '問題リストのみ' },
             ] as const
           ).map((chip) => (
-            <button
+            <Button
               key={chip.id}
               type="button"
-              className={filter === chip.id ? 'btn btn-primary' : 'btn btn-secondary'}
-              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+              variant={filter === chip.id ? 'default' : 'secondary'}
+              size="sm"
               data-testid={`profile-list-filter-${chip.id}`}
               onClick={() => setFilter(chip.id)}
             >
               {chip.label}
-            </button>
+            </Button>
           ))}
         </div>
         {isMyProfile && (
-          <Link
-            href="/list/create"
-            className="btn btn-primary"
-            style={{ padding: '8px 20px', fontSize: '0.9rem' }}
-          >
+          <Link href="/list/create" className={cn(buttonVariants({ size: 'sm' }))}>
             新しいリストを作成する
           </Link>
         )}
       </div>
 
       {filteredLists.length === 0 ? (
-        <div
-          className={styles.emptyState}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}
-          data-testid="profile-list-filter-empty"
-        >
-          <p>該当するリストがありません</p>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ fontSize: '0.85rem' }}
-            onClick={() => setFilter('all')}
-          >
+        <div className="flex flex-col items-center gap-3 py-12 text-center" data-testid="profile-list-filter-empty">
+          <p className="text-muted-foreground">該当するリストがありません</p>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setFilter('all')}>
             フィルタを解除（すべて）
-          </button>
+          </Button>
         </div>
       ) : (
-        <div className={styles.cardGrid}>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredLists.map((list) => (
             <ProfileListCard key={list.id} list={list} />
           ))}

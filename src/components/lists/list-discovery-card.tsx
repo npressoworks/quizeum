@@ -9,7 +9,9 @@ import {
   getProfileListItemCount,
   getProfileListTypeLabel,
 } from '@/lib/profile-list-display';
-import styles from './lists.module.css';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface ListDiscoveryCardProps {
   list: QuizList;
@@ -21,18 +23,27 @@ export function ListDiscoveryCard({ list }: ListDiscoveryCardProps) {
   const { countLabel } = getProfileListItemCount(list);
 
   return (
-    <Link
-      href={`/list/${list.id}`}
-      className={`${styles.card} glass-card glass-card-hover`}
-      data-testid="lists-discovery-card"
-    >
-      <div className={styles.cardBadge}>
-        <Layers size={14} />
-        <span>{typeLabel}</span>
-      </div>
-      <h3 className={styles.cardTitle}>{list.title}</h3>
-      {list.description && <p className={styles.cardDesc}>{list.description}</p>}
-      <span className={styles.cardMeta}>{countLabel}</span>
+    <Link href={`/list/${list.id}`} className="block no-underline" data-testid="lists-discovery-card">
+      <Card
+        size="sm"
+        className={cn(
+          'h-full transition-colors hover:border-primary/40 hover:shadow-md'
+        )}
+      >
+        <CardHeader className="gap-2 pb-0">
+          <Badge variant="secondary" className="w-fit gap-1.5">
+            <Layers size={14} />
+            {typeLabel}
+          </Badge>
+          <CardTitle className="text-base">{list.title}</CardTitle>
+          {list.description && (
+            <CardDescription className="line-clamp-2">{list.description}</CardDescription>
+          )}
+        </CardHeader>
+        <CardContent>
+          <span className="text-xs text-muted-foreground">{countLabel}</span>
+        </CardContent>
+      </Card>
     </Link>
   );
 }

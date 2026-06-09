@@ -2,28 +2,27 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter, notFound } from 'next/navigation';
+import { useParams, notFound } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { 
-  getUser, 
-  followUser, 
-  unfollowUser, 
-  isFollowing 
+import {
+  getUser,
+  followUser,
+  unfollowUser,
+  isFollowing
 } from '@/services/user';
 import { getQuizzesByAuthor } from '@/services/quiz';
 import { getQuizListsByAuthor } from '@/services/quiz-list';
-import { 
-  Award, 
-  Zap, 
-  Star, 
-  Crown, 
-  Play, 
-  PenTool, 
-  BookOpen, 
-  Users, 
-  TrendingUp, 
-  Sparkles, 
-  User as UserIcon,
+import {
+  Award,
+  Zap,
+  Star,
+  Crown,
+  Play,
+  PenTool,
+  BookOpen,
+  Users,
+  TrendingUp,
+  Sparkles,
   Shield,
   Grid,
   List,
@@ -36,11 +35,16 @@ import { resolveModerationTierDisplay, type ModerationTierDisplayKey } from '@/l
 import { ProfilePlayHistoryPanel } from '@/components/profile/profile-play-history-panel';
 import { ProfileListsPanel } from '@/components/profile/profile-lists-panel';
 import { ProfileDetailSkeleton } from '@/components/profile/profile-skeleton';
-import styles from './profile.module.css';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Badge as UiBadge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 type ProfileContentTab = 'quizzes' | 'lists' | 'history';
 
-// バッジのアイコンマッピング
 const getBadgeIcon = (iconName: string) => {
   switch (iconName) {
     case 'play-circle':
@@ -70,17 +74,16 @@ const getBadgeIcon = (iconName: string) => {
 };
 
 const TIER_BADGE_CLASS: Record<ModerationTierDisplayKey, string> = {
-  admin: styles.tierAdmin,
-  senior_moderator: styles.tierSeniorMod,
-  moderator: styles.tierMod,
-  contributor: styles.tierContributor,
-  newcomer: styles.tierNewcomer,
+  admin: 'bg-red-500/10 text-red-600 border-red-500/20',
+  senior_moderator: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+  moderator: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  contributor: 'bg-green-500/10 text-green-600 border-green-500/20',
+  newcomer: 'bg-muted text-muted-foreground',
 };
 
 export function ProfileClient() {
   const { uid } = useParams() as { uid: string };
   const { user: currentUser } = useAuth();
-  const router = useRouter();
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -98,13 +101,12 @@ export function ProfileClient() {
       try {
         setLoading(true);
         const userData = await getUser(uid);
-        
+
         if (!userData) {
           setLoading(false);
           return;
         }
 
-        // 退会処理中のアクセス制限 (本人以外はブロックし、404へ誘導)
         if (userData.deleteStatus === 'delete_pending' && !isMyProfile) {
           setIsDeletedPending(true);
           setLoading(false);
@@ -113,7 +115,6 @@ export function ProfileClient() {
 
         setProfileUser(userData);
 
-        // クイズとリストは独立取得（一方の Rules 未反映で両方が空になるのを防ぐ）
         const [quizzesResult, listsResult] = await Promise.allSettled([
           getQuizzesByAuthor(uid, isMyProfile),
           getQuizListsByAuthor(uid, isMyProfile),
@@ -131,7 +132,6 @@ export function ProfileClient() {
           console.error('Error loading profile lists:', listsResult.reason);
         }
 
-        // フォロー状態の確認
         if (currentUser && !isMyProfile) {
           const following = await isFollowing(currentUser.id, uid);
           setFollowingState(following);
@@ -148,7 +148,6 @@ export function ProfileClient() {
     }
   }, [uid, currentUser, isMyProfile]);
 
-  // 退会処理中かつ本人以外の場合は404
   if (isDeletedPending) {
     notFound();
   }
@@ -179,11 +178,13 @@ export function ProfileClient() {
 
   if (!profileUser) {
     return (
-      <div className={styles.errorContainer}>
-        <AlertTriangle size={48} className={styles.errorIcon} />
-        <h2>ユーザーが見つかりません</h2>
-        <p>指定されたユーザーは存在しないか、退会済みです。</p>
-        <Link href="/" className="btn btn-primary">ホームに戻る</Link>
+      <div className="mx-auto flex max-w-lg flex-col items-center gap-4 px-4 py-16 text-center">
+        <AlertTriangle size={48} className="text-muted-foreground" />
+        <h2 className="text-xl font-semibold">ユーザーが見つかりません</h2>
+        <p className="text-muted-foreground">指定されたユーザーは存在しないか、退会済みです。</p>
+        <Link href="/" className={cn(buttonVariants())}>
+          ホームに戻る
+        </Link>
       </div>
     );
   }
@@ -192,194 +193,198 @@ export function ProfileClient() {
   const tierBadgeClass = TIER_BADGE_CLASS[tierDisplay.key];
 
   return (
-    <main className={styles.main} data-testid="profile-page-container">
-      <div className={styles.container}>
-        {/* 退会処理中の本人向け警告表示 */}
+    <main className="mx-auto w-full max-w-5xl px-4 py-6" data-testid="profile-page-container">
+      <div className="flex flex-col gap-6">
         {profileUser.deleteStatus === 'delete_pending' && isMyProfile && (
-          <div className={`${styles.deleteAlert} animate-fade-in`}>
-            <AlertTriangle size={20} />
-            <span>このアカウントは現在削除処理中です。一部の機能が非活性化されている可能性があります。</span>
-          </div>
+          <Alert variant="destructive">
+            <AlertTriangle className="size-4" />
+            <AlertDescription>
+              このアカウントは現在削除処理中です。一部の機能が非活性化されている可能性があります。
+            </AlertDescription>
+          </Alert>
         )}
 
-        {/* Profile Card */}
-        <div className={`${styles.profileCard} glass-card animate-fade-in`}>
-          <div className={styles.cardHeader}>
-            <div className={styles.avatarWrapper}>
-              <img 
-                src={profileUser.avatarUrl || '/default-avatar.png'} 
-                alt={profileUser.displayName} 
-                className={styles.avatar} 
-              />
-            </div>
+        <Card>
+          <CardContent className="flex flex-col gap-6 pt-6 sm:flex-row">
+            <Avatar className="size-24 shrink-0">
+              <AvatarImage src={profileUser.avatarUrl || '/default-avatar.png'} alt={profileUser.displayName} />
+              <AvatarFallback>{profileUser.displayName.slice(0, 1)}</AvatarFallback>
+            </Avatar>
 
-            <div className={styles.userInfo}>
-              <div className={styles.nameSection}>
-                <h1 className={styles.displayName}>{profileUser.displayName}</h1>
-                <span className={`${styles.tierBadge} ${tierBadgeClass}`}>
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold">{profileUser.displayName}</h1>
+                <UiBadge variant="outline" className={cn('gap-1', tierBadgeClass)}>
                   <Shield size={14} />
-                  <span>{tierDisplay.label}</span>
-                </span>
+                  {tierDisplay.label}
+                </UiBadge>
               </div>
 
-              <div className={styles.statsRow}>
-                <Link href={`/profile/${uid}/connections?tab=following`} className={styles.statLink}>
-                  <strong>{profileUser.followingCount}</strong> <span className={styles.statLabel}>フォロー</span>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <Link href={`/profile/${uid}/connections?tab=following`} className="hover:text-primary">
+                  <strong>{profileUser.followingCount}</strong>{' '}
+                  <span className="text-muted-foreground">フォロー</span>
                 </Link>
-                <Link href={`/profile/${uid}/connections?tab=followers`} className={styles.statLink}>
-                  <strong>{profileUser.followersCount}</strong> <span className={styles.statLabel}>フォロワー</span>
+                <Link href={`/profile/${uid}/connections?tab=followers`} className="hover:text-primary">
+                  <strong>{profileUser.followersCount}</strong>{' '}
+                  <span className="text-muted-foreground">フォロワー</span>
                 </Link>
-                <div className={styles.reputationStat}>
-                  <strong>{profileUser.reputationScore}</strong> <span className={styles.statLabel}>信頼スコア</span>
+                <div>
+                  <strong>{profileUser.reputationScore}</strong>{' '}
+                  <span className="text-muted-foreground">信頼スコア</span>
                 </div>
               </div>
 
-              <p className={styles.bio}>{profileUser.bio || '自己紹介はまだ登録されていません。'}</p>
-              
-              <div className={styles.profileActions}>
+              <p className="text-muted-foreground">
+                {profileUser.bio || '自己紹介はまだ登録されていません。'}
+              </p>
+
+              <div>
                 {isMyProfile ? (
-                  <>
-                    <Link 
-                      href="/profile/edit" 
-                      className="btn btn-secondary"
-                      style={{ padding: '8px 24px', fontSize: '0.9rem' }}
-                    >
-                      プロフィールの編集
-                    </Link>
-                  </>
+                  <Link
+                    href="/profile/edit"
+                    className={cn(buttonVariants({ variant: 'secondary' }))}
+                  >
+                    プロフィールの編集
+                  </Link>
                 ) : (
                   currentUser && (
-                    <button
+                    <Button
+                      variant={followingState ? 'secondary' : 'default'}
                       onClick={handleFollowToggle}
                       disabled={submittingFollow}
-                      className={`btn ${followingState ? 'btn-secondary' : 'btn-accent'}`}
-                      style={{ padding: '8px 32px', fontSize: '0.95rem' }}
                       data-analytics="profile-follow-toggle"
                     >
                       {followingState ? 'フォロー解除' : 'フォローする'}
-                    </button>
+                    </Button>
                   )
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* 弱点克服（復習）セクション (本人のみ表示) */}
         {isMyProfile && profileUser.totalFailedQuestionsCount > 0 && (
-          <div className={`${styles.reviewSection} glass-card animate-fade-in`}>
-            <div className={styles.reviewContent}>
-              <div className={styles.reviewIconWrapper}>
-                <Zap size={24} className={styles.reviewIcon} />
-              </div>
-              <div>
-                <h3 className={styles.reviewTitle}>弱点克服プレイ（復習）</h3>
-                <p className={styles.reviewText}>
-                  過去に間違えた問題が <strong>{profileUser.totalFailedQuestionsCount}問</strong> あります。
-                  復習プレイで苦手なジャンルを克服しましょう！
-                </p>
-              </div>
-            </div>
-            <Link href="/quiz/review" className="btn btn-primary" data-analytics="review-start-from-profile">
-              <span>復習をはじめる</span>
-              <ChevronRight size={18} />
-            </Link>
-          </div>
-        )}
-
-        {/* Badges Section */}
-        {profileUser.badges.length > 0 && (
-          <div className={`${styles.badgesSection} glass-card animate-fade-in`}>
-            <h2 className={styles.sectionTitle}>獲得した称号バッジ</h2>
-            <div className={styles.badgeGrid}>
-              {profileUser.badges.map((badge: Badge) => (
-                <div key={badge.id} className={styles.badgeCard} title={badge.description}>
-                  <div className={styles.badgeIconWrapper}>
-                    {getBadgeIcon(badge.iconName)}
-                  </div>
-                  <div className={styles.badgeInfo}>
-                    <div className={styles.badgeTitle}>{badge.title}</div>
-                    <div className={styles.badgeDesc}>{badge.description}</div>
-                  </div>
+          <Card>
+            <CardContent className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Zap size={24} />
                 </div>
-              ))}
-            </div>
-          </div>
+                <div>
+                  <h3 className="font-semibold">弱点克服プレイ（復習）</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    過去に間違えた問題が <strong>{profileUser.totalFailedQuestionsCount}問</strong> あります。
+                    復習プレイで苦手なジャンルを克服しましょう！
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/quiz/review"
+                data-analytics="review-start-from-profile"
+                className={cn(buttonVariants())}
+              >
+                復習をはじめる
+                <ChevronRight size={18} />
+              </Link>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Content Tabbed Area */}
-        <div className={`${styles.contentSection} animate-fade-in`}>
-          <div className={styles.tabsContainer}>
-            <button 
-              className={`${styles.tabButton} ${activeTab === 'quizzes' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('quizzes')}
-            >
-              <Grid size={18} />
-              <span>作成したクイズ ({quizzes.length})</span>
-            </button>
-            <button 
-              className={`${styles.tabButton} ${activeTab === 'lists' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('lists')}
-            >
-              <List size={18} />
-              <span>作成したリスト ({quizLists.length})</span>
-            </button>
-            {isMyProfile && (
-              <button
-                type="button"
-                className={`${styles.tabButton} ${activeTab === 'history' ? styles.activeTab : ''}`}
-                data-testid="profile-tab-history"
-                onClick={() => setActiveTab('history')}
-              >
-                <History size={18} />
-                <span>プレイ履歴</span>
-              </button>
-            )}
-          </div>
+        {profileUser.badges.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold">獲得した称号バッジ</h2>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {profileUser.badges.map((badge: Badge) => (
+                  <div
+                    key={badge.id}
+                    className="flex items-start gap-3 rounded-lg border p-4"
+                    title={badge.description}
+                  >
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      {getBadgeIcon(badge.iconName)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold">{badge.title}</div>
+                      <div className="text-sm text-muted-foreground">{badge.description}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Tab Panels */}
-          {activeTab === 'history' ? (
-            <ProfilePlayHistoryPanel isActive={activeTab === 'history'} />
-          ) : activeTab === 'quizzes' ? (
-            <div className={styles.gridContainer}>
+        <div>
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as ProfileContentTab)}
+          >
+            <TabsList className="mb-6">
+              <TabsTrigger value="quizzes" className="gap-2">
+                <Grid size={18} />
+                作成したクイズ ({quizzes.length})
+              </TabsTrigger>
+              <TabsTrigger value="lists" className="gap-2">
+                <List size={18} />
+                作成したリスト ({quizLists.length})
+              </TabsTrigger>
+              {isMyProfile && (
+                <TabsTrigger value="history" className="gap-2" data-testid="profile-tab-history">
+                  <History size={18} />
+                  プレイ履歴
+                </TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="history">
+              <ProfilePlayHistoryPanel isActive={activeTab === 'history'} />
+            </TabsContent>
+
+            <TabsContent value="quizzes">
               {quizzes.length === 0 ? (
-                <div className={styles.emptyState}>
+                <div className="py-12 text-center text-muted-foreground">
                   作成したクイズはまだありません。
                 </div>
               ) : (
-                <div className={styles.cardGrid}>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {quizzes.map((quiz) => (
-                    <Link 
-                      key={quiz.id} 
-                      href={`/quiz/${quiz.id}`} 
-                      className={`${styles.quizCard} glass-card glass-card-hover`}
-                    >
-                      {quiz.thumbnailUrl && (
-                        <div className={styles.quizThumbnailWrapper}>
-                          <img src={quiz.thumbnailUrl} alt={quiz.title} className={styles.quizThumbnail} />
-                        </div>
-                      )}
-                      <div className={styles.quizCardBody}>
-                        <div className={styles.quizMeta}>
-                          <span className={styles.quizGenre}>{quiz.genre}</span>
-                          <span className={styles.quizDifficulty}>難易度 {quiz.difficulty}/10</span>
-                        </div>
-                        <h3 className={styles.quizTitle}>{quiz.title}</h3>
-                        <p className={styles.quizDesc}>{quiz.description}</p>
-                        <div className={styles.quizTags}>
-                          {quiz.tags.slice(0, 3).map((tag, idx) => (
-                            <span key={idx} className={styles.quizTag}>#{tag}</span>
-                          ))}
-                        </div>
-                      </div>
+                    <Link key={quiz.id} href={`/quiz/${quiz.id}`}>
+                      <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">
+                        {quiz.thumbnailUrl && (
+                          <div className="aspect-video overflow-hidden bg-muted">
+                            <img src={quiz.thumbnailUrl} alt={quiz.title} className="h-full w-full object-cover" />
+                          </div>
+                        )}
+                        <CardContent className="flex flex-col gap-2 p-4">
+                          <div className="flex gap-2 text-xs text-muted-foreground">
+                            <span>{quiz.genre}</span>
+                            <span>難易度 {quiz.difficulty}/10</span>
+                          </div>
+                          <h3 className="line-clamp-2 font-semibold">{quiz.title}</h3>
+                          <p className="line-clamp-2 text-sm text-muted-foreground">{quiz.description}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {quiz.tags.slice(0, 3).map((tag, idx) => (
+                              <UiBadge key={idx} variant="secondary" className="text-xs">
+                                #{tag}
+                              </UiBadge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
                     </Link>
                   ))}
                 </div>
               )}
-            </div>
-          ) : activeTab === 'lists' ? (
-            <ProfileListsPanel lists={quizLists} isMyProfile={isMyProfile} />
-          ) : null}
+            </TabsContent>
+
+            <TabsContent value="lists">
+              <ProfileListsPanel lists={quizLists} isMyProfile={isMyProfile} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </main>

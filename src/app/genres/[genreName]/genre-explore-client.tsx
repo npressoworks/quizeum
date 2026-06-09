@@ -21,8 +21,13 @@ import {
   type HomeFeedFilters,
 } from '@/lib/home-feed-filters';
 import { applyPlayStatusFilter } from '@/lib/apply-play-status-filter';
+import {
+  discoveryGridClass,
+  discoveryPageContainerClass,
+  exploreBackLinkClass,
+  explorePageHeaderClass,
+} from '@/lib/discovery-layout';
 import type { GenreMetadata, TagMetadata, Quiz } from '@/types';
-import styles from '../../page.module.css';
 
 interface GenreExploreClientProps {
   genreId: string;
@@ -39,8 +44,7 @@ export function GenreExploreClient({
 }: GenreExploreClientProps) {
   const router = useRouter();
   const { user } = useAuth();
-  
-  // 初期データをフックに渡す
+
   const { genres, genreLabelById, loading: genresMetaLoading } = useActiveGenres(initialGenres);
   const {
     tags: activeTags,
@@ -73,7 +77,6 @@ export function GenreExploreClient({
     [filters, genreId]
   );
 
-  // 初期クイズデータをフックに渡す
   const { quizzes, loading, error: feedError } = useExploreQuizFeed({
     mode: 'scoped',
     filters: feedFilters,
@@ -89,7 +92,6 @@ export function GenreExploreClient({
     [quizzes, playStatus, playedQuizIds]
   );
 
-  // ブックマーク情報の非同期読み込み
   useEffect(() => {
     let cancelled = false;
 
@@ -137,37 +139,14 @@ export function GenreExploreClient({
   };
 
   return (
-    <div className={styles.container} data-testid="genre-explore-page">
-      <Link
-        href="/"
-        className={styles.backBtn}
-        style={{
-          alignSelf: 'flex-start',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: 'var(--text-muted)',
-        }}
-      >
+    <div className={discoveryPageContainerClass} data-testid="genre-explore-page">
+      <Link href="/" className={exploreBackLinkClass}>
         <ArrowLeft size={16} /> 戻る
       </Link>
 
-      <div
-        style={{
-          borderBottom: '1px solid var(--border-light)',
-          paddingBottom: '20px',
-          marginBottom: '10px',
-        }}
-      >
+      <div className={explorePageHeaderClass}>
         <h1
-          style={{
-            fontSize: '2rem',
-            fontWeight: 800,
-            color: 'var(--text-main)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-          }}
+          className="flex items-center gap-3 text-3xl font-extrabold text-foreground"
           data-testid="genre-explore-title"
         >
           {meta?.iconImageUrl ? (
@@ -183,7 +162,7 @@ export function GenreExploreClient({
           )}
           {headerTitle}
         </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
+        <p className="mt-2 text-muted-foreground">
           {genresMetaLoading
             ? 'ジャンル情報を読み込み中...'
             : `ジャンル「${headerTitle}」の公開クイズ一覧`}
@@ -209,23 +188,21 @@ export function GenreExploreClient({
       <ExploreSortTabs activeSort={activeSort} onSortChange={setActiveSort} />
 
       {feedError && (
-        <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-danger, #c62828)' }}>
-          {feedError}
-        </div>
+        <div className="py-4 text-center text-destructive">{feedError}</div>
       )}
 
       {loading ? (
-        <div className={styles.grid}>
+        <div className={discoveryGridClass}>
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
       ) : displayQuizzes.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+        <div className="py-10 text-center text-muted-foreground">
           該当するクイズがありませんでした。
         </div>
       ) : (
-        <div className={styles.grid}>
+        <div className={discoveryGridClass}>
           {displayQuizzes.map((quiz) => (
             <QuizCard
               key={quiz.id}

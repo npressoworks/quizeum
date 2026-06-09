@@ -1,7 +1,6 @@
 import React from 'react';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
-import carouselStyles from './explore-carousel.module.css';
-import styles from './quiz-carousel-skeleton.module.css';
+import { HorizontalScrollCarousel, quizCarouselSlotClass } from './horizontal-scroll-carousel';
 
 interface QuizCarouselSkeletonProps {
   count?: number;
@@ -13,12 +12,12 @@ export function QuizCarouselSkeleton({
   'data-testid': testId = 'quiz-carousel-skeleton',
 }: QuizCarouselSkeletonProps) {
   return (
-    <div className={`${carouselStyles.carousel} ${styles.row}`} data-testid={testId}>
+    <HorizontalScrollCarousel data-testid={testId}>
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className={carouselStyles.quizSlot}>
+        <div key={index} className={quizCarouselSlotClass}>
           <SkeletonCard />
         </div>
       ))}
-    </div>
+    </HorizontalScrollCarousel>
   );
 }

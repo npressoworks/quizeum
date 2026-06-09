@@ -1,5 +1,6 @@
 import React from 'react';
-import styles from './review-skeleton.module.css';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ReviewSkeletonProps {
   'data-testid'?: string;
@@ -7,23 +8,23 @@ interface ReviewSkeletonProps {
 
 export function ReviewSkeleton({ 'data-testid': testId = 'review-skeleton' }: ReviewSkeletonProps) {
   return (
-    <div className={styles.skeletonWrapper} data-testid={testId}>
-      <div className={`${styles.title} ${styles.pulse}`} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-        <div className={`${styles.desc} ${styles.pulse}`} />
-        <div className={`${styles.descLine2} ${styles.pulse}`} />
+    <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-5 py-10" data-testid={testId}>
+      <Skeleton className="h-8 w-64" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
       </div>
-
-      <div className={styles.genreSelector}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className={styles.genreCard}>
-            <div className={`${styles.genreIcon} ${styles.pulse}`} />
-            <div className={`${styles.genreLabel} ${styles.pulse}`} />
-          </div>
-        ))}
-      </div>
-
-      <div className={`${styles.startBtn} ${styles.pulse}`} />
+      <Card>
+        <CardContent className="grid grid-cols-2 gap-3 pt-6 sm:grid-cols-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-2 p-4">
+              <Skeleton className="size-10 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      <Skeleton className="h-11 w-full rounded-lg" />
     </div>
   );
 }

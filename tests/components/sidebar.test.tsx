@@ -73,7 +73,7 @@ describe('Sidebar Component', () => {
     
     // ログインユーザーのアバター・表示名が表示されること
     expect(screen.getByText('ななみ')).toBeInTheDocument();
-    expect(screen.getByAltText('ななみ')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-profile-btn')).toBeInTheDocument();
   });
 
   it('/ ではホームのみ active', () => {

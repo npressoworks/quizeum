@@ -4,25 +4,28 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { 
-  getUser, 
-  getFollowingUsers, 
-  getFollowerUsers, 
-  followUser, 
-  unfollowUser, 
-  isFollowing 
+import {
+  getUser,
+  getFollowingUsers,
+  getFollowerUsers,
+  followUser,
+  unfollowUser,
+  isFollowing
 } from '@/services/user';
 import { UserPlus, UserCheck, Users } from 'lucide-react';
 import { User } from '@/types';
 import { ConnectionsSkeleton } from '@/components/profile/connections-skeleton';
-import styles from './connections.module.css';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function ConnectionsClient() {
   const { uid } = useParams() as { uid: string };
   const { user: currentUser, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
 
-  // 初期タブの設定 (クエリパラメータから取得, デフォルトは 'following')
   const initialTab = searchParams.get('tab') === 'followers' ? 'followers' : 'following';
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
@@ -52,7 +55,6 @@ export function ConnectionsClient() {
         setFollowingList(following);
         setFollowersList(followers);
 
-        // ログインユーザー自身が、このリストの中のどのユーザーをフォローしているか判定
         if (currentUser) {
           const allUserIds = Array.from(new Set([
             ...following.map(u => u.id),
@@ -124,10 +126,12 @@ export function ConnectionsClient() {
 
   if (!profileUser) {
     return (
-      <div className={styles.errorContainer}>
-        <h2>ユーザーが見つかりません</h2>
-        <p>お探しのユーザーのつながり情報は存在しません。</p>
-        <Link href="/" className="btn btn-primary">ホームに戻る</Link>
+      <div className="flex flex-col items-center gap-4 py-16 text-center">
+        <h2 className="text-xl font-semibold">ユーザーが見つかりません</h2>
+        <p className="text-muted-foreground">お探しのユーザーのつながり情報は存在しません。</p>
+        <Link href="/" className={cn(buttonVariants())}>
+          ホームに戻る
+        </Link>
       </div>
     );
   }
@@ -135,85 +139,81 @@ export function ConnectionsClient() {
   const currentList = activeTab === 'following' ? followingList : followersList;
 
   return (
-    <div className={`${styles.connectionsCard} glass-card animate-fade-in`} data-testid="connections-page-container">
-          <div className={styles.cardHeader}>
-            <h1 className={styles.title}>つながり一覧</h1>
-          </div>
+    <Card data-testid="connections-page-container">
+      <CardHeader>
+        <CardTitle>つながり一覧</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'following' | 'followers')}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="following">フォロー中 ({followingList.length})</TabsTrigger>
+            <TabsTrigger value="followers">フォロワー ({followersList.length})</TabsTrigger>
+          </TabsList>
 
-          {/* Tabs */}
-          <div className={styles.tabsContainer}>
-            <button
-              className={`${styles.tabButton} ${activeTab === 'following' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('following')}
-            >
-              <span>フォロー中 ({followingList.length})</span>
-            </button>
-            <button
-              className={`${styles.tabButton} ${activeTab === 'followers' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('followers')}
-            >
-              <span>フォロワー ({followersList.length})</span>
-            </button>
-          </div>
-
-          {/* User List */}
-          <div className={styles.listContainer}>
+          <TabsContent value={activeTab}>
             {currentList.length === 0 ? (
-              <div className={styles.emptyState}>
-                <Users size={40} className={styles.emptyIcon} />
+              <div className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
+                <Users size={40} />
                 <p>
-                  {activeTab === 'following' 
-                    ? 'フォローしているユーザーはまだいません。' 
+                  {activeTab === 'following'
+                    ? 'フォローしているユーザーはまだいません。'
                     : 'フォロワーはまだいません。'}
                 </p>
               </div>
             ) : (
-              <div className={styles.userList}>
+              <div className="flex flex-col gap-3">
                 {currentList.map((targetUser) => {
                   const isMe = currentUser?.id === targetUser.id;
                   const isFollowedByMe = !!myFollowingMap[targetUser.id];
                   const isBtnToggling = togglingId === targetUser.id;
 
                   return (
-                    <div key={targetUser.id} className={styles.userCard}>
-                      <Link href={`/profile/${targetUser.id}`} className={styles.userInfoLink}>
-                        <img 
-                          src={targetUser.avatarUrl || '/default-avatar.png'} 
-                          alt={targetUser.displayName} 
-                          className={styles.avatar} 
-                        />
-                        <div className={styles.userInfo}>
-                          <h3 className={styles.displayName}>{targetUser.displayName}</h3>
-                          <p className={styles.bio}>{targetUser.bio || '自己紹介はまだ登録されていません。'}</p>
+                    <div
+                      key={targetUser.id}
+                      className="flex items-center justify-between gap-4 rounded-lg border p-4"
+                    >
+                      <Link href={`/profile/${targetUser.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                        <Avatar className="size-12">
+                          <AvatarImage src={targetUser.avatarUrl || '/default-avatar.png'} alt={targetUser.displayName} />
+                          <AvatarFallback>{targetUser.displayName.slice(0, 1)}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <h3 className="truncate font-semibold">{targetUser.displayName}</h3>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {targetUser.bio || '自己紹介はまだ登録されていません。'}
+                          </p>
                         </div>
                       </Link>
 
-                      {/* フォロートグルボタン (自分以外のユーザーカードにのみ表示) */}
                       {!isMe && currentUser && (
-                        <button
+                        <Button
+                          type="button"
+                          variant={isFollowedByMe ? 'secondary' : 'default'}
+                          size="sm"
                           onClick={() => handleFollowToggle(targetUser)}
                           disabled={isBtnToggling}
-                          className={`btn ${isFollowedByMe ? 'btn-secondary' : 'btn-accent'} ${styles.followBtn}`}
                         >
                           {isFollowedByMe ? (
                             <>
                               <UserCheck size={16} />
-                              <span className={styles.btnText}>フォロー中</span>
+                              フォロー中
                             </>
                           ) : (
                             <>
                               <UserPlus size={16} />
-                              <span className={styles.btnText}>フォロー</span>
+                              フォロー
                             </>
                           )}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   );
                 })}
               </div>
             )}
-          </div>
-    </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

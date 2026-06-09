@@ -3,7 +3,7 @@
 import React from 'react';
 import type { QuizFormat } from '@/lib/quiz-format';
 import { EXPLORE_FORMAT_OPTIONS } from '@/lib/explore-formats';
-import styles from './explore-carousel.module.css';
+import { HorizontalScrollCarousel, genreFormatCardClass } from './horizontal-scroll-carousel';
 
 export interface FormatCarouselProps {
   selectedFormat: QuizFormat | '';
@@ -12,25 +12,25 @@ export interface FormatCarouselProps {
 
 export function FormatCarousel({ selectedFormat, onSelect }: FormatCarouselProps) {
   return (
-    <div className={styles.carousel} data-testid="format-carousel">
+    <HorizontalScrollCarousel data-testid="format-carousel">
       {EXPLORE_FORMAT_OPTIONS.map((option) => {
         const selected = selectedFormat === option.id;
         return (
           <button
             key={option.id}
             type="button"
-            className={`${styles.card} ${selected ? styles.cardSelected : ''}`}
+            className={genreFormatCardClass(selected)}
             data-testid={`format-carousel-card-${option.id}`}
             aria-pressed={selected}
             onClick={() => onSelect(selected ? '' : option.id)}
           >
-            <div className={styles.cardIcon} aria-hidden>
+            <div className="mb-2 flex min-h-9 items-center justify-center text-2xl" aria-hidden>
               {option.icon}
             </div>
-            <span className={styles.cardLabel}>{option.label}</span>
+            <span className="text-sm font-semibold leading-snug">{option.label}</span>
           </button>
         );
       })}
-    </div>
+    </HorizontalScrollCarousel>
   );
 }

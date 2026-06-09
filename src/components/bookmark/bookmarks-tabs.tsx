@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import styles from './bookmark.module.css';
 import type { BookmarkTab } from '@/hooks/useBookmarkFeed';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface BookmarksTabsProps {
   activeTab: BookmarkTab;
@@ -17,18 +17,18 @@ const TABS: { id: BookmarkTab; label: string; testId: string }[] = [
 
 export function BookmarksTabs({ activeTab, onTabChange }: BookmarksTabsProps) {
   return (
-    <div className={styles.tabBar} data-testid="bookmarks-tabs">
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabActive : ''}`}
-          data-testid={tab.testId}
-          onClick={() => onTabChange(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </div>
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onTabChange(value as BookmarkTab)}
+      className="mb-6"
+    >
+      <TabsList data-testid="bookmarks-tabs">
+        {TABS.map((tab) => (
+          <TabsTrigger key={tab.id} value={tab.id} data-testid={tab.testId}>
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

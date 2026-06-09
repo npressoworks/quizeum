@@ -16,7 +16,7 @@ import { PostAnswerFeedback } from '@/components/quiz/post-answer-feedback';
 import { toQuestionAnswerRecords } from '@/services/attempt-answer-display';
 import { Quiz, Attempt, Question } from '@/types';
 import { auth } from '@/lib/firebase/config';
-import styles from './play.module.css';
+import { playClasses as styles } from './play-classes';
 import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
 import { TrueFalseAnswerPanel } from '@/components/quiz/true-false-answer-panel';
 import { QuestionTextDisplay } from '@/components/quiz/question-text-display';
