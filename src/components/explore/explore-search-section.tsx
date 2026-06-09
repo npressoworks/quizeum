@@ -47,6 +47,9 @@ export interface ExploreSearchSectionProps {
   onGenreSelect?: (genreId: string) => void;
   selectedFormat?: QuizFormat | '';
   onFormatSelect?: (format: QuizFormat | '') => void;
+  stickySearchBarTestId?: string;
+  initialOpenFilters?: boolean;
+  activeFilterChipsSlot?: React.ReactNode;
 }
 
 export function ExploreSearchSection({
@@ -72,8 +75,11 @@ export function ExploreSearchSection({
   onGenreSelect,
   selectedFormat = '',
   onFormatSelect,
+  stickySearchBarTestId,
+  initialOpenFilters = false,
+  activeFilterChipsSlot,
 }: ExploreSearchSectionProps) {
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(initialOpenFilters);
   const [genreSearchQuery, setGenreSearchQuery] = useState('');
   const { tags: weeklyTags, loading: loadingWeekly, error: errorWeekly } = useWeeklyTopSearch();
 
@@ -109,7 +115,11 @@ export function ExploreSearchSection({
     >
       <div
         className={`${styles.searchBar} ${showExploreCarousels ? styles.searchBarSticky : ''}`}
-        data-testid={showExploreCarousels ? 'home-search-bar-sticky' : undefined}
+        data-testid={
+          showExploreCarousels
+            ? (stickySearchBarTestId ?? 'home-search-bar-sticky')
+            : undefined
+        }
       >
         <div className={styles.searchFieldWrapper}>
           <UnifiedSearchField
@@ -133,6 +143,8 @@ export function ExploreSearchSection({
           フィルター
         </button>
       </div>
+
+      {activeFilterChipsSlot}
 
       {showQuickSearch && !errorWeekly && (loadingWeekly || quickTags.length > 0) && (
         <div className={styles.quickSearch} data-testid="quick-search-tags">

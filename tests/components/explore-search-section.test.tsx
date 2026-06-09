@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ExploreSearchSection } from '@/components/explore/explore-search-section';
+import { ActiveFilterChips } from '@/components/explore/active-filter-chips';
 import { DEFAULT_HOME_FEED_FILTERS } from '@/lib/home-feed-filters';
 
 let mockWeeklyTags: string[] = ['js', 'trivia'];
@@ -92,5 +93,32 @@ describe('ExploreSearchSection', () => {
 
     expect(screen.getByTestId('genre-explore-search')).toBeInTheDocument();
     expect(screen.queryByText('クイック検索:')).not.toBeInTheDocument();
+  });
+
+  it('フィルタパネルを閉じてもアクティブ条件チップを表示する', () => {
+    const onRemove = jest.fn();
+    render(
+      <ExploreSearchSection
+        {...baseProps}
+        filters={{ ...DEFAULT_HOME_FEED_FILTERS, genreId: 'programming' }}
+        activeFilterChipsSlot={
+          <ActiveFilterChips
+            filters={{ ...DEFAULT_HOME_FEED_FILTERS, genreId: 'programming' }}
+            playStatus="all"
+            tagLabelById={new Map()}
+            genreLabelById={new Map([['programming', 'コンピュータ・IT']])}
+            onRemove={onRemove}
+            onClearAll={jest.fn()}
+          />
+        }
+      />
+    );
+
+    expect(screen.getByTestId('search-active-filters')).toBeInTheDocument();
+    expect(screen.getByText('ジャンル: コンピュータ・IT')).toBeInTheDocument();
+    expect(screen.queryByText('難易度')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /ジャンル: コンピュータ・IT を解除/ }));
+    expect(onRemove).toHaveBeenCalledWith('genre', undefined);
   });
 });

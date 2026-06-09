@@ -25,7 +25,15 @@ const genres = [
   },
 ];
 
+const push = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}));
+
 describe('GenreCarousel', () => {
+  beforeEach(() => {
+    push.mockClear();
+  });
   it('ジャンル選択で onSelect が呼ばれる', () => {
     const onSelect = jest.fn();
     render(
@@ -76,5 +84,34 @@ describe('GenreCarousel', () => {
       'aria-pressed',
       'false'
     );
+  });
+
+  it('navigate モードでジャンルクリック時に検索画面へ遷移する', () => {
+    render(
+      <GenreCarousel
+        genres={genres}
+        loading={false}
+        error={null}
+        mode="navigate"
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('genre-carousel-card-programming'));
+    expect(push).toHaveBeenCalledWith('/search?genreId=programming');
+  });
+
+  it('navigate モードでは選択ハイライトを付けない', () => {
+    render(
+      <GenreCarousel
+        genres={genres}
+        loading={false}
+        error={null}
+        selectedGenreId="programming"
+        mode="navigate"
+      />
+    );
+
+    expect(screen.getByTestId('genre-carousel-card-programming')).not.toHaveClass('cardSelected');
+    expect(screen.getByTestId('genre-carousel-card-programming')).not.toHaveAttribute('aria-pressed');
   });
 });

@@ -4,12 +4,51 @@
 import '@testing-library/jest-dom';
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { HomeClient } from '@/app/home-client';
+import { SearchClient } from '@/app/search/search-client';
 
 const push = jest.fn();
+const replace = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace }),
+  useSearchParams: () => new URLSearchParams(),
 }));
+
+jest.mock('@/hooks/useSearchUrlState', () => {
+  const React = require('react');
+  const { DEFAULT_HOME_FEED_FILTERS } = require('@/lib/home-feed-filters');
+  return {
+    useSearchUrlState: () => {
+      const [tab, setTab] = React.useState('latest');
+      const [filters, setFilters] = React.useState({
+        ...DEFAULT_HOME_FEED_FILTERS,
+        tagChips: [] as string[],
+      });
+      const [playStatus, setPlayStatus] = React.useState<'all' | 'unplayed' | 'played'>('all');
+      const [openFilters, setOpenFilters] = React.useState(false);
+
+      return {
+        tab,
+        filters,
+        playStatus,
+        openFilters,
+        setTab,
+        patchFilters: (patch: Partial<typeof DEFAULT_HOME_FEED_FILTERS>) =>
+          setFilters((prev) => ({
+            ...prev,
+            ...patch,
+            tagChips: patch.tagChips ? [...patch.tagChips] : prev.tagChips,
+          })),
+        setPlayStatus,
+        setOpenFilters,
+        clearAll: () =>
+          setFilters({
+            ...DEFAULT_HOME_FEED_FILTERS,
+            tagChips: [],
+          }),
+      };
+    },
+  };
+});
 
 jest.mock('@/context/auth-context', () => ({
   useAuth: () => ({
@@ -110,14 +149,14 @@ jest.mock('@/hooks/useWeeklyTrends', () => ({
   }),
 }));
 
-describe('Home Page UI', () => {
+describe('Search Page UI', () => {
   beforeEach(() => {
     push.mockClear();
     mockFeedLoading = false;
   });
 
   it('検索バーに入力でき、消去ボタンでクリアされること', () => {
-    render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
+    render(<SearchClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
     const input = screen.getByPlaceholderText(/クイズを検索/);
     fireEvent.change(input, { target: { value: 'TypeScript' } });
@@ -129,7 +168,7 @@ describe('Home Page UI', () => {
   });
 
   it('クイック検索チップをクリックするとタグチップが追加されること', () => {
-    render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
+    render(<SearchClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
     const chip = screen.getByRole('button', { name: '#ウミガメのスープ' });
     fireEvent.click(chip);
@@ -139,27 +178,27 @@ describe('Home Page UI', () => {
 
   it('ロード中はフィード領域のみスケルトンが表示されること', () => {
     mockFeedLoading = true;
-    render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
+    render(<SearchClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
-    expect(screen.getByTestId('home-feed-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('search-feed-skeleton')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/クイズを検索/)).toBeInTheDocument();
     expect(screen.queryByTestId('home-genre-carousel-block')).not.toBeInTheDocument();
   });
 
   it('ロード完了後はクイズカードが表示されること', () => {
     mockFeedLoading = false;
-    render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
+    render(<SearchClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
     expect(screen.getByText('JavaScript 基礎クイズ')).toBeInTheDocument();
     expect(screen.getByTestId('quiz-card-difficulty')).toBeInTheDocument();
   });
 
   it('GenreNav は表示せずフィルター展開時にカルーセルを表示すること', () => {
-    render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
+    render(<SearchClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
     expect(screen.queryByTestId('genre-nav')).not.toBeInTheDocument();
     expect(screen.queryByTestId('home-genre-carousel-block')).not.toBeInTheDocument();
-    expect(screen.getByTestId('home-search-bar-sticky')).toBeInTheDocument();
+    expect(screen.getByTestId('search-search-bar-sticky')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'フィルター' }));
 
@@ -168,7 +207,7 @@ describe('Home Page UI', () => {
   });
 
   it('ジャンルカルーセル選択で router.push しないこと', () => {
-    render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
+    render(<SearchClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'フィルター' }));
     fireEvent.click(screen.getByTestId('genre-carousel-card-programming'));

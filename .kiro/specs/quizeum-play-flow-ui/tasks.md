@@ -1115,3 +1115,88 @@
 - `ExploreAccordionsPanel` はホームから参照を外す。ファイル削除は任意。
 - ジャンル別・タグ別一覧への無限スクロールは将来拡張。本フェーズはホーム（`/`）のみ。
 
+---
+
+### 27. Phase 22: ホーム／検索 IA 分離・ディスカバリーホーム・フィルタ常時表示（2026-06-09）
+
+- [x] 27.1 (P) クイズ横スクロールカルーセルコンポーネント
+  - 横スクロール（scroll-snap）でクイズカードを並べるカルーセルコンポーネントを実装する
+  - ローディング・エラー・空状態を表示できること
+  - **完了状態**: モックデータで横スクロール一覧が描画され、各カードからクイズ詳細へ遷移できること
+  - _Requirements: 22.3, 22.4, 22.5, 22.10_
+  - _Boundary: QuizCarousel_
+
+- [x] 27.2 (P) ジャンルカルーセルのナビゲーションモード
+  - ジャンルカルーセルに navigate モードを追加し、選択時に検索画面へジャンルフィルタ付きで遷移する（ホーム内フィルタではなく遷移）
+  - filter モード（検索画面内絞り込み）は既存挙動を維持する
+  - **完了状態**: ディスカバリーホームでジャンルタップが `/search?genreId=*` へ遷移すること
+  - _Requirements: 22.8_
+  - _Boundary: GenreCarousel_
+
+- [x] 27.3 ディスカバリーホーム画面の実装
+  - トップ（`/`）に統合検索・タブ・無限スクロールグリッドを表示しない
+  - おすすめクイズ（トレンド Top 10）・おすすめジャンル・新着 Top 10 の3セクションを順に表示する
+  - 各セクションに「もっと見る」深いリンク（トレンド→`/search?tab=trending`、新着→`/search?tab=latest`、ジャンル→`/search?openFilters=1`）を配置する
+  - `data-testid="home-discovery-trending"` / `home-discovery-genres` / `home-discovery-latest` および各 `discovery-see-more-*` を付与する
+  - データ読み込み中はセクション単位のスケルトンを表示する
+  - **完了状態**: `/` に3カルーセルのみ表示され、もっと見る・ジャンルクリックで正しい URL へ遷移すること
+  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10, 22.24, 22.26_
+  - _Depends: 27.1, 27.2, quizeum-core 21.1_
+  - _Boundary: HomeDiscoveryClient_
+
+- [x] 27.4 検索画面ルートへの探索 UX 移設
+  - `/search` ルートを新設し、現行ホームクライアントの統合検索・タブ・無限スクロール・sticky 検索バー・カルーセルを移設する
+  - 移設後 `home-client.tsx` を削除する
+  - 検索画面本体に `data-testid="search-page"` を付与する
+  - sticky 検索バー testid を `search-search-bar-sticky` に更新する（または同等の検索画面専用 testid）
+  - **完了状態**: `/search` で Phase 21 相当の探索 UX が動作し、`/` には検索 UI が存在しないこと
+  - _Requirements: 22.11, 22.12, 21.1, 21.2, 21.10, 21.18_
+  - _Depends: 26.4_
+  - _Boundary: SearchClient_
+
+- [x] 27.5 検索 URL 状態同期フック
+  - コア lib の parse/serialize をラップし、`useSearchParams` / router と探索タブ・フィルタ・openFilters・プレイ状況を双方向同期する
+  - マウント時に URL から初期状態を復元し、ユーザー操作時に `router.replace` で URL を更新する
+  - **完了状態**: `/search?tab=trending&genreId=xxx` 直アクセスでタブ・ジャンルフィルタが復元され、フィルタ変更で URL が更新されること
+  - _Requirements: 22.13, 22.14_
+  - _Depends: quizeum-core 21.3, 27.4_
+  - _Boundary: useSearchUrlState_
+
+- [x] 27.6 検索バー下のフィルタ条件常時表示
+  - フィルタパネルの開閉に関わらず、1件以上のアクティブ条件があるとき検索バー直下にチップ行を常時表示する
+  - 各チップの × で個別解除、一括クリアで全条件解除ができること
+  - フィルタパネルに `initialOpenFilters` を渡し、`openFilters=1` 深いリンクで初期展開できること
+  - `data-testid="search-active-filters"` を付与する
+  - **完了状態**: パネルを閉じてもジャンル等のチップが visible で、× で当該条件のみ解除されること
+  - _Requirements: 22.9, 22.15, 22.16, 22.17, 22.18, 22.19, 22.25_
+  - _Depends: 27.4, 27.5_
+  - _Boundary: ActiveFilterChips, ExploreSearchSection_
+
+- [x] 27.7 (P) Phase 22 コンポーネント・フックテスト
+  - ディスカバリーホームに検索バー／タブ不在、検索画面の URL 復元、フィルタチップ常時表示を検証する
+  - **完了状態**: 関連 Jest がグリーンであること
+  - _Requirements: 22.1, 22.13, 22.15, 22.18_
+  - _Depends: 27.3, 27.6_
+  - _Boundary: Testing_
+
+- [x] 27.8 Phase 22 統合検証
+  - サイドバー／ボトムナビから `/` と `/search` を切り替えられること（`quizeum-sidebar-layout` Phase 5 完了後）
+  - ディスカバリー → 検索深いリンク → フィルタチップ → 一覧更新の一連フローが途切れないこと
+  - **完了状態**: プレイフロー関連テスト・ビルドがグリーンであること
+  - _Requirements: 22.6, 22.7, 22.8, 22.11, 22.12, 22.20, 22.21, 22.22, 22.23_
+  - _Depends: 27.7, quizeum-sidebar-layout 5.3_
+  - _Boundary: Integration_
+
+- [ ]* 27.9 Phase 22 E2E スモーク（任意）
+  - Playwright でディスカバリー「もっと見る」・ジャンルクリック・検索フィルタチップ常時表示を検証する
+  - _Requirements: 22.6, 22.7, 22.8, 22.15, 22.24, 22.26_
+  - _Depends: 27.8_
+  - _Boundary: Testing_
+
+## Implementation Notes (Phase 22)
+
+- `GenreCarousel` は filter モードでも `useRouter` を呼ぶため、テストでは `next/navigation` のモックが必要。
+- 新着「もっと見る」は `serialize` 既定で `tab=latest` を省略するため、深いリンクは `/search?tab=latest` を明示指定。
+- 実装順: 27.1・27.2（並行）→ 27.3。27.4（移設）は 27.3 と並行可だが同一ファイル移動のため順序注意。27.5 は core 21.3 後。27.6 は 27.5 後。
+- `/` の正本はディスカバリーホーム、探索 UX の正本は `/search`（要件 1 Phase 22 改定）。
+- パーソナライズドおすすめ・ジャンル／タグ一覧 URL 共通化は対象外。

@@ -1,0 +1,39 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.seeMoreLink {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #00f2fe;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+.seeMoreLink:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}

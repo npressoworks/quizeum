@@ -6,6 +6,10 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ExploreAccordionsPanel } from '@/components/explore/explore-accordions-panel';
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 const genres = [
   {
     id: 'programming',

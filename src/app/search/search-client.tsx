@@ -1,42 +1,57 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import styles from './page.module.css';
+import styles from '../page.module.css';
 import { toggleBookmark, getBookmarkedQuizIds } from '@/services/bookmark';
 import { useActiveGenres } from '@/hooks/useActiveGenres';
 import { useActiveTags } from '@/hooks/useActiveTags';
 import { useExploreQuizFeed } from '@/hooks/useExploreQuizFeed';
 import { useIntersectionLoadMore } from '@/hooks/useIntersectionLoadMore';
 import { usePlayedQuizIds } from '@/hooks/usePlayedQuizIds';
+import { useSearchUrlState } from '@/hooks/useSearchUrlState';
 import { ExploreSearchSection } from '@/components/explore/explore-search-section';
+import {
+  ActiveFilterChips,
+  type FilterChipKey,
+} from '@/components/explore/active-filter-chips';
 import { QuizCard } from '@/components/quiz/quiz-card';
 import { GridSkeleton } from '@/components/ui/grid-skeleton';
 import {
   DEFAULT_HOME_FEED_FILTERS,
-  type HomeFeedFilters,
 } from '@/lib/home-feed-filters';
 import { applyPlayStatusFilter } from '@/lib/apply-play-status-filter';
 import { MIN_VISIBLE_AFTER_PLAY_FILTER } from '@/lib/feed-visible-threshold';
 import type { QuizFormat } from '@/lib/quiz-format';
 import type { GenreMetadata, TagMetadata, Quiz } from '@/types';
 
-interface HomeClientProps {
+export interface SearchClientProps {
   initialGenres?: GenreMetadata[];
   initialTags?: TagMetadata[];
   initialQuizzes?: Quiz[];
 }
 
-export function HomeClient({
+export function SearchClient({
   initialGenres,
   initialTags,
   initialQuizzes,
-}: HomeClientProps = {}) {
+}: SearchClientProps = {}) {
   const router = useRouter();
   const { user, firebaseUser, loading: authLoading } = useAuth();
 
-  const { genres, loading: genresLoading, error: genresError, refetch } =
+  const {
+    tab: activeTab,
+    filters,
+    playStatus,
+    openFilters,
+    setTab,
+    patchFilters,
+    setPlayStatus,
+    clearAll,
+  } = useSearchUrlState();
+
+  const { genres, loading: genresLoading, error: genresError, refetch, genreLabelById } =
     useActiveGenres(initialGenres);
 
   const {
@@ -46,20 +61,7 @@ export function HomeClient({
     tagLabelById,
   } = useActiveTags(initialTags);
 
-  const [activeTab, setActiveTab] = useState<'latest' | 'popular' | 'trending' | 'timeline'>(
-    'latest'
-  );
-  const [filters, setFilters] = useState<HomeFeedFilters>(DEFAULT_HOME_FEED_FILTERS);
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
-  const [playStatus, setPlayStatus] = useState<'all' | 'unplayed' | 'played'>('all');
-
-  const patchFilters = (patch: Partial<HomeFeedFilters>) => {
-    setFilters((prev) => ({ ...prev, ...patch }));
-  };
-
-  const handleSearchClearAll = () => {
-    setFilters(DEFAULT_HOME_FEED_FILTERS);
-  };
+  const [bookmarkedIds, setBookmarkedIds] = React.useState<Set<string>>(new Set());
 
   const handleGenreSelect = (genreId: string) => {
     patchFilters({ genreId });
@@ -67,6 +69,42 @@ export function HomeClient({
 
   const handleFormatSelect = (format: QuizFormat | '') => {
     patchFilters({ format });
+  };
+
+  const handleFilterChipRemove = (key: FilterChipKey, value?: string) => {
+    switch (key) {
+      case 'genre':
+        patchFilters({ genreId: '' });
+        break;
+      case 'format':
+        patchFilters({ format: '' });
+        break;
+      case 'difficulty':
+        patchFilters({
+          difficultyMin: DEFAULT_HOME_FEED_FILTERS.difficultyMin,
+          difficultyMax: DEFAULT_HOME_FEED_FILTERS.difficultyMax,
+        });
+        break;
+      case 'questionCount':
+        patchFilters({
+          minQuestions: DEFAULT_HOME_FEED_FILTERS.minQuestions,
+          maxQuestions: DEFAULT_HOME_FEED_FILTERS.maxQuestions,
+        });
+        break;
+      case 'keyword':
+        patchFilters({ searchQuery: '' });
+        break;
+      case 'tag':
+        patchFilters({
+          tagChips: filters.tagChips.filter((chip) => chip !== value),
+        });
+        break;
+      case 'playStatus':
+        setPlayStatus('all');
+        break;
+      default:
+        break;
+    }
   };
 
   const {
@@ -130,15 +168,17 @@ export function HomeClient({
           const ids = await getBookmarkedQuizIds(uid);
           setBookmarkedIds(new Set(ids));
         } catch (e) {
-          console.error('[HomeClient] ブックマーク取得エラー:', e);
+          console.error('[SearchClient] ブックマーク取得エラー:', e);
         }
       } else {
         setBookmarkedIds(new Set());
-        setPlayStatus('all');
+        if (playStatus !== 'all') {
+          setPlayStatus('all');
+        }
       }
     }
     loadBookmarks();
-  }, [user, firebaseUser, authLoading]);
+  }, [user, firebaseUser, authLoading, playStatus, setPlayStatus]);
 
   const handleBookmarkToggle = async (quizId: string) => {
     if (!user) {
@@ -156,7 +196,7 @@ export function HomeClient({
       }
       setBookmarkedIds(nextBookmarks);
     } catch (error) {
-      console.error('[HomeClient] ブックマーク切り替え失敗:', error);
+      console.error('[SearchClient] ブックマーク切り替え失敗:', error);
     }
   };
 
@@ -165,11 +205,11 @@ export function HomeClient({
   };
 
   return (
-    <>
+    <div data-testid="search-page">
       <ExploreSearchSection
         filters={filters}
         onFiltersChange={patchFilters}
-        onClearAll={handleSearchClearAll}
+        onClearAll={clearAll}
         tags={activeTags}
         tagsLoading={tagsLoading}
         tagsError={tagsError}
@@ -179,6 +219,8 @@ export function HomeClient({
         playStatusDisabled={!user}
         showQuickSearch
         showExploreCarousels
+        stickySearchBarTestId="search-search-bar-sticky"
+        initialOpenFilters={openFilters}
         genres={genres}
         genresLoading={genresLoading}
         genresError={genresError}
@@ -187,32 +229,42 @@ export function HomeClient({
         onGenreSelect={handleGenreSelect}
         selectedFormat={filters.format}
         onFormatSelect={handleFormatSelect}
+        activeFilterChipsSlot={
+          <ActiveFilterChips
+            filters={filters}
+            playStatus={playStatus}
+            tagLabelById={tagLabelById}
+            genreLabelById={genreLabelById}
+            onRemove={handleFilterChipRemove}
+            onClearAll={clearAll}
+          />
+        }
       />
 
       <section className={styles.mainContent}>
         <div className={styles.tabBar}>
           <div
             className={`${styles.tab} ${activeTab === 'latest' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('latest')}
+            onClick={() => setTab('latest')}
           >
             新着順
           </div>
           <div
             className={`${styles.tab} ${activeTab === 'popular' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('popular')}
+            onClick={() => setTab('popular')}
           >
             人気順
           </div>
           <div
             className={`${styles.tab} ${activeTab === 'trending' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('trending')}
+            onClick={() => setTab('trending')}
           >
             トレンド
           </div>
           {user && (
             <div
               className={`${styles.tab} ${activeTab === 'timeline' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('timeline')}
+              onClick={() => setTab('timeline')}
             >
               フォローTL
             </div>
@@ -226,7 +278,7 @@ export function HomeClient({
         )}
 
         {feedLoading ? (
-          <GridSkeleton data-testid="home-feed-skeleton" />
+          <GridSkeleton data-testid="search-feed-skeleton" />
         ) : displayQuizzes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
             該当するクイズが見つかりませんでした。
@@ -249,17 +301,17 @@ export function HomeClient({
               ))}
             </div>
             {loadingMore && (
-              <GridSkeleton data-testid="home-feed-load-more" />
+              <GridSkeleton data-testid="search-feed-load-more" />
             )}
             <div
               ref={loadMoreSentinelRef}
-              data-testid="home-feed-load-more-sentinel"
+              data-testid="search-feed-load-more-sentinel"
               aria-hidden
               style={{ height: 1 }}
             />
           </>
         )}
       </section>
-    </>
+    </div>
   );
 }

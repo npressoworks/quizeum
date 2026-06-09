@@ -2,28 +2,47 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import type { GenreMetadata } from '@/types';
+import { buildSearchUrlQuery } from '@/lib/search-url-state';
 import styles from './explore-carousel.module.css';
+
+export type GenreCarouselMode = 'filter' | 'navigate';
 
 export interface GenreCarouselProps {
   genres: GenreMetadata[];
   loading: boolean;
   error: string | null;
-  selectedGenreId: string;
-  onSelect: (genreId: string) => void;
+  selectedGenreId?: string;
+  onSelect?: (genreId: string) => void;
   onRetry?: () => void;
   emptyMessage?: string;
+  mode?: GenreCarouselMode;
 }
 
 export function GenreCarousel({
   genres,
   loading,
   error,
-  selectedGenreId,
+  selectedGenreId = '',
   onSelect,
   onRetry,
   emptyMessage = '表示できるジャンルがありません。',
+  mode = 'filter',
 }: GenreCarouselProps) {
+  const router = useRouter();
+  const isNavigateMode = mode === 'navigate';
+
+  const handleGenreClick = (genreId: string) => {
+    if (isNavigateMode) {
+      const query = buildSearchUrlQuery({
+        filters: { genreId },
+      } as Parameters<typeof buildSearchUrlQuery>[0]);
+      router.push(query ? `/search?${query}` : '/search');
+      return;
+    }
+    onSelect?.(selectedGenreId === genreId ? '' : genreId);
+  };
   if (loading) {
     return <p className={styles.status}>ジャンルを読み込み中...</p>;
   }
@@ -48,15 +67,15 @@ export function GenreCarousel({
   return (
     <div className={styles.carousel} data-testid="genre-carousel">
       {genres.map((genre) => {
-        const selected = selectedGenreId === genre.id;
+        const selected = !isNavigateMode && selectedGenreId === genre.id;
         return (
           <button
             key={genre.id}
             type="button"
             className={`${styles.card} ${selected ? styles.cardSelected : ''}`}
             data-testid={`genre-carousel-card-${genre.id}`}
-            aria-pressed={selected}
-            onClick={() => onSelect(selected ? '' : genre.id)}
+            aria-pressed={isNavigateMode ? undefined : selected}
+            onClick={() => handleGenreClick(genre.id)}
           >
             <div className={styles.cardIcon}>
               {genre.iconImageUrl ? (
