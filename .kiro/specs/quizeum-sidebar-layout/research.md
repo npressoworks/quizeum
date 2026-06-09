@@ -73,3 +73,18 @@
   * コンポーネント追加自体は容易だが、PC/タブレット/モバイルのレスポンシブ境界におけるメインコンテンツの余白調整や、既存の全21画面における表示崩れの確認・微調整に工数がかかると予想される。
 * **想定リスク**: **Medium**
   * クイズプレイ画面や特殊ビュー（モデレーション審査等）での表示崩れ、絶対配置要素の重なり、既存E2Eテストの破壊リスクがあるため、デザインフェーズでの検証計画とコンポーネントの分割設計が重要となる。
+
+---
+
+## Phase 22: ホーム／検索 IA ナビ更新（2026-06-09）
+
+### Summary
+Sidebar / BottomNav に `/search` 導線を追加。BottomNav はログイン時5アイコン（ホーム・検索・通知・ブックマーク・プロフィール）。`pathname === '/search'` と `'/'` で active を排他制御。
+
+### Design Decisions
+1. **Search icon** — `lucide-react` `Search` をホーム直後に配置。
+2. **testid** — `nav-search` / `bottom-nav-search` を要件どおり付与。
+3. **Out of scope** — 検索画面コンテンツ・URL lib は触らない。
+
+**Document Status（Phase 22 設計）**: `design.md` Phase 22 節に反映済。
+

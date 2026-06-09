@@ -113,8 +113,18 @@
   cursor: pointer;
 }
 
+/* overflow-x: auto 時は縦方向もクリップされるため、ホバー lift 分の上余白を確保 */
+.quizCarousel {
+  padding-top: 12px;
+}
+
 .quizSlot {
   flex: 0 0 auto;
   scroll-snap-align: start;
   width: 280px;
+}
+
+.quizSlot:hover {
+  position: relative;
+  z-index: 1;
 }

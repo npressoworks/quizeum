@@ -80,7 +80,7 @@ export function QuizCarousel({
   }
 
   return (
-    <div className={styles.carousel} data-testid="quiz-carousel">
+    <div className={`${styles.carousel} ${styles.quizCarousel}`} data-testid="quiz-carousel">
       {quizzes.map((quiz) => (
         <div key={quiz.id} className={styles.quizSlot}>
           <QuizCard

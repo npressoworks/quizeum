@@ -34,6 +34,8 @@
 
 **Phase 21（2026-06-09）**: ホーム向け公開クイズ一覧の段階的取得 API を追加する。タブ別フィードは Firestore `startAfter` カーソル、複合検索は既存ハイブリッドパイプライン上のオフセットカーソルでページ分割する。共通応答型 `PaginatedQuizResult` を定義し、`quizeum-play-flow-ui` の無限スクロールが単一契約で消費できるようにする。
 
+**Phase 22（2026-06-09）**: ディスカバリーホーム（`/`）向けに既存一覧 API（トレンド Top 10・新着 Top 10・有効ジャンル一覧）を再利用し、検索画面（`/search`）向け URL クエリと探索タブ／フィルタ状態の相互変換 lib（`search-url-state.ts`）を追加する。UI・ナビは隣接スペックが担当。
+
 ### Goals
 - ページの初期HTML読み込み時間を通常トラフィック下で平均0.5秒以内に維持する。
 - プレイ中の不意なリロードやオフライン切断時における解答データ損失をローカルで保護・復元する。
@@ -55,6 +57,7 @@
 - **Phase 18 模擬試験・フラッシュカード LB 非対象（2026-06）**: `isLeaderboardEligibleAttempt` によるモード除外、全モード prior 件数カウントによる初回権利消滅、`saveAttempt` / `verify-truth` 共通更新パス。
 - **Phase 20 〇×問題形式（2026-06）**: `true-false` の第一級 format 化、固定選択肢 lib、公開検証・形式解決・ラベル整合。
 - **Phase 21 ホームフィード段階的取得（2026-06）**: `PaginatedQuizResult`、タブ別ページ API、複合検索のページ分割、カーソル encode/decode lib。
+- **Phase 22 ホーム／検索 IA（2026-06）**: ディスカバリーホーム向け Top 10 一覧再利用、`search-url-state.ts` による URL ↔ 探索状態変換。
 
 ### Non-Goals
 - 外部システムや外部ファイルからのクイズ・クイズリストの一括インポート機能の実装。
@@ -2635,3 +2638,146 @@ interface SearchOffsetCursorPayload {
 **Effort**: **M**（2〜3日）
 
 **Document Status（Phase 21 設計）**: 本節に反映。
+
+---
+
+## Phase 22: ディスカバリーホーム向けデータ提供と検索 URL 状態
+
+### 1. Overview
+
+Phase 22 は新規 ranking エンジンを追加せず、既存 `getTrendingQuizzes` / `getLatestQuizzes` / `listActiveGenres` をディスカバリーホーム（`/`）向けに再利用する。検索画面（`/search`）の深いリンク（タブ・ジャンル・フィルタ展開）を支える URL クエリ契約を `src/lib/search-url-state.ts` に1か所集約し、UI は parse/serialize のみを呼び出す。
+
+**定数**:
+- `DISCOVERY_CAROUSEL_SIZE = 10`（トレンド・新着カルーセル共通）
+
+### 2. Boundary Commitments（Phase 22）
+
+| Owns | Out |
+|------|-----|
+| `search-url-state.ts` parse/serialize | ディスカバリーホーム UI |
+| `SearchUrlState` 型 | 検索画面 UI・フィルタチップ |
+| 既存 API 再利用の件数契約 | Sidebar / BottomNav |
+| 無効クエリの正規化 | パーソナライズドおすすめ |
+
+### 3. Architecture
+
+```mermaid
+flowchart LR
+  subgraph Discovery["/ (play-flow UI)"]
+    D1[getTrendingQuizzes(10)]
+    D2[getLatestQuizzes(10)]
+    D3[listActiveGenres]
+  end
+  subgraph Search["/search (play-flow UI)"]
+    S1[parseSearchUrlState]
+    S2[serializeSearchUrlState]
+  end
+  Lib["search-url-state.ts"]
+  S1 --> Lib
+  S2 --> Lib
+  D1 --> QuizSvc["quiz.ts"]
+  D2 --> QuizSvc
+  D3 --> GenreSvc["metadata_genres read"]
+```
+
+### 4. Data Models & Contracts
+
+#### `SearchUrlState`（`src/lib/search-url-state.ts`）
+
+```typescript
+import type { HomeFeedFilters } from '@/lib/home-feed-filters';
+import type { HomeFeedTab } from '@/hooks/useExploreQuizFeed';
+
+export interface SearchUrlState {
+  tab: HomeFeedTab;
+  filters: HomeFeedFilters;
+  openFilters: boolean;
+  /** UI 専用。URL には `playStatus` として反映可 */
+  playStatus: 'all' | 'unplayed' | 'played';
+}
+```
+
+#### URL クエリマッピング（初版）
+
+| Query key | State field | 既定値 / 正規化 |
+|-----------|-------------|-----------------|
+| `tab` | `tab` | 未指定 → `latest`。許可: `latest` \| `popular` \| `trending` \| `timeline` |
+| `genreId` | `filters.genreId` | 空文字可 |
+| `format` | `filters.format` | `QuizFormat` または空 |
+| `q` | `filters.searchQuery` | trim |
+| `tags` | `filters.tagChips` | カンマ区切り、各要素 `normalizeTag` |
+| `difficultyMin` / `difficultyMax` | 数値フィルタ | 1–5、範囲 clamp |
+| `minQuestions` / `maxQuestions` | 数値フィルタ | 1–50、範囲 clamp |
+| `playStatus` | `playStatus` | `all` \| `unplayed` \| `played` |
+| `openFilters` | `openFilters` | `1` のみ true |
+
+**シリアライズ規則**:
+- 既定値と同一のパラメータは URL から省略（短い共有 URL）
+- `openFilters=1` のみ真を表現（`0` は出力しない）
+- `tags` は正規化済み ID をソートしてカンマ連結（順序安定）
+
+**パース規則**:
+- 未知キーは無視
+- 無効 `tab` → `latest`
+- 数値範囲外 → clamp または既定値（design 実装時に単体テストで固定）
+- 出力は常に `DEFAULT_HOME_FEED_FILTERS` をベースに merge
+
+#### ディスカバリーホーム向け読み取り
+
+| 用途 | API | 件数 |
+|------|-----|------|
+| おすすめクイズ（トレンド） | `getTrendingQuizzes(DISCOVERY_CAROUSEL_SIZE)` | 10 |
+| 新着クイズ | `getLatestQuizzes(DISCOVERY_CAROUSEL_SIZE)` | 10 |
+| おすすめジャンル | `listActiveGenres()` | 全アクティブ |
+
+- いずれも公開中クイズのみ（既存実装をそのまま利用）
+- 検索画面 `tab=trending` / `tab=latest` の先頭ページは同一ソート規則（要件 22.12–22.13）
+
+### 5. Public API
+
+```typescript
+export const DISCOVERY_CAROUSEL_SIZE = 10;
+
+export function parseSearchUrlState(
+  searchParams: URLSearchParams | Readonly<Record<string, string | string[] | undefined>>
+): SearchUrlState;
+
+export function serializeSearchUrlState(state: SearchUrlState): URLSearchParams;
+
+/** Next.js router 用: クエリ文字列（先頭 ? なし） */
+export function buildSearchUrlQuery(state: Partial<SearchUrlState>): string;
+```
+
+- `play-flow-ui` の `useSearchUrlState` hook は本 lib をラップし、`useRouter` / `useSearchParams` で同期する（core は Next.js に非依存）
+
+### 6. File Structure Plan（Phase 22）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/lib/search-url-state.ts` | **New** | parse / serialize / 定数 |
+| `src/lib/home-feed-filters.ts` | **Modify** | （任意）`cloneHomeFeedFilters` ヘルパ |
+| `tests/lib/search-url-state.test.ts` | **New** | 双方向整合・無効 tab・genreId 深いリンク |
+
+**変更なし（再利用）**: `getTrendingQuizzes`, `getLatestQuizzes`, `listActiveGenres` in `quiz.ts` / genre service
+
+### 7. Requirements Traceability（Phase 22）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 22.1–22.4 | ディスカバリー一覧 | 既存 `quiz.ts` / genre list |
+| 22.5–22.11 | URL 契約 | `search-url-state.ts` |
+| 22.12–22.13 | Phase 21 整合 | 既存 `*Page` API |
+| 22.14–22.17 | 境界 Out | play-flow / sidebar UI |
+
+### 8. Testing Strategy（Phase 22）
+
+| 種別 | 検証 |
+|------|------|
+| **Unit** | `tab=trending` → parse → serialize → 同一 tab |
+| **Unit** | `genreId=prog` + `openFilters=1` round-trip |
+| **Unit** | 無効 `tab=foo` → `latest` |
+| **Unit** | 既定フィルタ serialize で空クエリ（または `tab` のみ省略） |
+
+**Effort**: **S**（1日）
+
+**Document Status（Phase 22 設計）**: 本節に反映。

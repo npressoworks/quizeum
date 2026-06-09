@@ -946,3 +946,17 @@ src/app/api/webhooks/stripe/           — Missing
 
 **Document Status（Phase 21 設計）**: `design.md` Phase 21 節に反映済。
 
+---
+
+## Phase 22: ホーム／検索 IA — URL 状態 lib（2026-06-09）
+
+### Summary
+新 ranking API は不要。`getTrendingQuizzes(10)` / `getLatestQuizzes(10)` / `listActiveGenres` を再利用。検索深いリンク用に `search-url-state.ts` を新設し、Next.js 非依存の parse/serialize を core に集約。
+
+### Design Decisions
+1. **Build** — 専用 lib（sessionStorage や router 依存は play-flow hook へ）。
+2. **playStatus** — URL に含め、フィルタチップ表示と整合。
+3. **既定値省略** — 共有 URL を短く保つ。
+
+**Document Status（Phase 22 設計）**: `design.md` Phase 22 節に反映済。
+

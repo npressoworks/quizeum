@@ -970,3 +970,17 @@ Phase 11 目標:
 3. **プレイ状況** — 後段フィルタ + 表示件数不足時の自動 `loadMore`。
 
 **Document Status（Phase 21 設計）**: `design.md` Phase 21 節に反映済。
+
+---
+
+## Phase 22: ホーム／検索 IA 分離（2026-06-09）
+
+### Summary
+`home-client.tsx` を `/search/search-client.tsx` へ移設。`/` は新 `HomeDiscoveryClient`（3カルーセル）。`ActiveFilterChips` を検索バー下に常時配置。`GenreCarousel` に navigate モード追加。
+
+### Design Decisions
+1. **Rename not duplicate** — `HomeClient` → `SearchClient` 移設で Phase 21 実装を最大再利用。
+2. **URL sync** — `useSearchUrlState` が core lib をラップ。
+3. **Sticky testid** — 検索画面では `search-search-bar-sticky` に変更（E2E 更新）。
+
+**Document Status（Phase 22 設計）**: `design.md` Phase 22 節に反映済。

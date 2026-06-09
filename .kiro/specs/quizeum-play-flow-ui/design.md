@@ -46,6 +46,8 @@
 
 **Phase 21（2026-06-09）**: ホームのフィルタ UI を再編する。`ExploreAccordionsPanel` を廃止し、ジャンル／出題形式カルーセルを `ExploreSearchSection` 内に常時表示。`useExploreQuizFeed` を無限スクロール対応に拡張し、検索バー行を sticky 固定する（段階的取得 API は `quizeum-core` Phase 21 に依存）。
 
+**Phase 22（2026-06-09）**: IA を再編する。`/` はディスカバリーホーム（3カルーセル）、現行 `HomeClient` の探索 UX は `/search` へ移設。検索画面ではフィルタパネルを閉じてもアクティブ条件チップを常時表示し、URL クエリと探索状態を同期する（`search-url-state.ts` は core、ナビは sidebar-layout）。
+
 ### Goals
 - 複合検索フィルタ、タブ切替タイムラインを備えた軽快なホーム画面の構築。
 - プレイ中のブラウザ再読み込みや切断をカバーする、`localStorage` を用いた解答セッションのクライアントサイド一時保護と同期。
@@ -73,7 +75,7 @@
 ## Boundary Commitments
 
 ### This Spec Owns
-- **UIルーティング設計**: `/`, `/quiz/[id]`, `/quiz/[id]/play`, `/quiz/[id]/result`, `/quiz/review`, `/leaderboard`, `/bookmarks`, `/tags/[tagName]`, `/genres/[genreName]`, `/quiz/[id]/edit` の各ページコンポーネント。
+- **UIルーティング設計**: `/`（ディスカバリーホーム）, `/search`（探索・検索）, `/quiz/[id]`, `/quiz/[id]/play`, `/quiz/[id]/result`, `/quiz/review`, `/leaderboard`, `/bookmarks`, `/tags/[tagName]`, `/genres/[genreName]`, `/quiz/[id]/edit` の各ページコンポーネント。
 - **クライアントサイドセッション保護**: プレイ進捗の `localStorage` シリアライズ・復元・オンライン復帰時のバックグラウンド自動同期。
 - **AI対話インタラクション**: ウミガメチャットUI、ターン制限・キャッシュバッジ、および回答生成待機メッセージのグレー文字表示制御。
 - **評価フィードバックUI**: 良問評価投票、難易度投票、指摘フォームモーダル、作成者フォロー機能。
@@ -87,6 +89,7 @@
 - **統合検索のタグチップ化とサジェスト（Phase 10）**: `UnifiedSearchField`、タグチップ状態管理、`useActiveTags`、探索一覧での `QuizCard` 共通化とメタ表示拡張。
 - **探索カルーセル（Phase 11、Phase 21 で再編）**: `GenreCarousel`、`FormatCarousel` を `ExploreSearchSection` 内に常時表示。`ExploreAccordionsPanel` はホームから除去。`GenreNav` ホームからの除去は維持。
 - **ホーム無限スクロール・sticky 検索バー（Phase 21）**: `useExploreQuizFeed` ページング、`useIntersectionLoadMore`、検索バー行 sticky、プレイ状況後段フィルタ追読み込み。
+- **ディスカバリーホーム・検索 IA 分離（Phase 22）**: `/` の3カルーセル、`/search` への探索 UX 移設、`ActiveFilterChips`、URL 状態同期 hook。
 - **ジャンルページ scoped 検索 UI（Phase 11）**: `ExploreSearchSection`（`lockedGenreId` 付き）、`useExploreQuizFeed`、ソートタブと scoped 検索の分岐。
 - **自動結果遷移 (Phase 12)**: プレイ画面（`/play`）での最後の問題解答時、全問終了待ち画面を挟まずに `handlePlayComplete` に自動リダイレクト。
 - **難易度★グラデーションカラー表示 (Phase 12)**: クイズ詳細画面および結果画面（難易度表示、難易度投票）の★ゲージの色を難易度の値に応じて動的変更。
@@ -152,8 +155,13 @@ graph TD
 ```
 src/
 ├── app/
-│   ├── page.tsx                   # ホーム画面 (1.1, 1.2, 1.3, 1.4)
-│   ├── page.module.css
+│   ├── page.tsx                   # ディスカバリーホーム RSC シェル (22.1–22.10) 【Phase 22: 探索 UX は /search へ移管】
+│   ├── home-discovery-client.tsx  # 3カルーセル（トレンド・ジャンル・新着）(22.2–22.10) 【Phase 22 新規】
+│   ├── home-discovery.module.css  # ディスカバリーセクション見出し・余白 (22.x) 【Phase 22 新規】
+│   ├── search/
+│   │   ├── page.tsx               # 検索画面 RSC シェル (22.11–22.14) 【Phase 22 新規】
+│   │   └── search-client.tsx      # 統合検索・タブ・無限スクロール (1.x, 21.x, 22.x) 【Phase 22: home-client 移設】
+│   ├── page.module.css            # ExploreSearchSection / sticky 等（検索画面用スタイル）(21.x, 22.x)
 │   ├── bookmarks/
 │   │   ├── page.tsx               # ブックマーク一覧画面 (7.3, 11.1–11.5)
 │   │   └── bookmarks.module.css
@@ -168,14 +176,15 @@ src/
 │   │       └── page.tsx           # タグ別クイズ一覧画面 (7.2)
 │   ├── genres/
 │   │   └── [genreName]/
-│   │       └── page.tsx           # ジャンル別クイズ一覧画面 (7.2)
+│   │       ├── page.tsx           # ジャンル別クイズ一覧画面 (7.2, 13.19–13.23)
+│   │       └── genre-explore-client.tsx  # scoped 検索 UI (13.x)
 │   └── quiz/
 │       ├── review/
 │       │   ├── page.tsx           # 弱点克服プレイ画面 (6.1, 6.2, 6.3)
 │       │   └── review.module.css
 │       └── [id]/
 │           ├── page.tsx           # クイズ詳細画面 (2.1–2.6); LBは子コンポーネントへ委譲 (9.x)
-│           ├── page.module.css    # LB用スタイルは quiz-dual-leaderboard.module.css へ移管
+│           ├── page.module.css
 │           ├── edit/
 │           │   └── page.tsx       # クイズ編集画面ルーティング (8.1, 8.2)
 │           ├── play/
@@ -184,50 +193,76 @@ src/
 │           └── result/
 │               ├── page.tsx       # クイズ結果画面 (5.x, 11.6, 11.11–11.13)
 │               └── result.module.css
-components/
-├── bookmark/
-│   ├── bookmarks-tabs.tsx         # クイズ/リスト/問題タブ (11.1)
-│   ├── bookmark-quiz-grid.tsx     # 既存グリッドの抽出 (11.2)
-│   ├── bookmark-list-grid.tsx     # リストカード (11.3)
-│   ├── bookmark-question-list.tsx # 問題カード一覧 (11.4, 11.5)
-│   └── question-bookmark-toggle.tsx # 問題BMトグル (11.6)
-components/
-├── quiz/
-│   ├── quiz-card.tsx              # サムネイル・スター評価・プレイボタン付きクイズカード (1.5) 【Phase 9 新規】
-│   ├── quiz-card.module.css
-│   ├── quiz-editor.tsx            # クイズエディタコンポーネント (8.1, 8.2 認可ガード)
-│   ├── quiz-dual-leaderboard.tsx  # 初回／リプレイLB表示 (9.1–9.8) 【Phase 5 新規】
-│   └── quiz-dual-leaderboard.module.css
-├── ui/
-│   ├── skeleton-card.tsx          # 検索読み込み中のスケルトンプレースホルダー (1.4) 【Phase 9 新規】
-│   └── skeleton-card.module.css
-└── hooks/
-    ├── usePlayState.ts            # 通常プレイのセッション管理フック (3.4)
-    └── useAiPlayState.ts          # ウミガメチャットのステート管理フック (4.3, 4.4)
+├── components/
+│   ├── bookmark/
+│   │   ├── bookmarks-tabs.tsx         # クイズ/リスト/問題タブ (11.1)
+│   │   ├── bookmark-quiz-grid.tsx     # 既存グリッドの抽出 (11.2)
+│   │   ├── bookmark-list-grid.tsx     # リストカード (11.3)
+│   │   ├── bookmark-question-list.tsx # 問題カード一覧 (11.4, 11.5)
+│   │   └── question-bookmark-toggle.tsx # 問題BMトグル (11.6)
+│   ├── explore/
+│   │   ├── unified-search-field.tsx       # タグチップ＋サジェスト統合検索 (12.x) 【Phase 10】
+│   │   ├── unified-search-field.module.css
+│   │   ├── genre-search-field.tsx         # ジャンルサジェスト入力 (10.x, 13.x)
+│   │   ├── genre-nav.tsx                # @deprecated ホームから除去 (11.x)
+│   │   ├── genre-nav.module.css
+│   │   ├── explore-accordion.tsx          # @deprecated Phase 21 以降ホーム非使用 (13.x)
+│   │   ├── explore-accordions-panel.tsx   # @deprecated Phase 21 以降ホーム非使用 (13.x)
+│   │   ├── genre-carousel.tsx           # ジャンル横スクロール (13.x, 22.x navigate mode)
+│   │   ├── format-carousel.tsx            # 出題形式横スクロール (13.x, 21.x)
+│   │   ├── explore-search-section.tsx     # 検索バー・カルーセル・フィルタ (13.x, 21.x, 22.x)
+│   │   ├── quiz-carousel.tsx              # クイズ横スクロール (22.x) 【Phase 22 新規】
+│   │   ├── active-filter-chips.tsx        # 検索バー下・常時フィルタチップ (22.15–22.19) 【Phase 22 新規】
+│   │   ├── active-filter-chips.module.css # 【Phase 22 新規】
+│   │   ├── discovery-section.tsx          # 見出し＋もっと見る＋カルーセル枠 (22.x) 【Phase 22 新規・任意】
+│   │   └── explore-carousel.module.css    # scroll-snap 共通 (13.x)
+│   ├── quiz/
+│   │   ├── quiz-card.tsx              # サムネイル・スター・プレイボタン (1.5, 12.x)
+│   │   ├── quiz-card.module.css
+│   │   ├── quiz-editor.tsx            # クイズエディタ (8.1, 8.2)
+│   │   ├── quiz-dual-leaderboard.tsx  # 初回／リプレイLB (9.x) 【Phase 5】
+│   │   └── quiz-dual-leaderboard.module.css
+│   └── ui/
+│       ├── skeleton-card.tsx          # 検索読み込みスケルトン (1.4) 【Phase 9】
+│       ├── grid-skeleton.tsx          # ホーム／検索グリッドスケルトン (21.x)
+│       └── skeleton-card.module.css
+├── hooks/
+│   ├── usePlayState.ts                # 通常プレイセッション (3.4)
+│   ├── useAiPlayState.ts              # ウミガメチャット (4.3, 4.4)
+│   ├── useActiveGenres.ts             # listActiveGenres キャッシュ (10.x)
+│   ├── useActiveTags.ts               # listActiveTags キャッシュ (12.x) 【Phase 10】
+│   ├── useExploreQuizFeed.ts          # 検索画面フィード・ページング (13.x, 21.x) 【Phase 11 新規】
+│   ├── useIntersectionLoadMore.ts     # 無限スクロール sentinel (21.x) 【Phase 21 新規】
+│   ├── useSearchUrlState.ts           # /search URL ↔ 探索状態同期 (22.13–22.14) 【Phase 22 新規】
+│   ├── usePlayedQuizIds.ts            # プレイ済み quizId 集合 (1.3)
+│   └── useBookmarkFeed.ts             # ブックマーク3分類 (11.x)
+├── lib/
+│   ├── home-feed-filters.ts           # 探索フィルタ型 (10.x, 11.x)
+│   ├── explore-filter-active.ts       # hasActiveExploreFilters (13.x)
+│   ├── explore-formats.ts             # 形式カルーセル定数 (13.x)
+│   ├── feed-visible-threshold.ts      # プレイ状況後段フィルタ追読み込み閾値 (21.x) 【Phase 21】
+│   ├── filter-tag-suggestions.ts      # タグサジェスト (12.x)
+│   ├── filter-search-suggestions.ts   # 統合検索サジェスト (12.x)
+│   ├── quiz-format-labels.ts          # 出題形式ラベル (12.x)
+│   ├── question-list-session.ts       # 問題リスト連続プレイ (11.x)
+│   └── search-url-state.ts            # URL クエリ parse/serialize (22.x) 【core Phase 22、play-flow から import】
 e2e/
-└── leaderboard.spec.ts            # クイズ詳細LB: 旧「最速」→リプレイへ更新 (9.x)
-components/
-└── explore/
-    ├── genre-nav.tsx              # アイコン一覧 → /genres/[id] 遷移のみ (10.x)
-    ├── genre-search-field.tsx     # サジェスト付きジャンル選択（複合検索パネル用）
-    └── genre-nav.module.css
-hooks/
-├── useActiveGenres.ts             # listActiveGenres キャッシュ (10.x)
-├── useActiveTags.ts               # listActiveTags キャッシュ (12.x) 【Phase 10 新規】
-├── useHomeQuizFeed.ts             # タブ取得 vs searchQuizzes（フィルタ変更・デバウンス）
-└── usePlayedQuizIds.ts            # 認証ユーザーのプレイ済み quizId 集合（1.3 playStatus）
-lib/
-├── question-list-session.ts       # 問題リスト連続プレイ sessionStorage (11.8–11.13)
-├── filter-tag-suggestions.ts      # タグサジェスト (12.x) 【Phase 10 新規】
-├── filter-search-suggestions.ts   # 統合検索サジェスト (12.x) 【Phase 10 新規】
-└── quiz-format-labels.ts          # 出題形式ラベル共有 (12.18) 【Phase 10 新規】
-components/
-└── explore/
-    ├── unified-search-field.tsx   # タグチップ＋サジェスト統合検索 (12.x) 【Phase 10 新規】
-    └── unified-search-field.module.css
-hooks/
-└── useBookmarkFeed.ts               # getBookmarkFeed ラッパー + 楽観更新 (11.1–11.5)
+├── home-discovery.spec.ts             # ディスカバリー深いリンク・カルーセル (22.x) 【Phase 22 新規】
+├── quiz-search.spec.ts                # 検索・フィルタチップ (/search) (10.x–22.x)
+└── leaderboard.spec.ts                # クイズ詳細LB (9.x)
+
+tests/
+├── components/
+│   ├── explore-search-section.test.tsx
+│   ├── active-filter-chips.test.tsx   # 【Phase 22 新規】
+│   └── home-discovery-client.test.tsx # 【Phase 22 新規・任意】
+└── hooks/
+    ├── useExploreQuizFeed.pagination.test.ts  # 【Phase 21】
+    └── useSearchUrlState.test.ts              # 【Phase 22 新規】
 ```
+
+**Phase 22 で削除（移設後）**:
+- `src/app/home-client.tsx` — `search/search-client.tsx` へ移設後削除
 
 ### Modified Files（Phase 8）
 - `src/app/bookmarks/page.tsx` — `getBookmarkedQuizzes` を `getBookmarkFeed` + `BookmarksTabs` に置換。3タブ空状態・解除トグル。
@@ -304,6 +339,38 @@ hooks/
 - [play/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/play/page.tsx) — 全問終了時の自動結果画面遷移。連想クイズ解答完了時に表示したヒント一覧を `localStorage`（例：`quizeum_attempt_hints_{attemptId}`）へ保存。 (3.6, 5.6)
 - [page.tsx](file:///d:/quizeum/src/app/quiz/[id]/page.tsx) — クイズ詳細の難易度（★）の等幅ゲージグラデーションカラー適用。 (2.1b-1)
 - [result/page.tsx](file:///d:/quizeum/src/app/quiz/[id]/result/page.tsx) / [result.module.css](file:///d:/quizeum/src/app/quiz/[id]/result/result.module.css) — 難易度表示・難易度投票のグラデーションカラー適用、連想クイズのヒント一覧・ウミガメスープ質問回数表示、もう一度プレイするボタン、作者へのリンクと他のクイズおすすめ表示、結果サマリーカード上のクイズブックマークトグル、全体指摘時の「別解の追加」カテゴリ非表示、通報ボタン表示と通報モーダル連携。 (5.2a, 5.3a, 5.6, 5.7, 5.7a, 5.8, 5.9, 5.10, 5.11)
+
+### New Files（Phase 21）
+- `src/hooks/useIntersectionLoadMore.ts` — スクロール末端 sentinel と `IntersectionObserver`（21.1–21.5）
+- `src/lib/feed-visible-threshold.ts` — `MIN_VISIBLE_AFTER_PLAY_FILTER`（21.9）
+- `tests/hooks/useExploreQuizFeed.pagination.test.ts` — リセット・append・hasMore
+- `e2e/home-feed.spec.ts` — 無限スクロール・sticky 検索バー（21.x）
+
+### Modified Files（Phase 21）
+- `src/app/home-client.tsx` — `ExploreAccordionsPanel` 削除、`ExploreSearchSection` にカルーセル常時表示、無限スクロール hook 利用（21.13–21.14）
+- `src/components/explore/explore-search-section.tsx` — カルーセル統合、sticky `searchBar`（21.10–21.12）
+- `src/hooks/useExploreQuizFeed.ts` — `loadMore` / `hasMore` / `loadingMore`、`*Page` API 連携（21.1–21.9）
+- `src/app/page.module.css` — `.searchBarSticky` 等（21.10–21.12）
+
+### New Files（Phase 22）
+- `src/app/home-discovery-client.tsx` — 3カルーセル＋「もっと見る」深いリンク（22.2–22.10）
+- `src/app/home-discovery.module.css` — ディスカバリーセクションスタイル（22.x）
+- `src/app/search/page.tsx` — 検索画面 RSC シェル（22.11）
+- `src/app/search/search-client.tsx` — 旧 `home-client.tsx` 移設本体（22.11–22.14）
+- `src/components/explore/quiz-carousel.tsx` — クイズ横スクロールカルーセル（22.3–22.5）
+- `src/components/explore/active-filter-chips.tsx` / `.module.css` — 検索バー下常時チップ（22.15–22.19）
+- `src/hooks/useSearchUrlState.ts` — `/search` URL 同期（22.13–22.14）。`@/lib/search-url-state`（core）をラップ
+- `e2e/home-discovery.spec.ts` — 深いリンク・カルーセル（22.6–22.9, 22.24–22.26）
+- `tests/hooks/useSearchUrlState.test.ts` — URL 復元・更新
+- `tests/components/active-filter-chips.test.tsx` — チップ表示・個別解除
+
+### Modified Files（Phase 22）
+- `src/app/page.tsx` — `HomeDiscoveryClient` のみ描画。統合検索・タブ・グリッドを除去（22.1）
+- `src/app/home-client.tsx` — **削除**（`search/search-client.tsx` へ移設後）
+- `src/components/explore/explore-search-section.tsx` — `ActiveFilterChips` 行、`initialOpenFilters`（22.15–22.19, 22.9）
+- `src/components/explore/genre-carousel.tsx` — `mode: 'navigate'`（ディスカバリーホーム用、22.8）
+- `e2e/quiz-search.spec.ts` — 対象パス `/` → `/search`、フィルタチップ常時表示（22.15–22.19）
+- `tests/components/explore-search-section.test.tsx` — `search-active-filters`、パネル閉時もチップ表示
 
 ### Modified Files（Phase 6）
 - `src/app/page.tsx` — `GENRES` 定数削除、`GenreNav`（遷移専用）+ `GenreSearchField` + `useHomeQuizFeed` + `usePlayedQuizIds`。
@@ -2618,6 +2685,8 @@ function useIntersectionLoadMore(options: {
 
 ### 7. File Structure Plan（Phase 21）
 
+> **正本**: リポジトリ全体の Directory Structure は本文先頭の [File Structure Plan → Directory Structure](#directory-structure) を参照。
+
 | ファイル | 操作 | 責務 |
 |----------|------|------|
 | `src/components/explore/explore-search-section.tsx` | **Modify** | カルーセル常時表示、sticky searchBar |
@@ -2655,3 +2724,208 @@ function useIntersectionLoadMore(options: {
 
 **Document Status（Phase 21 設計）**: 本節に反映。
 
+---
+
+## Phase 22: ホーム／検索 IA 分離・ディスカバリーホーム・フィルタ常時表示
+
+### 1. Overview
+
+`/` を軽量なディスカバリーホーム（トレンド Top 10・ジャンル・新着 Top 10 の3カルーセル）に差し替え、現行 `HomeClient` の統合検索・タブ・無限スクロールは `/search` へ移設する。検索画面では `ExploreSearchSection` 直下に `ActiveFilterChips` を追加し、フィルタパネルが閉じていてもアクティブ条件を表示する。深いリンクは `quizeum-core` の `search-url-state.ts` を正本とする。
+
+### 2. Boundary Commitments（Phase 22）
+
+| Owns | Out |
+|------|-----|
+| `HomeDiscoveryClient`（`/`） | URL parse/serialize 正本 |
+| `SearchClient`（`/search`、旧 `HomeClient`） | Sidebar / BottomNav 項目 |
+| `QuizCarousel`, `DiscoverySection` | 新 ranking API |
+| `ActiveFilterChips` | ジャンル／タグ一覧 URL 共通化 |
+| `useSearchUrlState` hook（lib ラッパー） | |
+
+### 3. Route & Layout
+
+```
+/                          → page.tsx + HomeDiscoveryClient
+/search                    → search/page.tsx + SearchClient（home-client 移設）
+```
+
+**ディスカバリーホーム IA**:
+
+```
+HomeDiscoveryClient
+├── DiscoverySection [trending, data-testid=home-discovery-trending]
+│   ├── QuizCarousel (10)
+│   └── Link → /search?tab=trending [discovery-see-more-trending]
+├── DiscoverySection [genres, data-testid=home-discovery-genres]
+│   ├── GenreCarousel (navigate mode → /search?genreId=...)
+│   └── Link → /search?openFilters=1 [discovery-see-more-genres]
+└── DiscoverySection [latest, data-testid=home-discovery-latest]
+    ├── QuizCarousel (10)
+    └── Link → /search?tab=latest [discovery-see-more-latest]
+```
+
+**検索画面 IA**（Phase 21 構成を `/search` に移設）:
+
+```
+SearchClient [data-testid=search-page]
+├── ExploreSearchSection
+│   ├── searchBar [sticky, search-search-bar-sticky]
+│   ├── ActiveFilterChips [search-active-filters]  ← NEW: パネル外・常時
+│   ├── quickSearch
+│   ├── genreBlock / formatBlock（常時）
+│   └── filterPanel（openFilters 初期値対応）
+├── tabBar
+└── quizGrid + infinite scroll
+```
+
+### 4. Architecture
+
+```mermaid
+sequenceDiagram
+    participant DH as HomeDiscoveryClient
+    participant SC as SearchClient
+    participant URL as search-url-state
+    participant Feed as useExploreQuizFeed
+
+    DH->>DH: getTrendingQuizzes(10) / getLatestQuizzes(10)
+    DH->>SC: router.push(/search?tab=trending)
+    SC->>URL: parseSearchUrlState(searchParams)
+    URL-->>SC: tab + filters + openFilters
+    SC->>Feed: initial tab/filters
+    SC->>URL: serialize on filter change
+```
+
+### 5. Component Contracts
+
+#### `QuizCarousel`（`src/components/explore/quiz-carousel.tsx`）
+
+```typescript
+interface QuizCarouselProps {
+  quizzes: Quiz[];
+  loading: boolean;
+  error: string | null;
+  onRetry?: () => void;
+  emptyMessage?: string;
+}
+```
+
+- 横スクロール `scroll-snap`（`explore-carousel.module.css` 再利用）
+- 各スロットに `QuizCard`（コンパクト variant 可）
+
+#### `GenreCarousel` ナビゲーションモード（ディスカバリーホーム）
+
+- 新 prop: `mode?: 'filter' | 'navigate'`（default `'filter'`）
+- `navigate` 時: `onSelect(genreId)` → `router.push(buildSearchUrlQuery({ filters: { genreId } }))`
+- 選択ハイライトは不要（遷移専用）
+
+#### `ActiveFilterChips`（`src/components/explore/active-filter-chips.tsx`）
+
+```typescript
+interface ActiveFilterChipsProps {
+  filters: HomeFeedFilters;
+  playStatus: 'all' | 'unplayed' | 'played';
+  tagLabelById: Map<string, string>;
+  genreLabelById: Map<string, string>;
+  onRemove: (key: FilterChipKey, value?: string) => void;
+  onClearAll: () => void;
+}
+```
+
+- 表示対象: `hasActiveExploreFilters(filters)` または `playStatus !== 'all'`
+- ジャンル・形式・難易度範囲・問題数範囲・各タグ・キーワード・プレイ状況
+- パネル開閉（`showFilters`）とは独立して常時描画（要件 22.15–22.19）
+
+#### `ExploreSearchSection` 拡張
+
+```typescript
+interface ExploreSearchSectionProps {
+  // 既存 ...
+  initialOpenFilters?: boolean;
+  activeFilterChipsSlot?: React.ReactNode; // または内部で ActiveFilterChips を直接描画
+}
+```
+
+- `initialOpenFilters={true}` → `useState(showFilters)` 初期値 true（ジャンル「もっと見る」深いリンク）
+
+#### `useSearchUrlState`（`src/hooks/useSearchUrlState.ts`）
+
+```typescript
+function useSearchUrlState(): {
+  tab: HomeFeedTab;
+  filters: HomeFeedFilters;
+  playStatus: 'all' | 'unplayed' | 'played';
+  openFilters: boolean;
+  setTab: (tab: HomeFeedTab) => void;
+  patchFilters: (patch: Partial<HomeFeedFilters>) => void;
+  setPlayStatus: (v: 'all' | 'unplayed' | 'played') => void;
+  setOpenFilters: (v: boolean) => void;
+  clearAll: () => void;
+};
+```
+
+- mount 時: `parseSearchUrlState(useSearchParams())`
+- 状態変更時: `router.replace('/search?' + buildSearchUrlQuery(...), { scroll: false })`
+- parse/serialize は `@/lib/search-url-state` のみ import
+
+#### `SearchClient`（`src/app/search/search-client.tsx`）
+
+- 現 `home-client.tsx` を移設・リネーム
+- `useSearchUrlState` で tab/filters/playStatus/openFilters を URL と同期
+- `ExploreSearchSection` に `showExploreCarousels`, sticky, `initialOpenFilters`
+
+#### `HomeDiscoveryClient`（`src/app/home-discovery-client.tsx`）
+
+- RSC loader（`page.tsx`）から `initialTrending` / `initialLatest` / `initialGenres` を受け取り可
+- 各セクション Suspense + スケルトン（Phase 12 パターン）
+
+### 6. Deep Link Matrix
+
+| 導線 | URL |
+|------|-----|
+| トレンド「もっと見る」 | `/search?tab=trending` |
+| 新着「もっと見る」 | `/search?tab=latest` |
+| ジャンルカード | `/search?genreId={id}` |
+| ジャンル「もっと見る」 | `/search?openFilters=1` |
+
+### 7. File Structure Plan（Phase 22）
+
+> **正本**: リポジトリ全体の Directory Structure は本文先頭の [File Structure Plan → Directory Structure](#directory-structure) を参照。以下は Phase 22 差分の要約。
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/app/page.tsx` | **Modify** | `HomeDiscoveryClient` を描画 |
+| `src/app/home-discovery-client.tsx` | **New** | 3カルーセル + もっと見る |
+| `src/app/home-discovery.module.css` | **New** | セクション見出し・カルーセル余白 |
+| `src/app/search/page.tsx` | **New** | RSC シェル |
+| `src/app/search/search-client.tsx` | **New** | 旧 `HomeClient` 本体 |
+| `src/app/home-client.tsx` | **Delete** or re-export | 移設後削除 |
+| `src/components/explore/quiz-carousel.tsx` | **New** | クイズ横スクロール |
+| `src/components/explore/active-filter-chips.tsx` | **New** | 常時フィルタチップ |
+| `src/components/explore/explore-search-section.tsx` | **Modify** | チップ行、`initialOpenFilters` |
+| `src/components/explore/genre-carousel.tsx` | **Modify** | `mode: navigate` |
+| `src/hooks/useSearchUrlState.ts` | **New** | URL 同期 |
+| `e2e/home-discovery.spec.ts` | **New** | 深いリンク・カルーセル |
+| `e2e/quiz-search.spec.ts` | **Modify** | `/search` パス、チップ表示 |
+
+### 8. Requirements Traceability（Phase 22）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 22.1–22.10 | ディスカバリーホーム | `HomeDiscoveryClient`, `QuizCarousel` |
+| 22.11–22.14 | 検索移設・URL | `SearchClient`, `useSearchUrlState` |
+| 22.15–22.19 | 常時チップ | `ActiveFilterChips` |
+| 22.24–22.26 | testid | 各コンポーネント |
+
+### 9. Testing Strategy（Phase 22）
+
+| 種別 | 検証 |
+|------|------|
+| **Component** | `/` に search bar / tabBar 不在 |
+| **Component** | フィルタ適用 + パネル閉 → `search-active-filters` 表示 |
+| **Hook** | フィルタ変更 → URL 更新 → 再 mount で復元 |
+| **E2E** | トレンド「もっと見る」→ `/search?tab=trending` + トレンドタブ active |
+| **E2E** | ジャンルクリック → `/search?genreId=*` + チップ表示 |
+
+**Effort**: **M–L**（3–4日、core Phase 22 lib 完了後）
+
+**Document Status（Phase 22 設計）**: 本節に反映。

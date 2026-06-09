@@ -3,6 +3,8 @@
 ## Overview
 本機能は、Quizeumのグローバルナビゲーションおよび全体レイアウトを刷新し、PC/モバイルそれぞれの画面サイズに最適化したハイブリッドレイアウトへと移行するものです。
 
+**Phase 22（2026-06-09）**: ディスカバリーホーム（`/`）と検索画面（`/search`）の IA 分離に伴い、Sidebar / BottomNav に「検索」導線を追加し、アクティブ状態を区別する。
+
 ### Goals
 - PC/タブレットサイズにおいて、画面左端にナビゲーション項目を一元化した左サイドバーを導入する。
 - モバイルサイズ（767px以下）において、画面下部に主要遷移先を配置したボトムナビゲーションを導入し、上部ヘッダーを軽量なミニヘッダーへとリファクタリングする。
@@ -23,6 +25,7 @@
 - モバイル用軽量ミニヘッダー `Header` へのリファクタリング。
 - `layout.tsx` におけるレイアウト構造の統合。
 - デバイス幅に応じた余白（パディング）制御および `/play` プレイ画面除外ロジック。
+- **Phase 22**: Sidebar / BottomNav への「検索」（`/search`）導線、`/` と `/search` のアクティブ状態区別、`data-testid` 付与。
 
 ### Out of Boundary
 - `useAuth` フックおよび Firebase 認証状態の管理（`quizeum-auth-profile-ui` に依存）。
@@ -273,3 +276,93 @@ interface HeaderProps {
   - ボトムナビのアイコンタップによる画面遷移を検証。
 - **プレイ画面除外テスト**:
   - `/play/[quizId]` パスにアクセスした際、サイドバー、ヘッダー、ボトムナビがすべてレンダリングされず、メインコンテンツが余白なしで全画面表示されることを検証。
+
+---
+
+## Phase 22: ホーム／検索 IA 分離に伴うナビ更新
+
+### 1. Overview
+
+Sidebar および BottomNav に「検索」（`/search`）を追加し、ディスカバリーホーム（`/`）と検索画面をナビ上で区別する。ロゴリンクは引き続き `/` を正とする。
+
+### 2. Boundary Commitments（Phase 22）
+
+| Owns | Out |
+|------|-----|
+| Sidebar / BottomNav 項目追加 | カルーセル・フィルタ UI |
+| `/` vs `/search` active 判定 | URL クエリ lib |
+| `data-testid` 付与 | 検索画面コンテンツ |
+
+### 3. Navigation Items
+
+#### Sidebar `menuItems`（ログイン前後共通の先頭）
+
+```typescript
+const menuItems = [
+  { href: '/', label: 'ホーム', icon: <Home />, testId: 'nav-home' },
+  { href: '/search', label: '検索', icon: <Search />, testId: 'nav-search' },
+  { href: '/pricing', label: 'Proプラン', icon: <Sparkles /> },
+  // ... ログイン時: 通知、ブックマーク 等
+];
+```
+
+- `Search` アイコン: `lucide-react` の `Search`
+- active 判定:
+  - `pathname === '/'` → ホーム active（`/search` は非 active）
+  - `pathname === '/search' || pathname.startsWith('/search?')` → 検索 active
+
+#### BottomNav（767px 以下）
+
+| 状態 | 表示リンク |
+|------|-----------|
+| 未ログイン | ホーム（`/`）、検索（`/search`） |
+| ログイン | ホーム、検索、通知、ブックマーク、プロフィール |
+
+- 5 アイコン化に伴い、`bottom-nav.module.css` で `flex: 1` 均等配置を維持
+- `data-testid`: `bottom-nav-home`（`/`）、`bottom-nav-search`（`/search`）
+
+### 4. Active Path Logic
+
+```typescript
+function isHomeActive(pathname: string | null): boolean {
+  return pathname === '/';
+}
+
+function isSearchActive(pathname: string | null): boolean {
+  return pathname === '/search' || (pathname?.startsWith('/search/') ?? false);
+}
+```
+
+- クエリ付き `/search?tab=trending` も Next.js App Router では `pathname === '/search'` のため追加判定不要
+
+### 5. File Structure Plan（Phase 22）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/components/layout/sidebar.tsx` | **Modify** | 検索項目、active 判定、testid |
+| `src/components/layout/sidebar.module.css` | **Modify** | （必要時）項目数増の余白 |
+| `src/components/layout/bottom-nav.tsx` | **Modify** | 検索リンク、5アイコン、testid |
+| `src/components/layout/bottom-nav.module.css` | **Modify** | 5列均等レイアウト |
+| `tests/components/sidebar-nav.test.tsx` | **New** | `/` vs `/search` active |
+| `tests/components/bottom-nav.test.tsx` | **Modify** | 検索リンク・件数 |
+
+### 6. Requirements Traceability（Phase 22）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 1.6–1.10 | Sidebar 検索・active | `sidebar.tsx` |
+| 2.1–2.4 | BottomNav 検索・active | `bottom-nav.tsx` |
+| 5.1–5.6 | Phase 22 専項 | 同上 |
+
+### 7. Testing Strategy（Phase 22）
+
+| 種別 | 検証 |
+|------|------|
+| **Component** | `/search` で `nav-search` active、`nav-home` 非 active |
+| **Component** | `/` で逆 |
+| **E2E** | Sidebar「検索」→ `/search` 遷移 |
+| **E2E** | BottomNav 検索アイコン → `/search` |
+
+**Effort**: **S**（0.5–1日）
+
+**Document Status（Phase 22 設計）**: 本節に反映。
