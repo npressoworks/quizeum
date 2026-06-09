@@ -107,6 +107,7 @@ function intersectQuizzesById(quizSets: Quiz[][]): Quiz[] {
   );
 }
 
+/** 有効ジャンルマスタ（`isActive=true`）。ディスカバリーホームのジャンルカルーセルでも再利用。 */
 export async function listActiveGenres(): Promise<GenreMetadata[]> {
   const genresRef = firestoreCollection(db, 'metadata_genres');
   const q = query(genresRef, where('isActive', '==', true));
@@ -743,7 +744,9 @@ export async function getTrendingQuizzesPage(
 }
 
 /**
- * 新着クイズを取得 (公開中のみ)
+ * 新着クイズを取得 (公開中のみ)。
+ * ディスカバリーホーム新着カルーセルは `DISCOVERY_CAROUSEL_SIZE` 件で呼び出し、
+ * 検索画面 `tab=latest` の先頭ページ（`getLatestQuizzesPage`）と同一ソート規則。
  */
 export async function getLatestQuizzes(limitCount: number = 10): Promise<Quiz[]> {
   const page = await getLatestQuizzesPage({ limit: limitCount });
@@ -759,7 +762,9 @@ export async function getPopularQuizzes(limitCount: number = 10): Promise<Quiz[]
 }
 
 /**
- * トレンドクイズを取得 (ブックマーク数順、公開中のみ)
+ * トレンドクイズを取得 (ブックマーク数順、公開中のみ)。
+ * ディスカバリーホームおすすめカルーセルは `DISCOVERY_CAROUSEL_SIZE` 件で呼び出し、
+ * 検索画面 `tab=trending` の先頭ページ（`getTrendingQuizzesPage`）と同一ソート規則。
  */
 export async function getTrendingQuizzes(limitCount: number = 10): Promise<Quiz[]> {
   const page = await getTrendingQuizzesPage({ limit: limitCount });

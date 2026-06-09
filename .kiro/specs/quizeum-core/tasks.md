@@ -1003,3 +1003,52 @@
 - ページサイズ既定値は `HOME_FEED_PAGE_SIZE = 20`（design.md Phase 21）。
 - ジャンル別・タグ別一覧の段階的取得は本フェーズ対象外。
 - 全文検索エンジン化や `searchQuizzes` パイプラインの根本置換は行わない。
+
+---
+
+### 21. Phase 22: ディスカバリーホーム向けデータ提供と検索 URL 状態（2026-06-09）
+
+- [x] 21.1 ディスカバリーフィード定数と既存 API 契約の明文化
+  - トレンド Top 10・新着 Top 10 用の件数定数（初版 10 件）を lib に定義する
+  - 既存トレンド・新着・有効ジャンル一覧 API が公開中クイズのみを返し、検索画面タブと同一ソート規則であることをコードコメントまたは薄いラッパーで明示する
+  - **完了状態**: 定数が export され、ディスカバリーホームと検索タブが同じ件数・ソート規則を参照できること
+  - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.12, 22.13_
+  - _Boundary: QuizService, GenreMetadata_
+
+- [x] 21.2 検索 URL 状態の型とパース実装
+  - 探索タブ・探索フィルタ・フィルタパネル初期展開・プレイ状況を表す URL 状態型を定義する
+  - URL クエリ文字列から上記状態へ変換するパース関数を実装する（無効 tab は新着、未知キーは無視、数値は clamp）
+  - `openFilters=1` をフィルタパネル初期展開として解釈できること
+  - **完了状態**: `tab=trending` / `genreId=xxx` / `openFilters=1` を含むクエリが正しくパースされること
+  - _Requirements: 22.5, 22.7, 22.8, 22.9, 22.10, 22.17_
+  - _Boundary: search-url-state_
+
+- [x] 21.3 検索 URL 状態のシリアライズ実装
+  - 探索タブおよび探索フィルタ条件から URL クエリへ変換するシリアライズ関数を実装する
+  - 既定値と同一のパラメータは URL から省略し、タグは正規化・ソートして安定化する
+  - Next.js router 用にクエリ文字列（先頭 `?` なし）を組み立てるヘルパを提供する
+  - **完了状態**: パース → シリアライズ → 再パースでタブ・フィルタ・openFilters の意味が失われないこと
+  - _Requirements: 22.6, 22.11_
+  - _Depends: 21.2_
+  - _Boundary: search-url-state_
+
+- [x] 21.4 (P) Phase 22 単体テスト
+  - 双方向整合、無効 tab 正規化、genreId 深いリンク、既定フィルタの空クエリ省略を検証する
+  - **完了状態**: `tests/lib/search-url-state.test.ts` がグリーンであること
+  - _Requirements: 22.10, 22.11_
+  - _Depends: 21.3_
+  - _Boundary: Testing_
+
+- [x] 21.5 Phase 22 統合検証
+  - コアテストスイートがグリーンであることを確認する
+  - 検索画面段階的取得 API（要件 21）と URL 契約が矛盾しないことを確認する
+  - **完了状態**: `quizeum-play-flow-ui` Phase 27 が import 可能な lib が揃っていること
+  - _Requirements: 22.14, 22.15, 22.16_
+  - _Depends: 21.4_
+  - _Boundary: Integration_
+
+## Implementation Notes (Phase 22)
+
+- 実装順: 21.1 → 21.2 → 21.3 → 21.4 → 21.5。`quizeum-play-flow-ui` Phase 27.5 は 21.3 完了後に着手。
+- URL 変換 lib の適用対象は `/search` ルートのみ（要件 22.17）。
+- 新 ranking エンジン・ジャンル／タグ一覧 URL 共通化は対象外。

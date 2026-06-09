@@ -1,4 +1,6 @@
 export const HOME_FEED_PAGE_SIZE = 20;
+/** ディスカバリーホームのトレンド／新着カルーセル件数（検索タブ先頭ページとは別上限） */
+export const DISCOVERY_CAROUSEL_SIZE = 10;
 export const SEARCH_MATERIALIZE_CAP = 200;
 
 export type QuizFeedTabKind = 'latest' | 'popular' | 'trending' | 'timeline';
