@@ -3,6 +3,7 @@ import { getFormatDescription, getFormatLabel } from '@/lib/quiz-format-labels';
 describe('getFormatLabel', () => {
   it('既知の形式に日本語ラベルを返す', () => {
     expect(getFormatLabel('multiple-choice')).toBe('選択式');
+    expect(getFormatLabel('true-false')).toBe('〇✕式');
     expect(getFormatLabel('text-input')).toBe('記述式');
     expect(getFormatLabel('lateral-thinking')).toBe('ウミガメのスープ');
     expect(getFormatLabel('mixed')).toBe('複合形式');
@@ -16,6 +17,7 @@ describe('getFormatLabel', () => {
 describe('getFormatDescription', () => {
   it('既知の形式に説明文を返す', () => {
     expect(getFormatDescription('multiple-choice')).toContain('選択肢');
+    expect(getFormatDescription('true-false')).toContain('2択');
     expect(getFormatDescription('lateral-thinking')).toContain('水平思考');
   });
 

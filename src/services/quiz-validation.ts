@@ -9,6 +9,10 @@
 import { Quiz, Question } from '../types';
 import { isReferenceLinkQuestion } from '../lib/linked-question';
 import {
+  normalizeTrueFalseChoices,
+  type TrueFalseCorrectSide,
+} from '../lib/true-false-defaults';
+import {
   MAX_TEXT_INPUT_CHAR_COUNT,
   MIN_TEXT_INPUT_CHAR_COUNT,
   isValidNumericAnswerText,
@@ -210,19 +214,27 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
 
     case 'true-false': {
       const choices = question.choices ?? [];
+      const correctCount = choices.filter((c) => c.isCorrect).length;
       if (choices.length !== 2) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
           questionField: 'answers',
-          message: '〇×形式は選択肢2つが必要です',
+          message: '〇✕形式は選択肢2つが必要です',
         });
-      } else if (!choices.some((c) => c.isCorrect)) {
+      } else if (correctCount === 0) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
           questionField: 'answers',
           message: '正解の選択肢を指定してください',
+        });
+      } else if (correctCount > 1) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '〇✕形式は正解を1つだけ指定してください',
         });
       }
       break;
@@ -491,4 +503,30 @@ export function validateQuizForPublish(quiz: Quiz): QuizPublishValidationError[]
   }
 
   return errors;
+}
+
+/**
+ * 保存前に問題データを正規化する（〇✕形式の選択肢ラベル等）
+ */
+export function normalizeQuizQuestionsForSave(questions: Question[]): Question[] {
+  return questions.map((q) => {
+    if (isReferenceLinkQuestion(q) || q.type !== 'true-false') {
+      return q;
+    }
+    return {
+      ...q,
+      choices: normalizeTrueFalseChoices(q.choices),
+    };
+  });
+}
+
+export function setTrueFalseCorrectSide(
+  question: Question,
+  side: TrueFalseCorrectSide
+): Question {
+  if (question.type !== 'true-false') return question;
+  return {
+    ...question,
+    choices: normalizeTrueFalseChoices(question.choices, side),
+  };
 }

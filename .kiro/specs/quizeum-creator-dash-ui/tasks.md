@@ -305,3 +305,53 @@
   - _Requirements: 10.10, 10.11_
   - _Boundary: Testing_
 
+---
+
+### 10. Phase 20: 〇×問題の作問 UI（2026-06-09）
+
+- [x] 10.1 正解トグルコンポーネントの実装
+  - 「〇が正解」「✕が正解」を切り替える専用トグル UI を実装し、`data-testid="true-false-correct-toggle"` を付与する
+  - トグル変更時にコア lib の固定選択肢生成関数を呼び出し、内部 `choices` を2件・正解1件に更新する
+  - **完了状態**: トグル操作で `choices` が「〇」「✕」2件かつ正解が1件に更新されること
+  - _Requirements: 11.6, 11.7, 11.8, 11.14_
+  - _Depends: quizeum-core 19.1_
+  - _Boundary: TrueFalseCorrectToggle_
+
+- [x] 10.2 出題形式カードと複合形式トグルの拡張
+  - クイズ全体の出題形式選択に「〇×式」を追加し、選択時は全問題を `true-false` に固定して問題タイプ切り替え UI を非表示にする
+  - 複合形式の問題タイプトグルに「〇×」を追加し、`data-testid="question-type-true-false"` を付与する
+  - **完了状態**: 〇×式形式選択と複合トグルから `true-false` 問題を作成・切り替えできること
+  - _Requirements: 11.1, 11.2, 11.4, 11.5, 11.14_
+  - _Depends: 10.1, quizeum-core 19.2_
+  - _Boundary: QuizEditor_
+
+- [x] 10.3 形式変換とデフォルト問題追加の整合
+  - 他形式から「〇×式」への一括変換時に確認ダイアログを表示し、同意後に各問題へ固定選択肢とデフォルト正解を設定する
+  - 新規問題追加・形式変更時に `true-false` 向け初期データ（正解トグル既定値）を適用する
+  - 複合形式へ戻した際、既存 `true-false` 問題は維持する
+  - **完了状態**: 形式変換・問題追加後も公開検証（2択・正解1件）を満たすエディタ状態になること
+  - _Requirements: 11.3, 11.9, 11.10, 11.11_
+  - _Depends: 10.2_
+  - _Boundary: QuizEditor_
+
+- [x] 10.4 (P) Phase 20 コンポーネントテスト
+  - 正解トグル・形式カード・複合トグルのレンダリングと `choices` 更新を検証する
+  - 選択肢テキストの自由編集入力欄が `true-false` 問題に表示されないことを検証する
+  - **完了状態**: 関連 Jest がグリーンであること
+  - _Requirements: 11.7, 11.8, 11.14_
+  - _Depends: 10.3_
+  - _Boundary: Testing_
+
+- [x] 10.5 Phase 20 統合検証
+  - 〇×式クイズの下書き保存がコア検証を通過することを確認する
+  - 参照リンク問題表示時の読み取り専用／切り離しポリシーが既存 Phase 8 ルールと整合することを確認する
+  - **完了状態**: エディタ関連テスト・ビルドがグリーンで、プレイ専用 UI は play-flow-ui に委譲されていること
+  - _Requirements: 11.9, 11.10, 11.12, 11.13_
+  - _Depends: 10.4, quizeum-core 19.3_
+  - _Boundary: Integration_
+
+## Implementation Notes (Phase 20)
+
+- 選択肢正規化・`Quiz.format` 永続化は `quizeum-core` Phase 19 に依存。本スペックは UI とエディタ state のみ。
+- 実装順: `quizeum-core` 19.1 → 本スペック 10.1 以降。
+

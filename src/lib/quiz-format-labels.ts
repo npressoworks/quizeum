@@ -5,6 +5,8 @@ export function getFormatLabel(fmt: string): string {
       return '複合形式';
     case 'multiple-choice':
       return '選択式';
+    case 'true-false':
+      return '〇✕式';
     case 'text-input':
       return '記述式';
     case 'quick-press':
@@ -27,6 +29,8 @@ export function getFormatDescription(fmt: string): string {
       return '選択式・記述式・並び替えを自由に組み合わせ可能';
     case 'multiple-choice':
       return '複数の選択肢から1つの正解を選ぶ定番クイズ';
+    case 'true-false':
+      return '〇か✕かを選ぶ2択クイズ';
     case 'text-input':
       return 'テキスト入力で正確な正解ワードを記述する問題';
     case 'quick-press':
@@ -49,6 +53,8 @@ export function getFormatIcon(fmt: string): string {
       return '🌀';
     case 'multiple-choice':
       return '☑️';
+    case 'true-false':
+      return '⭕';
     case 'text-input':
       return '✍️';
     case 'quick-press':

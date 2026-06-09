@@ -29,6 +29,8 @@
 
 **Phase 19（2026-06-09）**: クイズ詳細画面のプレイモード選択において、模擬試験・フラッシュカードがクイズ単位リーダーボード（初回プレイ・リプレイ）の対象外であること、および先にこれらのモードでプレイした場合は以降の通常モードプレイも初回プレイランキングに掲載されない旨の警告を表示する（LB 登録ルールは `quizeum-core` が担当）。
 
+**Phase 20（2026-06-09）**: 〇×問題（`true-false`）のプレイ時に、大きな 〇／× ボタンを1タップするだけで即回答できる専用 UI を提供します。通常モードでは要件 17 のフィードバックフローと統合します。形式ラベル・探索カルーセルへの「〇×式」追加を含みます（形式解決・検証は `quizeum-core`、作問 UI は `quizeum-creator-dash-ui` が担当）。
+
 
 ## 境界コンテキスト
 - **対象範囲（In scope）**:
@@ -48,6 +50,7 @@
   - **Phase 15**: 通常モードにおける回答後即時正誤フィードバック、「次へ」／「結果を見る」ボタン、スキップボタン（不正解記録）、楽観的結果画面遷移と結果画面 Suspense シェルの即時表示。
   - **Phase 16**: 早押し問題の区間累計経過時間（問読み開始前・制限時間終了後・不正解確定後は加算停止）、問読み修了後の制限時間カウントダウン、不正解フィードバックでの正解非表示、問題カードの初期横幅拡大。
   - **Phase 19**: クイズ詳細のプレイモード選択パネルにおける、模擬試験・フラッシュカードのランキング非対象警告表示。
+  - **Phase 20**: 〇×問題の専用回答 UI（1タップ 〇／×）、本番プレイ・テストプレイ・弱点克服での統合、出題形式ラベル「〇×式」、探索カルーセルへの形式追加。
 - **対象外（Out of scope）**:
   - Gemini APIを利用した判定サーバーサイドロジック、リーダーボード永続化、`attempts` への書き込み（`quizeum-core` が担当）。
   - クイズ作成者向けのクイズ・クイズリスト作成・編集画面（`quizeum-creator-dash-ui` が担当）。
@@ -60,6 +63,7 @@
   - **Phase 15**: 模擬試験・フラッシュカード・ウミガメのスープ・問題リストプレイのフロー変更、`saveAttempt` API・スキーマ変更（`quizeum-core`）、テストプレイ画面のフロー変更、クイズ詳細の「即時正誤表示」トグルによる通常モード挙動の分岐（通常モードでは新フローを常時適用）。
   - **Phase 16**: 早押しタイム（押下〜回答の秒数）の計測・記録ロジックの変更、テストプレイ画面、模擬試験・フラッシュカード・ウミガメのスープ・問題リストプレイ、`saveAttempt` の `elapsedSeconds` スキーマ変更（`quizeum-core`）、リーダーボード集計ロジック変更、弱点克服（復習）プレイの早押し表示仕様変更。
   - **Phase 19**: 模擬試験・フラッシュカードのリーダーボード登録判定・初回／リプレイ振り分けロジック（`quizeum-core`）。プラットフォーム総合リーダーボード（`/leaderboard`）の仕様変更。
+  - **Phase 20**: 〇×問題の作問エディタ（正解トグル）、`Quiz.format` 永続化・公開検証（`quizeum-core` / `quizeum-creator-dash-ui`）。
 - **隣接システムへの期待**:
   - クイズドキュメントの `leaderboardFirstPlay` / `leaderboardReplay` を読み取り表示する。`leaderboardFirstPlay` が空で旧 `leaderboard` のみ存在する場合は、初回プレイ側のフォールバック表示として旧フィールドを用いる（`quizeum-core` と同一ルール）。
   - **Phase 6**: ジャンルマスタ読み取り・一覧クエリ・canonical 解決は `quizeum-core`（`listActiveGenres`, `getQuizzesByGenre`, `getQuizzesByTag`, `searchQuizzes`）に依存する。エディタの動的ジャンルセレクトは `quizeum-creator-dash-ui` が担当。
@@ -557,4 +561,35 @@
 
 **アクセシビリティ・テスト支援**
 9. The [Play Flow UI] shall [ランキング非対象警告領域に `data-testid="play-mode-leaderboard-warning"` を付与すること]。
+
+### 要件 20: 〇×問題の1タップ回答 UI（Phase 20）
+**目的:** クイズプレイヤーとして、〇×問題に対し 〇 または × を押すだけで即座に回答したい。それにより素早く直感的にプレイできる。
+
+#### 受け入れ基準
+
+**専用回答 UI**
+1. When [現在の問題タイプが `true-false` であるとき], the [Play Flow UI] shall [選択式用の `ChoiceAnswerPanel`（ラジオ選択＋「解答を確定する」）を表示せず、専用の 〇／× 回答 UI を表示すること]。
+2. The [Play Flow UI] shall [専用回答 UI に、視認性の高い「〇」ボタンと「✕」（または「×」）ボタンの2つを並べて表示すること]。
+3. When [ユーザーが「〇」または「✕」ボタンを1回押したとき], the [Play Flow UI] shall [追加の確定操作なしで、直ちに当該選択肢を解答として送信すること]。
+4. While [解答送信処理中または通常モードで正誤フィードバック表示中である間], the [Play Flow UI] shall [〇／× ボタンを無効化し、二重送信を防止すること]。
+
+**対象画面とモード**
+5. The [Play Flow UI] shall [本番プレイ画面（`/quiz/[id]/play`）の `true-false` 問題に本要件を適用すること]。
+6. The [Play Flow UI] shall [テストプレイ画面（`/quiz/test-play/play`）の `true-false` 問題に、本番と同一の 〇／× 専用回答 UI を適用すること]。
+7. The [Play Flow UI] shall [弱点克服プレイ画面（`/quiz/review`）の `true-false` 問題に、本番と同一の 〇／× 専用回答 UI を適用すること]。
+8. Where [プレイモードが通常モード（`mode=normal`）である場合], the [Play Flow UI] shall [1タップ送信後、要件 17 に定義する即時正誤フィードバックフロー（正誤表示 →「次へ」／「結果を見る」）を適用すること]。
+9. Where [プレイモードが模擬試験（`mode=exam`）である場合], the [Play Flow UI] shall [1タップ送信後、従来の模擬試験進行（確定後の自動遷移なし、見直し可能）を維持すること]。
+
+**形式ラベルと探索**
+10. The [Play Flow UI] shall [クイズカードおよび出題形式表示において、有効な出題形式 `true-false` の日本語ラベルを「〇×式」として表示すること]。
+11. When [ホームの出題形式カルーセル（要件 13）を表示するとき], the [Play Flow UI] shall [「〇×式」を選択可能な形式カードとして含めること]。
+12. When [ユーザーが出題形式カルーセルで「〇×式」を選択したとき], the [Play Flow UI] shall [ホーム内クイズグリッドを `true-false` 形式のクイズのみに絞り込むこと（`quizeum-core` の形式フィルタと整合）]。
+
+**境界・隣接**
+13. The [Play Flow UI] shall [`true-false` 問題の公開検証・選択肢正規化・`Quiz.format` 解決を実装してはならない（`quizeum-core` が担当）]。
+14. The [Play Flow UI] shall [作問エディタの正解トグル UI を本要件の範囲に含めない（`quizeum-creator-dash-ui` が担当）]。
+15. The [Play Flow UI] shall [正誤判定ロジックの正本を変更せず、既存の選択肢 ID ベース判定を維持すること]。
+
+**アクセシビリティ・テスト支援**
+16. The [Play Flow UI] shall [〇ボタンに `data-testid="true-false-answer-true"`、✕ボタンに `data-testid="true-false-answer-false"`、専用回答 UI のコンテナに `data-testid="true-false-answer-panel"` を付与すること]。
 

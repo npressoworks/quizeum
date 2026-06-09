@@ -16,7 +16,12 @@ import {
 import { db } from '../lib/firebase/config';
 import { quizzesRef, followsRef, bookmarksRef, questionsRef } from '../lib/firebase/firestore';
 import { Quiz, Question } from '../types';
-import { validateQuizForPublish, validateQuizForDraft, normalizeTag } from './quiz-validation';
+import {
+  validateQuizForPublish,
+  validateQuizForDraft,
+  normalizeTag,
+  normalizeQuizQuestionsForSave,
+} from './quiz-validation';
 import { normalizeSearchText, searchTextIncludes } from '../lib/normalize-search-text';
 import {
   assertAuthorOwnsQuestion,
@@ -282,18 +287,19 @@ export async function updateQuiz(
 
   // もし questions が更新データに含まれている場合、問題の同期・差分削除を行う
   if (data.questions) {
+    const normalizedQuestions = normalizeQuizQuestionsForSave(data.questions);
     const oldQuestionIds = currentQuiz.questionIds || [];
     const newQuestionIds: string[] = [];
     const processedQuestions: Question[] = [];
 
-    const candidateIds = data.questions
+    const candidateIds = normalizedQuestions
       .map((q) => q.id)
       .filter((id): id is string => !!id);
     const storedById = await loadQuestionsByIds([
       ...new Set([...oldQuestionIds, ...candidateIds]),
     ]);
 
-    for (const q of data.questions) {
+    for (const q of normalizedQuestions) {
       if (isReferenceLinkQuestion(q) && q.id && !storedById.has(q.id)) {
         const snap = await getDoc(doc(questionsRef, q.id));
         if (snap.exists()) {
@@ -303,7 +309,7 @@ export async function updateQuiz(
     }
 
     const partition = partitionQuestionsForSave(
-      data.questions,
+      normalizedQuestions,
       oldQuestionIds,
       storedById
     );
@@ -498,7 +504,7 @@ export async function saveQuiz(
   const questionIds: string[] = [];
   const processedQuestions: Question[] = [];
 
-  const inputQuestions = quizData.questions || [];
+  const inputQuestions = normalizeQuizQuestionsForSave(quizData.questions || []);
   const refCandidateIds = inputQuestions
     .filter((q) => isReferenceLinkQuestion(q) && q.id)
     .map((q) => q.id as string);

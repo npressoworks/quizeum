@@ -18,6 +18,7 @@ import { Quiz, Attempt, Question } from '@/types';
 import { auth } from '@/lib/firebase/config';
 import styles from './play.module.css';
 import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
+import { TrueFalseAnswerPanel } from '@/components/quiz/true-false-answer-panel';
 import { QuestionTextDisplay } from '@/components/quiz/question-text-display';
 import { MarkdownContent } from '@/components/markdown/markdown-content';
 import { useQuickPressStream } from '@/hooks/useQuickPressStream';
@@ -942,7 +943,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     if (!type) return '';
     switch (type) {
       case 'multiple-choice': return '選択式';
-      case 'true-false': return '〇×式';
+      case 'true-false': return '〇✕式';
       case 'text-input': return '記述式';
       case 'quick-press': return '早押し';
       case 'sorting': return '並び替え';
@@ -1071,7 +1072,19 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
         ) : (
           <>
         {/* 1. 選択肢表示 (単一正解=ラジオ / 複数正解=チェックボックス → 確定ボタン) */}
-        {(currentQuestion?.type === 'multiple-choice' || currentQuestion?.type === 'true-false') && (
+        {currentQuestion?.type === 'true-false' && (
+          <TrueFalseAnswerPanel
+            question={currentQuestion}
+            onConfirm={submitAnswer}
+            disabled={
+              isNormalFeedbackFlow
+                ? feedbackPending
+                : effectivePlayMode !== 'exam' && answeredIds.includes(currentQuestion.id)
+            }
+          />
+        )}
+
+        {currentQuestion?.type === 'multiple-choice' && (
           <ChoiceAnswerPanel
             question={currentQuestion}
             onConfirm={submitAnswer}

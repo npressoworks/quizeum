@@ -983,3 +983,67 @@
 - 専用コンポーネントは作らず `QuizDetailClient` 内インライン実装とする（design.md Phase 19 §6）。
 - プレイ中・結果画面での再警告は要件外。
 
+---
+
+### 25. Phase 20: 〇×問題の1タップ回答 UI（2026-06-09）
+
+- [x] 25.1 〇／× 専用回答パネルの実装
+  - 大きな「〇」「✕」ボタンを並べ、1タップで即座に選択肢 ID を解答として送信する専用パネルを実装する（確定ボタンなし）
+  - `data-testid="true-false-answer-panel"`、`true-false-answer-true`、`true-false-answer-false` を付与する
+  - 送信中・フィードバック表示中は二重送信を防ぐためボタンを無効化する
+  - legacy ラベル（「○」「×」等）でも choice ID を解決できること
+  - **完了状態**: ボタン1回のクリックで `onConfirm(choiceId)` が1回だけ呼ばれること
+  - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.16_
+  - _Boundary: TrueFalseAnswerPanel_
+
+- [x] 25.2 本番プレイ画面への組み込み
+  - `true-false` 問題では `ChoiceAnswerPanel` の代わりに専用パネルを表示する
+  - 通常モードでは送信後に既存の即時正誤フィードバックフロー（要件 17）を適用する
+  - 模擬試験モードでは1タップ送信後も従来の exam 進行（自動次問なし）を維持する
+  - **完了状態**: 本番プレイで 〇× 問題が1タップ回答でき、通常モードでフィードバックが表示されること
+  - _Requirements: 20.5, 20.8, 20.9, 20.15_
+  - _Depends: 25.1_
+  - _Boundary: QuizPlayClient_
+
+- [x] 25.3 テストプレイ・弱点克服画面への組み込み
+  - テストプレイ画面と弱点克服プレイ画面でも本番と同一の 〇／× 専用パネルを使用する
+  - **完了状態**: 3画面すべてで `true-false` 問題に専用パネルが表示され、選択式パネルが使われないこと
+  - _Requirements: 20.6, 20.7_
+  - _Depends: 25.1_
+  - _Boundary: TestPlayClient, ReviewClient_
+
+- [x] 25.4 出題形式ラベルと探索カルーセルの拡張
+  - クイズカード等の出題形式表示で `true-false` を「〇×式」として表示する（コア lib のラベル定義を利用）
+  - ホームの出題形式カルーセルに「〇×式」を追加し、選択時に形式フィルタが `true-false` になること
+  - **完了状態**: カード・カルーセルに「〇×式」が表示され、カルーセル選択でグリッドが絞り込まれること
+  - _Requirements: 20.10, 20.11, 20.12_
+  - _Depends: quizeum-core 19.2_
+  - _Boundary: QuizCard, ExploreFilterSection_
+
+- [x] 25.5 (P) Phase 20 コンポーネントテスト
+  - 専用パネルの即送信・無効化・legacy ラベル解決を検証する
+  - **完了状態**: 関連 Jest がグリーンであること
+  - _Requirements: 20.3, 20.4, 20.16_
+  - _Depends: 25.2, 25.3_
+  - _Boundary: Testing_
+
+- [x] 25.6 Phase 20 統合検証
+  - 通常モードのフィードバック（要件 17）・exam モード退行なしを確認する
+  - 採点は既存 choice ID ベースのまま動作することを確認する
+  - **完了状態**: プレイフロー関連テスト・ビルドがグリーンであること
+  - _Requirements: 20.8, 20.9, 20.13, 20.14, 20.15_
+  - _Depends: 25.4, 25.5_
+  - _Boundary: Integration_
+
+- [ ]* 25.7 Phase 20 E2E スモーク（任意）
+  - Playwright で 〇× クイズの1タップ回答とフィードバック表示を検証する
+  - _Requirements: 20.3, 20.5, 20.16_
+  - _Depends: 25.6_
+  - _Boundary: Testing_
+
+## Implementation Notes (Phase 20)
+
+- 実装順: `quizeum-core` 19.x 完了後に 25.4（ラベル・カルーセル）。25.1–25.3 は既存 `choices` データで先行可能。
+- `ChoiceAnswerPanel` は `true-false` から分離し変更しない（multiple-choice 専用のまま）。
+- 作問 UI は `quizeum-creator-dash-ui` Phase 10 が担当。
+

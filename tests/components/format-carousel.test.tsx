@@ -8,10 +8,10 @@ import { FormatCarousel } from '@/components/explore/format-carousel';
 import { EXPLORE_FORMAT_OPTIONS } from '@/lib/explore-formats';
 
 describe('FormatCarousel', () => {
-  it('7種の形式カードを表示する', () => {
+  it('8種の形式カードを表示する', () => {
     render(<FormatCarousel selectedFormat="" onSelect={jest.fn()} />);
     expect(screen.getByTestId('format-carousel')).toBeInTheDocument();
-    expect(EXPLORE_FORMAT_OPTIONS).toHaveLength(7);
+    expect(EXPLORE_FORMAT_OPTIONS).toHaveLength(8);
     for (const option of EXPLORE_FORMAT_OPTIONS) {
       expect(screen.getByTestId(`format-carousel-card-${option.id}`)).toBeInTheDocument();
     }

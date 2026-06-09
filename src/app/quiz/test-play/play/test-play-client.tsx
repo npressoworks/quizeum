@@ -32,6 +32,7 @@ import {
 import { PlaySkeleton } from '@/components/quiz/play-skeleton';
 import styles from '@/app/quiz/[id]/play/play.module.css';
 import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
+import { TrueFalseAnswerPanel } from '@/components/quiz/true-false-answer-panel';
 import { SortableSortingList } from '@/components/sorting/sortable-sorting-list';
 
 function TestPlayClient() {
@@ -242,7 +243,7 @@ function TestPlayClient() {
   const getQuestionTypeLabel = (type: Question['type']) => {
     switch (type) {
       case 'multiple-choice': return '選択式';
-      case 'true-false': return '〇×式';
+      case 'true-false': return '〇✕式';
       case 'text-input': return '記述式';
       case 'quick-press': return '早押し';
       case 'sorting': return '並び替え';
@@ -393,7 +394,15 @@ function TestPlayClient() {
           />
         ) : (
           <>
-        {(currentQuestion.type === 'multiple-choice' || currentQuestion.type === 'true-false') && (
+        {currentQuestion.type === 'true-false' && (
+          <TrueFalseAnswerPanel
+            question={currentQuestion}
+            onConfirm={submitAnswer}
+            disabled={feedbackPending}
+          />
+        )}
+
+        {currentQuestion.type === 'multiple-choice' && (
           <ChoiceAnswerPanel
             question={currentQuestion}
             onConfirm={submitAnswer}

@@ -10,6 +10,7 @@ export interface ExploreFormatOption {
 const FORMAT_IDS: QuizFormat[] = [
   'mixed',
   'multiple-choice',
+  'true-false',
   'text-input',
   'quick-press',
   'sorting',

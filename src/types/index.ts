@@ -151,7 +151,7 @@ export interface Quiz {
   leaderboard?: LeaderboardRecord[];
   leaderboardFirstPlay: LeaderboardRecord[];
   leaderboardReplay: LeaderboardRecord[];
-  format?: 'mixed' | 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking'; // クイズ全体の形式
+  format?: 'mixed' | 'multiple-choice' | 'true-false' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking'; // クイズ全体の形式
   createdAt: Date;
   updatedAt: Date;
 }

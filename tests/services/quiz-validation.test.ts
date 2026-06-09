@@ -14,6 +14,7 @@ import {
   normalizeTag,
   validateQuizForPublish,
   containsNgWord,
+  normalizeQuizQuestionsForSave,
   QuizPublishValidationError,
 } from '../../src/services/quiz-validation';
 import { Quiz, Question, Choice } from '../../src/types';
@@ -515,6 +516,49 @@ describe('validateQuizForPublish', () => {
       });
       const errors = validateQuizForPublish(quiz);
       expect(errors.some((e) => e.field === 'questions')).toBe(false);
+    });
+
+    test('true-false形式で正解が2件の場合エラーを返す', () => {
+      const question = makeQuestion({
+        type: 'true-false',
+        choices: [
+          makeChoice({ id: 't1', choiceText: '〇', isCorrect: true }),
+          makeChoice({ id: 't2', choiceText: '✕', isCorrect: true }),
+        ],
+      });
+      const quiz = makeQuiz({ format: 'true-false', questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.message.includes('正解を1つだけ'))).toBe(true);
+    });
+
+    test('true-false形式クイズで問題タイプが一致している場合エラーを返さない', () => {
+      const question = makeQuestion({
+        type: 'true-false',
+        choices: [
+          makeChoice({ id: 't1', choiceText: '〇', isCorrect: true }),
+          makeChoice({ id: 't2', choiceText: '✕', isCorrect: false }),
+        ],
+      });
+      const quiz = makeQuiz({ format: 'true-false', questions: [question] });
+      const errors = validateQuizForPublish(quiz);
+      expect(errors.some((e) => e.field === 'questions')).toBe(false);
+    });
+  });
+
+  describe('normalizeQuizQuestionsForSave', () => {
+    test('true-false問題の選択肢ラベルを正規化する', () => {
+      const normalized = normalizeQuizQuestionsForSave([
+        makeQuestion({
+          type: 'true-false',
+          choices: [
+            makeChoice({ id: 'legacy-true', choiceText: '○', isCorrect: true }),
+            makeChoice({ id: 'legacy-false', choiceText: '×', isCorrect: false }),
+          ],
+        }),
+      ]);
+      expect(normalized[0].choices?.[0].choiceText).toBe('〇');
+      expect(normalized[0].choices?.[1].choiceText).toBe('✕');
+      expect(normalized[0].choices?.[0].id).toBe('legacy-true');
     });
   });
 

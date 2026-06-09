@@ -888,3 +888,52 @@
 - 判定ロジックの正本は `leaderboard-update` モジュールに集約する。prior 件数カウントはモード不問の既存実装を維持する。
 - 既存 LB エントリの物理削除やマイグレーションは本フェーズ対象外（新規更新のみ制御）。
 - クイズ詳細の警告 UI は `quizeum-play-flow-ui` Phase 19 タスクで実装する。
+
+---
+
+### 19. Phase 20: 〇×問題形式（`true-false`）コア整合（2026-06-09）
+
+- [x] 19.1 固定 〇／× 選択肢の生成・正規化ライブラリ
+  - `true-false` 問題向けに、正解トグル（〇／×）から固定ラベル「〇」「✕」の2選択肢を生成する純関数を実装する
+  - 既存 `choices` から正解側を推定する読み取り用関数と、保存前に ID を可能な限り維持しつつラベルと `isCorrect` を矯正する正規化関数を実装する
+  - **完了状態**: 単体テストで maru/batsu 双方の生成・正規化が期待どおり動作すること
+  - _Requirements: 20.5, 20.6, 20.8_
+  - _Boundary: true-false-defaults_
+
+- [x] 19.2 出題形式型と形式解決の拡張
+  - クイズ全体の出題形式に `true-false` を追加し、全問題が `true-false` のみのとき有効形式を `true-false` として解決する（`mixed` への誤フォールバックを除去する）
+  - 出題形式ラベル・説明・アイコンに「〇×式」を追加し、探索フィルタ（`quiz-format-match`）と整合させる
+  - **完了状態**: 単一 `true-false` クイズの `resolveQuizFormat` が `true-false` を返し、形式ラベルが「〇×式」になること
+  - _Requirements: 20.1, 20.2, 20.9, 20.10, 20.11, 20.12_
+  - _Depends: 19.1_
+  - _Boundary: quiz-format, quiz-format-labels, quiz-format-match_
+
+- [x] 19.3 公開検証と保存時正規化
+  - `true-false` 問題について選択肢2件・正解1件を公開時に検証する既存ルールを維持し、`format: 'true-false'` クイズでは全問が `true-false` であることを要求する
+  - 下書き・公開保存時に `true-false` 問題へ正規化を適用し、新規保存データの選択肢テキストが「〇」「✕」に統一されること
+  - **完了状態**: 3択・正解0件・形式不整合のクイズが公開拒否され、正規化後の保存データが検証を通過すること
+  - _Requirements: 20.3, 20.4, 20.5, 20.7_
+  - _Depends: 19.1, 19.2_
+  - _Boundary: quiz-validation, QuizService_
+
+- [x] 19.4 (P) Phase 20 単体テスト
+  - `true-false-defaults`、`resolveQuizFormat`、`validateQuizForPublish` の `true-false` 系テストを追加する
+  - 既存 `test_data.json` 相当の legacy ラベルデータが採点拒否されないことを回帰確認する（読み取り後方互換）
+  - **完了状態**: 関連 Jest がグリーンであり、既存選択式・形式フィルタテストに回帰がないこと
+  - _Requirements: 20.6, 20.7, 20.8_
+  - _Depends: 19.1, 19.2, 19.3_
+  - _Boundary: Testing_
+
+- [x] 19.5 Phase 20 統合検証
+  - `searchQuizzes` の出題形式 `true-false` フィルタが `resolveQuizFormat` と一致することを確認する
+  - 採点経路（`isChoiceAnswerCorrect`）が変更なく `true-false` で動作することを確認する
+  - **完了状態**: コアテストスイートがグリーンで、要件 20.13–20.15（UI 境界）は隣接スペックタスクに委譲されていること
+  - _Requirements: 20.9, 20.10, 20.11, 20.12_
+  - _Depends: 19.4_
+  - _Boundary: Integration_
+
+## Implementation Notes (Phase 20)
+
+- 正本は `true-false-defaults.ts` に集約。エディタ・プレイ UI は隣接スペックが担当。
+- 既存 Firestore の legacy ラベル（「○」「×」等）は読み取り・採点を継続。新規保存のみ「〇」「✕」へ正規化。
+- `saveAttempt` API・`isChoiceAnswerCorrect` の契約変更は行わない。

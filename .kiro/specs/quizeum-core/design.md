@@ -30,6 +30,8 @@
 
 **Phase 18（2026-06-09）**: 模擬試験（`exam`）・フラッシュカード（`flashcard`）完了試行をクイズ単位リーダーボード（初回プレイ・リプレイ）の登録対象外とする。初回／リプレイ振り分け用の prior 完了件数は**全永続化モード**（test-play 除く）をカウントし、先に exam/flashcard で完了したユーザーは以降の通常モード等の登録対象試行をリプレイ側のみに振り分ける。判定ロジックは `leaderboard-update.ts` に集約する。
 
+**Phase 20（2026-06-09）**: 〇×問題（`true-false`）を第一級出題形式として整備。`Quiz.format` 拡張、`true-false-defaults.ts` による固定「〇」「✕」選択肢の生成・正規化、`resolveQuizFormat` の単一形式解決、探索形式フィルタとの整合。プレイ／作問 UI は隣接スペックが担当。
+
 ### Goals
 - ページの初期HTML読み込み時間を通常トラフィック下で平均0.5秒以内に維持する。
 - プレイ中の不意なリロードやオフライン切断時における解答データ損失をローカルで保護・復元する。
@@ -49,6 +51,7 @@
 - **Phase 16 水平思考プレイ UX（2026-06）**: チャット統合入力、諦め API、経過時間、固定不合格メッセージ、`quiz-play-client` レイアウト改修。
 - **Phase 17 ウミガメ認証・制限・諦め改定（2026-06）**: 二層日次制限、`normalizeQuestionText` キャッシュ、横断カウンタ、`limitType` 付き 429、諦め API の真相非返却、attempt `listId` 引き継ぎ。
 - **Phase 18 模擬試験・フラッシュカード LB 非対象（2026-06）**: `isLeaderboardEligibleAttempt` によるモード除外、全モード prior 件数カウントによる初回権利消滅、`saveAttempt` / `verify-truth` 共通更新パス。
+- **Phase 20 〇×問題形式（2026-06）**: `true-false` の第一級 format 化、固定選択肢 lib、公開検証・形式解決・ラベル整合。
 
 ### Non-Goals
 - 外部システムや外部ファイルからのクイズ・クイズリストの一括インポート機能の実装。
@@ -93,6 +96,7 @@
 - **Phase 16**: 水平思考本番プレイ UI（`quiz-play-client.tsx`）のチャット統合入力・諦め・経過時間・ルール説明（`quizeum-play-flow-ui` 境界と重複するが実装はコア play ルート）。
 - **Phase 17 — プレイ/課金 UI**: 未登録向けボタン表記、制限到達 Pro 誘導（`/pricing`）、諦め後チャット内ナビ、ルール説明の上限数値更新（`quizeum-play-flow-ui`）。Free プラン上限説明（`quizeum-billing-subscription-ui` の `pricing-display.ts`）。
 - **Phase 18 — モード選択警告 UI**: 模擬試験・フラッシュカードのランキング非対象および初回プレイ権利消滅の事前告知（`quizeum-play-flow-ui`）。
+- **Phase 20 — 〇× UI**: 専用プレイ回答パネル（`quizeum-play-flow-ui`）、作問正解トグル（`quizeum-creator-dash-ui`）。
 
 ### Allowed Dependencies
 - **外部AI API**: 生成AI自動判定に必要な外部API（Google Gemini API等）。
@@ -2389,3 +2393,101 @@ export function checkAiTurnLimits(input: AiTurnLimitCheckInput): AiTurnLimitChec
 **Effort**: **XS**（半日）— 1 関数 + テスト追加
 
 **Document Status（Phase 18 設計）**: 本節に反映。`spec.json` → `phase: design-generated`。
+
+---
+
+## Phase 20: 〇×問題形式（`true-false`）コア整合（2026-06-09）
+
+### 1. Boundary Commitments
+
+| Owns | Out of Boundary |
+|------|-----------------|
+| `Quiz.format` に `'true-false'` 追加 | 〇／× 専用プレイ UI（`quizeum-play-flow-ui`） |
+| `resolveQuizFormat` の単一形式解決 | 作問エディタ正解トグル UI（`quizeum-creator-dash-ui`） |
+| `true-false-defaults` による固定選択肢生成・正規化 | `ChoiceAnswerPanel` の改修 |
+| 公開検証（2択・正解1件・ラベル正規化） | |
+| `quiz-format-labels` の「〇×式」ラベル | |
+| 既存 `isChoiceAnswerCorrect` 採点経路の維持 | |
+
+### 2. Architecture Decision
+
+**パターン**: 既存 `choices` モデルを維持し、Core/lib に固定ラベル生成を集約する（Build）。`correctTextAnswerList` への移行は却下（Adopt 不要・データ非互換）。
+
+**`resolveQuizFormat` 改定**:
+- `SINGLE_FORMAT_TYPES` に `'true-false'` を追加
+- 全問題が `true-false` のみ → `'true-false'`（現状の `mixed` フォールバックを削除）
+- `format: 'true-false'` 明示時は公開検証で全問題 `true-false` を要求
+
+### 3. Core Library: `true-false-defaults.ts`
+
+```typescript
+export type TrueFalseCorrectSide = 'maru' | 'batsu';
+
+export const TRUE_FALSE_LABELS = { maru: '〇', batsu: '✕' } as const;
+
+/** 新規問題・形式変換時のデフォルト選択肢（正解トグル反映） */
+export function createTrueFalseChoices(correctSide: TrueFalseCorrectSide): Choice[];
+
+/** 既存 choices から正解側を推定（読み取り専用・エディタ初期化用） */
+export function resolveTrueFalseCorrectSide(choices: Choice[] | undefined): TrueFalseCorrectSide;
+
+/** 保存前正規化: ID は可能な限り維持し choiceText/isCorrect のみ矯正 */
+export function normalizeTrueFalseChoices(
+  choices: Choice[] | undefined,
+  correctSide: TrueFalseCorrectSide
+): Choice[];
+```
+
+**保存パス**: `QuizService.saveQuiz`（または `quiz-validation` 直前）で `type === 'true-false'` の問題に `normalizeTrueFalseChoices` を適用。`format === 'true-false'` のクイズは `questions[].type` を強制 `true-false`。
+
+### 4. Validation Rules（`quiz-validation.ts` 拡張）
+
+| チェック | 下書き | 公開 |
+|----------|--------|------|
+| 選択肢件数 === 2 | ✓ | ✓ |
+| `isCorrect === true` が1件 | ✓ | ✓ |
+| `choiceText` が「〇」「✕」に正規化可能 | 正規化して保存 | 正規化後検証 |
+| `format === 'true-false'` → 全問 `true-false` | — | ✓ |
+
+**後方互換**: 既存データでラベルが「○」「×」等の場合、読み取り・採点は `isCorrect` + ID で継続。新規保存時のみ `normalizeTrueFalseChoices` で「〇」「✕」へ統一。
+
+### 5. File Structure Plan（Phase 20）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/types/index.ts` | **Modify** | `Quiz.format` に `'true-false'` |
+| `src/lib/true-false-defaults.ts` | **New** | 固定選択肢生成・正規化・正解側推定 |
+| `src/lib/quiz-format.ts` | **Modify** | `SINGLE_FORMAT_TYPES` 追加、`resolveQuizFormat` 修正 |
+| `src/lib/quiz-format-labels.ts` | **Modify** | `true-false` → ラベル「〇×式」、説明・アイコン |
+| `src/services/quiz-validation.ts` | **Modify** | `true-false` 公開検証・形式整合 |
+| `src/services/quiz.ts` | **Modify** | 保存時 `true-false` 正規化（任意で validation 内集約可） |
+| `tests/lib/true-false-defaults.test.ts` | **New** | 生成・正規化・正解側推定 |
+| `tests/lib/quiz-format.test.ts` | **Modify** | 単一 `true-false` → format 解決 |
+| `tests/services/quiz-validation-true-false.test.ts` | **New** | 公開拒否・正規化 |
+
+**変更なし（確認のみ）**: `choice-answer-utils.ts` / `usePlayState` の `isChoiceAnswerCorrect` 経路、`quiz-format-match.ts`（`resolveQuizFormat` 連動で自動整合）。
+
+### 6. Requirements Traceability（Phase 20）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 20.1–20.3 | 第一級 format・単一形式解決 | `quiz-format.ts`, `types` |
+| 20.4–20.5 | 公開検証・正規化 | `quiz-validation.ts`, `true-false-defaults.ts` |
+| 20.6 | 後方互換読み取り | 採点経路維持 |
+| 20.7–20.8 | 採点・単一正解 | `choice-answer-utils` |
+| 20.9–20.10 | 形式フィルタ・ラベル | `quiz-format-match`, `quiz-format-labels` |
+| 20.11–20.12 | mixed 共存 | `quiz-format.ts`, validation |
+| 20.13–20.15 | 境界 Out | play-flow / creator-dash |
+
+### 7. Testing Strategy（Phase 20）
+
+| 種別 | 検証 |
+|------|------|
+| **Unit** | `createTrueFalseChoices('maru')` → 〇正解・✕不正解、`resolveQuizFormat` 全問 true-false |
+| **Unit** | `normalizeTrueFalseChoices` が ID 維持しラベル矯正 |
+| **Integration** | `validateQuizForPublish` が 3 択・正解0件を拒否 |
+| **Regression** | `test_data.json` の既存 `true-false` 問題が採点可能 |
+
+**Effort**: **S**（1日）
+
+**Document Status（Phase 20 設計）**: 本節に反映。

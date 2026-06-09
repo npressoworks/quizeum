@@ -164,3 +164,16 @@
   - 非同期ロードによって、統計数値などの要素がテスト起動時にレンダリングされていないバグ。
   - **緩和策**: 各スケルトン領域に固有の `data-testid`（`stats-skeleton`, `quiz-list-skeleton`, `feedback-list-skeleton`, `charts-skeleton`）を付与し、テストコード側で「スケルトンの消失」を明示的に待つ（`waitForElementToBeRemoved` 等）設計とする。
 
+---
+
+## Phase 20: 〇×作問 UI（2026-06-09）
+
+### Summary
+`quiz-editor.tsx` は `true-false` を mixed の allowedTypes に含むが、形式カード・問題タイプトグル・`handleToggleQuestionType` に未対応。`TrueFalseCorrectToggle` を新設し、`createTrueFalseChoices`（core lib）で choices を生成。選択肢テキスト入力 UI は提供しない。
+
+### Design Decisions
+1. 選択式単一形式と同型 — `format === 'true-false'` で全問固定、トグル非表示。
+2. 正解変更は choices 丸置換（ID 安定化で採点一貫性を維持）。
+
+**Document Status（Phase 20 設計）**: `design.md` Phase 20 節に反映済。
+

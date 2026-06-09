@@ -47,8 +47,8 @@ describe('resolveQuizFormat', () => {
     ).toBe('mixed');
   });
 
-  it('infers mixed for true-false-only quizzes', () => {
-    expect(resolveQuizFormatFromQuestions([makeQuestion('true-false')])).toBe('mixed');
+  it('infers true-false for true-false-only quizzes', () => {
+    expect(resolveQuizFormatFromQuestions([makeQuestion('true-false')])).toBe('true-false');
   });
 
   it('defaults to mixed when there are no questions', () => {

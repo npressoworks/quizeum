@@ -26,7 +26,13 @@ import {
   saveTestPlayPayload,
   TEST_PLAY_RESTORE_QUERY,
 } from '@/lib/test-play';
-import { resolveQuizFormat } from '@/lib/quiz-format';
+import { resolveQuizFormat, type QuizFormat } from '@/lib/quiz-format';
+import {
+  createTrueFalseChoices,
+  findTrueFalseChoiceId,
+  resolveTrueFalseCorrectSide,
+} from '@/lib/true-false-defaults';
+import { TrueFalseCorrectToggle } from '@/components/quiz/true-false-correct-toggle';
 import { DifficultyVoteStars } from '@/components/quiz/difficulty-vote-stars';
 import { getFormatLabel, getFormatDescription } from '@/lib/quiz-format-labels';
 import { AutoGrowTextarea } from '@/components/ui/auto-grow-textarea';
@@ -134,7 +140,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<number | null>(null);
   const [genre, setGenre] = useState('');
-  const [format, setFormat] = useState<'mixed' | 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking'>('mixed');
+  const [format, setFormat] = useState<QuizFormat>('mixed');
 
   // タグ関連ステート
   const [tagInput, setTagInput] = useState('');
@@ -330,6 +336,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
     // タイプごとの初期値設定
     if (newQuestion.type === 'multiple-choice') {
       newQuestion.choices = createDefaultChoices();
+    } else if (newQuestion.type === 'true-false') {
+      newQuestion.choices = createTrueFalseChoices('maru');
     } else if (newQuestion.type === 'text-input' || newQuestion.type === 'quick-press') {
       newQuestion.correctTextAnswerList = ['正解テキスト'];
     } else if (newQuestion.type === 'sorting') {
@@ -388,6 +396,15 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
         updated.choices = q.choices && q.choices.length >= MIN_MULTIPLE_CHOICE_COUNT && q.choices.length <= MAX_MULTIPLE_CHOICE_COUNT
           ? q.choices
           : createDefaultChoices();
+        updated.correctTextAnswerList = undefined;
+        updated.sortingItems = undefined;
+        updated.associationHints = undefined;
+        updated.aiContextDetails = undefined;
+        updated.truthKeywords = undefined;
+      } else if (targetType === 'true-false') {
+        updated.choices = createTrueFalseChoices(
+          resolveTrueFalseCorrectSide(q.choices)
+        );
         updated.correctTextAnswerList = undefined;
         updated.sortingItems = undefined;
         updated.associationHints = undefined;
@@ -482,7 +499,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
   };
 
   // 問題タイプの切り替え (選択式 / 記述式 / 早押し / 並び替え / 連想 / ウミガメのスープ)
-  const handleToggleQuestionType = (idx: number, type: 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking') => {
+  const handleToggleQuestionType = (idx: number, type: 'multiple-choice' | 'true-false' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking') => {
     if (questions[idx].type === type) return;
 
     const nextQuestions = [...questions];
@@ -490,6 +507,17 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
 
     if (type === 'multiple-choice' && !nextQuestions[idx].choices) {
       nextQuestions[idx].choices = createDefaultChoices();
+      nextQuestions[idx].correctTextAnswerList = undefined;
+      nextQuestions[idx].textInputMode = undefined;
+      nextQuestions[idx].textInputCharCount = undefined;
+      nextQuestions[idx].sortingItems = undefined;
+      nextQuestions[idx].associationHints = undefined;
+      nextQuestions[idx].aiContextDetails = undefined;
+      nextQuestions[idx].truthKeywords = undefined;
+    } else if (type === 'true-false') {
+      nextQuestions[idx].choices = createTrueFalseChoices(
+        resolveTrueFalseCorrectSide(nextQuestions[idx].choices)
+      );
       nextQuestions[idx].correctTextAnswerList = undefined;
       nextQuestions[idx].textInputMode = undefined;
       nextQuestions[idx].textInputCharCount = undefined;
@@ -566,6 +594,19 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
   const handleExplanationChange = (idx: number, text: string) => {
     const nextQuestions = [...questions];
     nextQuestions[idx].explanation = text;
+    setQuestions(nextQuestions);
+  };
+
+  const handleTrueFalseCorrectChange = (qIdx: number, side: 'maru' | 'batsu') => {
+    const nextQuestions = [...questions];
+    const q = nextQuestions[qIdx];
+    nextQuestions[qIdx] = {
+      ...q,
+      choices: createTrueFalseChoices(side, {
+        maruId: findTrueFalseChoiceId(q.choices, 'maru'),
+        batsuId: findTrueFalseChoiceId(q.choices, 'batsu'),
+      }),
+    };
     setQuestions(nextQuestions);
   };
 
@@ -1138,6 +1179,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
             {[
               { id: 'mixed', label: '複合', icon: '🌀' },
               { id: 'multiple-choice', label: '選択式', icon: '☑️' },
+              { id: 'true-false', label: '〇✕式', icon: '⭕' },
               { id: 'text-input', label: '記述式', icon: '✍️' },
               { id: 'quick-press', label: '早押し', icon: '⚡' },
               { id: 'sorting', label: '並び替え', icon: '↕️' },
@@ -1396,6 +1438,14 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
                           </button>
                           <button
                             type="button"
+                            className={`${styles.toggleBtn} ${q.type === 'true-false' ? styles.toggleBtnActive : ''}`}
+                            onClick={() => handleToggleQuestionType(qIdx, 'true-false')}
+                            data-testid="question-type-true-false"
+                          >
+                            〇✕
+                          </button>
+                          <button
+                            type="button"
                             className={`${styles.toggleBtn} ${q.type === 'text-input' ? styles.toggleBtnActive : ''}`}
                             onClick={() => handleToggleQuestionType(qIdx, 'text-input')}
                           >
@@ -1455,6 +1505,22 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
                           questionField="questionText"
                         />
                       </div>
+
+                      {/* 〇✕式の問題入力 */}
+                      {q.type === 'true-false' && (
+                        <div className={styles.choicesList}>
+                          <TrueFalseCorrectToggle
+                            value={resolveTrueFalseCorrectSide(q.choices)}
+                            onChange={(side) => handleTrueFalseCorrectChange(qIdx, side)}
+                          />
+                          <FieldValidationMessages
+                            errors={validationErrors}
+                            field="questions"
+                            questionIndex={qIdx}
+                            questionField="answers"
+                          />
+                        </div>
+                      )}
 
                       {/* 選択式の問題入力 */}
                       {q.type === 'multiple-choice' && q.choices && (

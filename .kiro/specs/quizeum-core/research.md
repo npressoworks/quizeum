@@ -901,3 +901,25 @@ src/app/api/webhooks/stripe/           — Missing
 
 **Document Status（Phase 18 設計）**: `design.md` Phase 18 節に反映済。
 
+---
+
+## Phase 20: 〇×問題形式（`true-false`）（2026-06-09）
+
+### Summary
+`true-false` は型・バリデーション・採点経路が既存。ギャップは `Quiz.format` 未登録、`resolveQuizFormat` が単一形式を `mixed` に落とす、ラベル／探索未整備。専用 lib `true-false-defaults.ts` で固定「〇」「✕」生成を集約し、既存 `choices` + `isChoiceAnswerCorrect` を維持。
+
+### Research Log
+
+| Topic | Findings | Implications |
+|-------|----------|--------------|
+| データモデル | `Question.type: 'true-false'`、validation 2択 | `Quiz.format` 拡張のみ |
+| 形式解決 | `only === 'true-false'` → `mixed` | `SINGLE_FORMAT_TYPES` へ追加 |
+| 採点 | `usePlayState` + `isChoiceAnswerCorrect` | API 変更不要 |
+| 作問方針 | 正解トグルのみ（ユーザー確定） | 保存時正規化でラベル固定 |
+
+### Design Decisions
+1. **Build** — `true-false-defaults.ts` 新設。`correctTextAnswerList` 移行は却下。
+2. **後方互換** — 既存 Firestore データは読み取り拒否せず、新規保存のみ正規化。
+
+**Document Status（Phase 20 設計）**: `design.md` Phase 20 節に反映済。
+

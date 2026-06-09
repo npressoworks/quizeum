@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, Check, X, Award, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/context/auth-context';
 import { getFailedQuestions, updateFailedQuestions } from '@/services/attempt';
 import { ChoiceAnswerPanel } from '@/components/quiz/choice-answer-panel';
+import { TrueFalseAnswerPanel } from '@/components/quiz/true-false-answer-panel';
 import { MarkdownContent } from '@/components/markdown/markdown-content';
 import { decodeStoredQuestionText } from '@/lib/question-text';
 import { isChoiceAnswerCorrect } from '@/services/choice-answer-utils';
@@ -263,7 +264,14 @@ export function ReviewClient({ initialGenres }: ReviewClientProps) {
           </div>
 
           {/* 選択肢 */}
-          {(failedQuestions[currentIdx]?.type === 'multiple-choice' || failedQuestions[currentIdx]?.type === 'true-false') && failedQuestions[currentIdx] && (
+          {failedQuestions[currentIdx]?.type === 'true-false' && failedQuestions[currentIdx] && (
+            <TrueFalseAnswerPanel
+              question={failedQuestions[currentIdx]}
+              onConfirm={handleAnswerSubmit}
+            />
+          )}
+
+          {failedQuestions[currentIdx]?.type === 'multiple-choice' && failedQuestions[currentIdx] && (
             <ChoiceAnswerPanel
               question={failedQuestions[currentIdx]}
               onConfirm={handleAnswerSubmit}

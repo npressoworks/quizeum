@@ -943,3 +943,16 @@ Phase 11 目標:
 2. 早押し固定・ウミガメ専用 UI では警告非表示（該当モード選択 UI が無いため）。
 
 **Document Status（Phase 19 設計）**: `design.md` Phase 19 節に反映済。
+
+---
+
+## Phase 20: 〇× 1タップ回答 UI（2026-06-09）
+
+### Summary
+現状 `true-false` は `ChoiceAnswerPanel`（ラジオ＋確定）で表示。専用 `TrueFalseAnswerPanel` に分離し、タップ即 `onConfirm(choiceId)`。要件 17 フィードバックは呼び出し側既存フローで統合。`explore-formats.ts` に `true-false` 追加。
+
+### Design Decisions
+1. **分離** — `ChoiceAnswerPanel` に mode 追加は却下（UI・analytics が混在）。
+2. **契約維持** — `onConfirm` は既存 choiceId 文字列のまま（`saveAttempt` / `usePlayState` 変更不要）。
+
+**Document Status（Phase 20 設計）**: `design.md` Phase 20 節に反映済。

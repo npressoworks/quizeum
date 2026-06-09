@@ -4,6 +4,7 @@ export type QuizFormat = NonNullable<Quiz['format']>;
 
 const SINGLE_FORMAT_TYPES: QuizFormat[] = [
   'multiple-choice',
+  'true-false',
   'text-input',
   'quick-press',
   'sorting',
@@ -39,9 +40,6 @@ export function resolveQuizFormat(
     const only = types[0];
     if (SINGLE_FORMAT_TYPES.includes(only as QuizFormat)) {
       return only as QuizFormat;
-    }
-    if (only === 'true-false') {
-      return 'mixed';
     }
   }
 

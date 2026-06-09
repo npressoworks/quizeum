@@ -23,6 +23,8 @@
 - **Phase 12**: 作問エディタ主要テキストエリアの自動伸長、過去自作クイズ検索の問題文・正解テキスト対応、参照リンク成功メッセージ、問題文ヒット時の自動展開、リンク解除、テストプレイ復帰時の問題数保持。
 - **Phase 13**: 作問エディタの難易度スライダー入力の 1〜5 制限と表示の更新。
 
+**Phase 20（2026-06-09）**: 〇×問題（`true-false`）を出題形式として選択可能にし、正解トグル（「〇が正解」「×が正解」）のみの作問 UI を追加する。選択肢テキストの自由編集は行わない（永続化・正規化は `quizeum-core` の `true-false-defaults.ts` が担当）。
+
 ### Non-Goals
 - クイズデータのJSONインポート機能（仕様変更により機能が完全に廃止されたため、インポートに関連するUIエリアは一切設置しません）。
 - 管理者モデレーション画面および自治ガバナンスUI（`quizeum-moderation-governance-ui`が担当）。
@@ -45,17 +47,20 @@
 - **テキストエリア自動伸長（Phase 12）**: `AutoGrowTextarea` コンポーネントと `QuizEditor` への適用（説明・問題文・真相・解説）。
 - **参照検索 UX 改善（Phase 12）**: 検索プレースホルダー更新、リンク／リンク解除成功インライン通知（7.13, 7.16）、問題文ヒット時のアコーディオン自動展開（7.15）。
 - **テストプレイ復帰（Phase 12）**: `sessionStorage` ドラフトの consume と `skipServerQuizLoadRef` による通常ロード抑止（要件 9）。
+- **〇×作問 UI（Phase 20）**: 出題形式カード「〇×式」、複合形式の問題タイプ「〇×」、`TrueFalseCorrectToggle` 正解トグル、形式一括変換。
 
 ### Out of Boundary
 - クイズリストやクイズのJSONインポート用ファイルのアップロード処理（インポート機能は廃止されたため、本UIは一切のインポート機能を包含しません）。
 - **Phase 8**: リスト詳細の読み取り表示・連続プレイ開始（`quizeum-play-flow-ui` が実装済み。本スペックは編集導線と `listType` 作成時選択のみ）。
 - **Phase 8**: `listType` 永続化検証、参照リンクの Firestore 書き込み、問題 doc の CoW 実行（`quizeum-core`）。
 - **Phase 12**: 問題文・正解テキスト照合の純関数実装と `searchAuthorQuizzes` 内の問題バッチ取得（`src/lib/` + `src/services/author-quiz-search.ts`）。本スペックの UI コンポーネントから Firestore 直接クエリしてはならない。
+- **Phase 20**: 選択肢ラベルの正規化・`Quiz.format` 永続化・公開検証（`quizeum-core`）。プレイ時 〇／× 1タップ UI（`quizeum-play-flow-ui`）。
 
 ### Allowed Dependencies
 - **`quizeum-auth-profile-ui`**: `Header`, `useAuth`
 - **`quizeum-play-flow-ui`**: `/quiz/[id]` プレイ遷移
 - **`quizeum-core`**: `QuizService`, `QuizListService`, `ReviewService`, **`listActiveGenres`（Phase 6）**, **`createQuizList`（`listType`）, `addQuestionToList`, `removeQuestionFromList`, `reorderQuestionList`, `exportQuestionList`, `getQuestionsInList`, `searchAuthorQuizzes`（Phase 12: 問題文・正解テキスト照合拡張）, `getQuestionsByQuiz`, `getBookmarkedQuestions`, `saveQuiz` 参照パス（Phase 8）**
+- **`quizeum-core`（Phase 20）**: `createTrueFalseChoices`, `resolveTrueFalseCorrectSide`, `normalizeTrueFalseChoices`（`src/lib/true-false-defaults.ts`）
 - **`quizeum-play-flow-ui`（共有）**: `useActiveGenres` フック（`src/hooks/useActiveGenres.ts`）
 - **`quizeum-core`（読み取り）**: `searchQuizzes` — 他者公開クイズ経由の問題候補探索（Phase 8・UI 集約のみ）
 
@@ -785,4 +790,75 @@ export function consumeTestPlayDraftForEditor(
 | 10.14 | クイズエディタデータのコンテンツ置換 | `src/app/quiz/[id]/edit/page.tsx` | データロード完了後、実際のフォーム入力要素に差し替える。 | `<Suspense>` による非同期制御 |
 | 10.15 | リスト詳細・編集画面の静的先行表示 | 各リストページ `page.tsx` | Server Component として戻るボタンやコンテナ枠を即時描画。 | ユーザーアクセス時に即時描画・配信 |
 | 10.16 | リストデータのスケルトン表示 | `src/components/quiz-list/list-skeleton.tsx` | リストデータやアタッチ対象のロード中、スケルトンを表示。 | `data-testid="list-editor-skeleton"` を付与 |
+
+---
+
+## Phase 20: 〇×問題の作問 UI（2026-06-09）
+
+### 1. Boundary Commitments
+
+| Owns | Out of Boundary |
+|------|-----------------|
+| 出題形式カード「〇×式」 | 選択肢永続化正規化（core） |
+| 複合形式トグル「〇×」 | プレイ回答パネル（play-flow） |
+| `TrueFalseCorrectToggle` | 公開検証ロジック（core） |
+| `handleFormatChange` / `handleToggleQuestionType` 拡張 | |
+
+### 2. UI Design
+
+**出題形式カード**（既存グリッドに1枚追加）:
+```typescript
+{ id: 'true-false', label: '〇×式', icon: '⭕' }
+```
+`format` state 型に `'true-false'` を追加。選択時は全問題を `true-false` に固定し、問題タイプトグルを非表示（選択式と同パターン）。
+
+**複合形式 — 問題タイプトグル**:
+既存「選択式／記述式／並び替え」に **「〇×」** ボタンを追加（`data-testid="question-type-true-false"`）。
+
+**正解トグル**（`type === 'true-false'` 時のみ、選択肢入力欄の代替）:
+```tsx
+<TrueFalseCorrectToggle
+  value={resolveTrueFalseCorrectSide(q.choices) ?? 'maru'}
+  onChange={(side) => setTrueFalseCorrect(qIdx, side)}
+  disabled={isReferenceReadOnly}
+  data-testid="true-false-correct-toggle"
+/>
+```
+- 2つの大きなトグルボタン: 「〇が正解」「✕が正解」
+- 変更時に `createTrueFalseChoices(side)` で `choices` を丸ごと置換（ID は安定生成: `tf-maru` / `tf-batsu` 等）
+
+**形式変換**（`handleFormatChange`）:
+- → `true-false`: 全問を `true-false` + デフォルト正解 `maru`
+- `mixed` へ: 既存 `true-false` 問題は維持（allowedTypes に含まれる）
+
+### 3. File Structure Plan（Phase 20）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/components/quiz/true-false-correct-toggle.tsx` | **New** | 正解トグル UI |
+| `src/components/quiz/true-false-correct-toggle.module.css` | **New** | トグルスタイル |
+| `src/components/quiz/quiz-editor.tsx` | **Modify** | 形式カード・トグル・`addDefaultQuestion`・形式変換 |
+| `src/components/quiz/quiz-editor.module.css` | **Modify** | 〇×式カード（既存グリッド流用可） |
+| `e2e/quiz-creation.spec.ts` | **Modify** | 〇×形式作問→保存 |
+
+### 4. Requirements Traceability（Phase 20）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 11.1–11.3 | 全体形式「〇×式」 | `QuizEditor` format grid |
+| 11.4–11.5 | 複合トグル | `typeToggle` |
+| 11.6–11.9 | 正解トグル・保存 | `TrueFalseCorrectToggle` |
+| 11.10–11.11 | 参照・複合変換 | `QuizEditor` |
+| 11.14 | testid | 上記 |
+
+### 5. Testing Strategy（Phase 20）
+
+| 種別 | 検証 |
+|------|------|
+| **Component** | トグル変更で `choices` が2件・正解1件 |
+| **E2E** | 〇×形式選択 → 正解トグル → 下書き保存 |
+
+**Effort**: **S**（1日）
+
+**Document Status（Phase 20 設計）**: 本節に反映。
 

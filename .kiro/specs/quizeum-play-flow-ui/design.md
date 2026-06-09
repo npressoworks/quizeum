@@ -42,6 +42,8 @@
 
 **Phase 19（2026-06-09）**: クイズ詳細のプレイモード選択パネルに、模擬試験・フラッシュカードがクイズ単位リーダーボード（初回プレイ・リプレイ）の対象外であること、および先にこれらでプレイした場合は以降の通常モードでも初回プレイランキングに掲載されない旨の警告を表示する（LB 登録ルールは `quizeum-core` Phase 18）。
 
+**Phase 20（2026-06-09）**: 〇×問題（`true-false`）に専用の `TrueFalseAnswerPanel` を導入し、〇／× ボタン1タップで即回答。本番プレイ・テストプレイ・弱点克服に適用。形式ラベル「〇×式」と探索カルーセルへの追加を含む（core / creator-dash がデータ・作問を担当）。
+
 ### Goals
 - 複合検索フィルタ、タブ切替タイムラインを備えた軽快なホーム画面の構築。
 - プレイ中のブラウザ再読み込みや切断をカバーする、`localStorage` を用いた解答セッションのクライアントサイド一時保護と同期。
@@ -2372,4 +2374,90 @@ const showLeaderboardWarning =
 **Effort**: **XS**（半日）
 
 **Document Status（Phase 19 設計）**: 本節に反映。`spec.json` → `phase: design-generated`。
+
+---
+
+## Phase 20: 〇×問題の1タップ回答 UI（2026-06-09）
+
+### 1. Boundary Commitments
+
+| Owns | Out of Boundary |
+|------|-----------------|
+| `TrueFalseAnswerPanel`（〇／× 即送信） | 選択肢正規化・`Quiz.format`（core） |
+| 本番・test-play・review への組み込み | 作問正解トグル（creator-dash） |
+| 形式ラベル「〇×式」・探索カルーセル | 採点ロジック変更（既存 `isChoiceAnswerCorrect`） |
+| 通常モード要件 17 フィードバック統合 | |
+
+### 2. Component Design: `TrueFalseAnswerPanel`
+
+```typescript
+type TrueFalseAnswerPanelProps = {
+  question: Question;
+  onConfirm: (answer: string) => void; // 既存 submitAnswer 契約: choiceId 1件
+  disabled?: boolean;
+};
+```
+
+**挙動**:
+- `question.choices` から「〇」「✕」に対応する `choice.id` を解決（`choiceText` 一致、後方互換で `○`/`×` も許容）
+- ボタン `onClick` → 即 `onConfirm(choiceId)`（確定ボタンなし）
+- `disabled` 時は `pointer-events: none` + 視覚的無効化
+
+**レイアウト**: 横並び2分割、大きなタップターゲット（min-height 72px 目安）、既存 `choice-answer-panel` のネオンカード調を踏襲。
+
+**Markup**:
+```tsx
+<div className={styles.panel} data-testid="true-false-answer-panel">
+  <button type="button" data-testid="true-false-answer-true" data-analytics="quiz-answer-true-false-maru">〇</button>
+  <button type="button" data-testid="true-false-answer-false" data-analytics="quiz-answer-true-false-batsu">✕</button>
+</div>
+```
+
+### 3. Integration Points
+
+| 画面 | 変更 |
+|------|------|
+| `quiz-play-client.tsx` | `currentQuestion.type === 'true-false'` → `TrueFalseAnswerPanel`（`ChoiceAnswerPanel` 分岐から除外） |
+| `test-play-client.tsx` | 同上 |
+| `review-client.tsx` | 同上 |
+| `quiz-format-labels.ts` | `true-false` ケース（core と共有 lib、play-flow は表示のみ利用） |
+| `explore-formats.ts` | `FORMAT_IDS` に `'true-false'` 追加 |
+
+**通常モード**: 送信後は既存 `PostAnswerFeedback` / 要件 17 フロー。追加 prop 不要。
+
+**模擬試験**: 1タップ送信後は従来 exam 進行（自動次問なし）。
+
+### 4. File Structure Plan（Phase 20）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/components/quiz/true-false-answer-panel.tsx` | **New** | 〇／× 1タップ回答 |
+| `src/components/quiz/true-false-answer-panel.module.css` | **New** | パネルスタイル |
+| `src/app/quiz/[id]/play/quiz-play-client.tsx` | **Modify** | 分岐置換 |
+| `src/app/quiz/test-play/play/test-play-client.tsx` | **Modify** | 同上 |
+| `src/app/quiz/review/review-client.tsx` | **Modify** | 同上 |
+| `src/lib/explore-formats.ts` | **Modify** | カルーセル形式追加 |
+| `e2e/quiz-play.spec.ts` | **Modify** | 〇× 1タップ回答 E2E |
+
+### 5. Requirements Traceability（Phase 20）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 20.1–20.4 | 専用 UI・即送信・二重防止 | `TrueFalseAnswerPanel` |
+| 20.5–20.7 | 3画面適用 | play / test-play / review clients |
+| 20.8–20.9 | normal / exam | 既存フロー分岐維持 |
+| 20.10–20.12 | ラベル・カルーセル | `quiz-format-labels`, `explore-formats` |
+| 20.16 | testid | 上記 |
+
+### 6. Testing Strategy（Phase 20）
+
+| 種別 | 検証 |
+|------|------|
+| **Component** | 〇クリックで `onConfirm` が正解 choiceId を1回だけ受信 |
+| **Unit** | `resolveTrueFalseChoiceId` が legacy ラベルでも ID 解決 |
+| **E2E** | `true-false` クイズで `[data-testid="true-false-answer-true"]` クリック → フィードバック表示 |
+
+**Effort**: **S**（1日）
+
+**Document Status（Phase 20 設計）**: 本節に反映。
 
