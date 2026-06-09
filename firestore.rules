@@ -138,6 +138,19 @@ service cloud.firestore {
           isAuthenticated()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalReactionsCount'])
         )
+        // フォロー/フォロー解除時に他ユーザーの followersCount を ±1 のみ更新可能
+        || (
+          isAuthenticated()
+          && isNotBanned()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount', 'updatedAt'])
+          && request.resource.data.followersCount >= 0
+          && (
+            request.resource.data.followersCount
+              == ('followersCount' in resource.data ? resource.data.followersCount : 0) + 1
+            || request.resource.data.followersCount
+              == ('followersCount' in resource.data ? resource.data.followersCount : 0) - 1
+          )
+        )
         // 管理者またはシニアモデレータによる特権書き換えは許可
         || isSeniorModeratorOrAdmin()
       );

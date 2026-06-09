@@ -1,5 +1,6 @@
 import {
   doc,
+  documentId,
   getDoc,
   setDoc,
   updateDoc,
@@ -361,7 +362,7 @@ export async function getFollowingUsers(userId: string): Promise<User[]> {
   const chunkSize = 10;
   for (let i = 0; i < followingIds.length; i += chunkSize) {
     const chunk = followingIds.slice(i, i + chunkSize);
-    const usersQuery = query(usersRef, where('id', 'in', chunk));
+    const usersQuery = query(usersRef, where(documentId(), 'in', chunk));
     const usersSnap = await getDocs(usersQuery);
     usersSnap.forEach((doc) => users.push(doc.data()));
   }
@@ -380,7 +381,7 @@ export async function getFollowerUsers(userId: string): Promise<User[]> {
   const chunkSize = 10;
   for (let i = 0; i < followerIds.length; i += chunkSize) {
     const chunk = followerIds.slice(i, i + chunkSize);
-    const usersQuery = query(usersRef, where('id', 'in', chunk));
+    const usersQuery = query(usersRef, where(documentId(), 'in', chunk));
     const usersSnap = await getDocs(usersQuery);
     usersSnap.forEach((doc) => users.push(doc.data()));
   }
