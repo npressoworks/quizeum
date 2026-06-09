@@ -44,6 +44,8 @@
 
 **Phase 20（2026-06-09）**: 〇×問題（`true-false`）に専用の `TrueFalseAnswerPanel` を導入し、〇／× ボタン1タップで即回答。本番プレイ・テストプレイ・弱点克服に適用。形式ラベル「〇×式」と探索カルーセルへの追加を含む（core / creator-dash がデータ・作問を担当）。
 
+**Phase 21（2026-06-09）**: ホームのフィルタ UI を再編する。`ExploreAccordionsPanel` を廃止し、ジャンル／出題形式カルーセルを `ExploreSearchSection` 内に常時表示。`useExploreQuizFeed` を無限スクロール対応に拡張し、検索バー行を sticky 固定する（段階的取得 API は `quizeum-core` Phase 21 に依存）。
+
 ### Goals
 - 複合検索フィルタ、タブ切替タイムラインを備えた軽快なホーム画面の構築。
 - プレイ中のブラウザ再読み込みや切断をカバーする、`localStorage` を用いた解答セッションのクライアントサイド一時保護と同期。
@@ -83,7 +85,8 @@
 - **問題リストプレイ導線（Phase 8）**: リスト詳細の `listType` 分岐、問題リスト開始ボタン、`question-list` セッション保持、結果画面からの次問題遷移。
 - **ホーム画面・クイズ探索 UI の最適化（Phase 9）**: 検索バー上部配置、1行横スクロールジャンルナビ（ピル形式）、主要以外の折りたたみ（すべて見る）、サムネイル・評価スター・「プレイ」ボタン付き `QuizCard` コンポーネント、ローディング時の `SkeletonCard`、統合検索入力・クリア・フォーカス時のネオンエフェクトおよびクイックサーチチップ。
 - **統合検索のタグチップ化とサジェスト（Phase 10）**: `UnifiedSearchField`、タグチップ状態管理、`useActiveTags`、探索一覧での `QuizCard` 共通化とメタ表示拡張。
-- **探索アコーディオン・カルーセル（Phase 11）**: `ExploreAccordionsPanel`、`GenreCarousel`、`FormatCarousel`、ホーム内フィルタ型ジャンル／形式選択、`GenreNav` ホームからの除去。
+- **探索カルーセル（Phase 11、Phase 21 で再編）**: `GenreCarousel`、`FormatCarousel` を `ExploreSearchSection` 内に常時表示。`ExploreAccordionsPanel` はホームから除去。`GenreNav` ホームからの除去は維持。
+- **ホーム無限スクロール・sticky 検索バー（Phase 21）**: `useExploreQuizFeed` ページング、`useIntersectionLoadMore`、検索バー行 sticky、プレイ状況後段フィルタ追読み込み。
 - **ジャンルページ scoped 検索 UI（Phase 11）**: `ExploreSearchSection`（`lockedGenreId` 付き）、`useExploreQuizFeed`、ソートタブと scoped 検索の分岐。
 - **自動結果遷移 (Phase 12)**: プレイ画面（`/play`）での最後の問題解答時、全問終了待ち画面を挟まずに `handlePlayComplete` に自動リダイレクト。
 - **難易度★グラデーションカラー表示 (Phase 12)**: クイズ詳細画面および結果画面（難易度表示、難易度投票）の★ゲージの色を難易度の値に応じて動的変更。
@@ -2460,4 +2463,195 @@ type TrueFalseAnswerPanelProps = {
 **Effort**: **S**（1日）
 
 **Document Status（Phase 20 設計）**: 本節に反映。
+
+---
+
+## Phase 21: ホームフィード無限スクロール・sticky 検索バー・フィルタ UI 再編
+
+### 1. Overview
+
+ホーム探索 UX を整理し、縦スクロール量を抑えつつ絞り込み操作を検索セクションへ集約する。ジャンル／出題形式は Phase 11 の横スクロールカルーセルを維持するが、`ExploreAccordion` による折りたたみを廃止して常時表示とする。クイズ一覧は `quizeum-core` の `PaginatedQuizResult` を消費し、スクロール末端で自動的に `loadMore` する。
+
+### 2. Boundary Commitments（Phase 21）
+
+| Owns | Out |
+|------|-----|
+| `ExploreSearchSection` カルーセル統合 | カーソル生成・Firestore クエリ |
+| `useExploreQuizFeed` 無限スクロール | ジャンル／タグ一覧の infinite scroll |
+| `useIntersectionLoadMore`（新規 hook） | URL クエリフィルタ共有 |
+| sticky 検索バー CSS | `searchQuizzes` 合成ロジック |
+| プレイ状況後段フィルタ + 追読み込み | |
+
+### 3. UI レイアウト（ホーム）
+
+```
+ExploreSearchSection
+├── searchBar [sticky, data-testid=home-search-bar-sticky]
+│   ├── UnifiedSearchField
+│   └── フィルターボタン
+├── quickSearch（任意）
+├── genreBlock（常時表示）
+│   ├── GenreSearchField
+│   └── GenreCarousel
+├── formatBlock（常時表示）
+│   └── FormatCarousel
+└── filterPanel（ボタン開閉のみ）
+    ├── 難易度スライダー
+    ├── 問題数スライダー
+    └── プレイ状況 select
+
+HomeClient
+├── ExploreSearchSection（上記）
+├── tabBar
+└── quizGrid + loadMoreSentinel + home-feed-load-more skeleton
+```
+
+**削除**: `home-client.tsx` から `ExploreAccordionsPanel` の import／描画を除去（ファイル自体はジャンルページ等で未使用なら削除は任意、ホームからは参照しない）。
+
+### 4. Architecture
+
+```mermaid
+sequenceDiagram
+    participant HC as HomeClient
+    participant ESS as ExploreSearchSection
+    participant Feed as useExploreQuizFeed
+    participant Core as quiz.ts *Page APIs
+    participant IO as IntersectionObserver
+
+    HC->>Feed: mount / filters change
+    Feed->>Core: first page (cursor=null)
+    Core-->>Feed: items + nextCursor
+    HC->>IO: observe sentinel
+    IO->>Feed: loadMore()
+    Feed->>Core: next page (cursor)
+    Core-->>Feed: append items
+```
+
+### 5. Component & Hook Contracts
+
+#### `ExploreSearchSection` 拡張 props
+
+```typescript
+interface ExploreSearchSectionProps {
+  // 既存 props ...
+  /** Phase 21: ホームのみ。ジャンル／形式カルーセル常時表示 */
+  showExploreCarousels?: boolean;
+  genres?: GenreMetadata[];
+  genresLoading?: boolean;
+  genresError?: string | null;
+  onGenresRetry?: () => void;
+  selectedGenreId?: string;
+  onGenreSelect?: (genreId: string) => void;
+  selectedFormat?: QuizFormat | '';
+  onFormatSelect?: (format: QuizFormat | '') => void;
+}
+```
+
+- `showExploreCarousels={true}` はホームのみ。ジャンルページ（`lockedGenreId` あり）は従来どおり検索バー＋フィルタパネルのみ
+- カルーセルは `GenreCarousel` / `FormatCarousel` をそのまま再利用（`explore-carousel.module.css`）
+
+#### `useExploreQuizFeed` 拡張戻り値
+
+```typescript
+interface UseExploreQuizFeedResult {
+  quizzes: Quiz[];
+  loading: boolean;       // 先頭ページ取得中
+  loadingMore: boolean;   // 続きページ取得中
+  error: string | null;
+  hasMore: boolean;
+  loadMore: () => void;
+}
+```
+
+**状態遷移**:
+1. 依存配列（tab, filters, userId 等）変更 → `quizzes=[]`, `nextCursor=null`, debounce 300ms 後に先頭ページ取得
+2. `loadMore` → `loadingMore=true`, cursor 付き API 呼び出し, 成功時 `quizzes` に append, `nextCursor` 更新
+3. 並行 `loadMore` 防止: `loadingMore || !hasMore || loading` 時は no-op
+
+**API 分岐**（home mode）:
+| 条件 | 呼び出し |
+|------|----------|
+| `hasActiveExploreFilters(filters)` | `searchQuizzesPaginated` |
+| `activeTab === 'latest'` | `getLatestQuizzesPage` |
+| `activeTab === 'popular'` | `getPopularQuizzesPage` |
+| `activeTab === 'trending'` | `getTrendingQuizzesPage` |
+| `activeTab === 'timeline'` | `getFollowedTimelinePage` |
+
+scoped mode（ジャンルページ）は本フェーズ変更なし（一括取得維持）。
+
+#### `useIntersectionLoadMore`（`src/hooks/useIntersectionLoadMore.ts`）
+
+```typescript
+function useIntersectionLoadMore(options: {
+  onIntersect: () => void;
+  enabled: boolean;
+  rootMargin?: string; // default '200px'
+}): React.RefObject<HTMLDivElement | null>;
+```
+
+- sentinel はグリッド直下の空 `div`
+- `enabled = hasMore && !loading && !loadingMore`
+
+#### プレイ状況後段フィルタ + 追読み込み
+
+- `applyPlayStatusFilter` は従来どおりクライアント後段
+- `displayQuizzes.length < MIN_VISIBLE_AFTER_PLAY_FILTER (6)` かつ `hasMore` のとき、`useEffect` で `loadMore()` を1回自動発火（連打防止に ref ガード）
+
+### 6. Sticky 検索バー CSS
+
+`src/app/page.module.css`:
+
+```css
+.searchBarSticky {
+  position: sticky;
+  top: 0;
+  z-index: 80; /* sidebar 90 未満、コンテンツより上 */
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 8px 0;
+  margin: -8px 0 8px;
+}
+```
+
+- `searchBar` ラッパーにのみ適用（要件 21.11）
+- モバイル BottomNav（`z-index` 要確認、通常 100 前後）と重ならないよう `top` は 0（メインコンテンツスクロール容器内）
+
+### 7. File Structure Plan（Phase 21）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/components/explore/explore-search-section.tsx` | **Modify** | カルーセル常時表示、sticky searchBar |
+| `src/app/page.module.css` | **Modify** | `.searchBarSticky`, `.exploreCarouselBlock` |
+| `src/app/home-client.tsx` | **Modify** | `ExploreAccordionsPanel` 削除、Feed hook 拡張利用 |
+| `src/hooks/useExploreQuizFeed.ts` | **Modify** | ページング・loadMore・hasMore |
+| `src/hooks/useIntersectionLoadMore.ts` | **New** | スクロール末端検知 |
+| `src/lib/feed-visible-threshold.ts` | **New** | `MIN_VISIBLE_AFTER_PLAY_FILTER` |
+| `tests/hooks/useExploreQuizFeed.pagination.test.ts` | **New** | リセット・append・hasMore |
+| `e2e/home-feed.spec.ts` | **New** | スクロール追加読み込み・sticky |
+
+**変更なし（参照のみ）**: `GenreCarousel`, `FormatCarousel`, `GenreSearchField`, `explore-accordions-panel.tsx`（ホームから未参照化）
+
+### 8. Requirements Traceability（Phase 21）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 21.1–21.5 | 初回・追加読み込み | `useExploreQuizFeed`, sentinel |
+| 21.6–21.9 | タブ／フィルタリセット | hook deps, debounce |
+| 21.10–21.12 | sticky | `page.module.css`, `ExploreSearchSection` |
+| 21.13–21.14 | カルーセル再編 | `ExploreSearchSection`, `home-client` |
+| 13.1–13.4 | 常時表示カルーセル | 同上（要件 13 改定と整合） |
+| 21.18 | testid | `home-feed-load-more`, `home-search-bar-sticky` |
+
+### 9. Testing Strategy（Phase 21）
+
+| 種別 | 検証 |
+|------|------|
+| **Hook** | フィルタ変更で quizzes リセット、2回目 `loadMore` で append |
+| **Hook** | `hasMore=false` 時 `loadMore` no-op |
+| **Component** | ホームに `genre-carousel` / `format-carousel` 常時存在、アコーディオン見出し不在 |
+| **E2E** | スクロール後カード件数増加、`home-search-bar-sticky` が viewport 上端付近に残存 |
+
+**Effort**: **M**（2〜3日、core Phase 21 完了後）
+
+**Document Status（Phase 21 設計）**: 本節に反映。
 

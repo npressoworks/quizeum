@@ -69,7 +69,10 @@ jest.mock('@/hooks/useExploreQuizFeed', () => ({
   useExploreQuizFeed: () => ({
     quizzes: mockQuizzes,
     loading: mockFeedLoading,
+    loadingMore: false,
     error: null,
+    hasMore: false,
+    loadMore: jest.fn(),
   }),
 }));
 
@@ -82,6 +85,29 @@ jest.mock('@/hooks/usePlayedQuizIds', () => ({
 jest.mock('@/services/bookmark', () => ({
   toggleBookmark: jest.fn(),
   getBookmarkedQuizIds: () => Promise.resolve([]),
+}));
+
+jest.mock('@/hooks/useSearchHistory', () => ({
+  useSearchHistory: () => ({
+    recentGenres: [],
+    addRecentGenre: jest.fn(),
+    recentKeywords: [],
+    addRecentKeyword: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/useWeeklyTrends', () => ({
+  useWeeklyTopSearch: () => ({
+    keywords: [],
+    tags: ['ウミガメのスープ'],
+    loading: false,
+    error: null,
+  }),
+  useWeeklyTopGenres: () => ({
+    genres: [],
+    loading: false,
+    error: null,
+  }),
 }));
 
 describe('Home Page UI', () => {
@@ -117,7 +143,7 @@ describe('Home Page UI', () => {
 
     expect(screen.getByTestId('home-feed-skeleton')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/クイズを検索/)).toBeInTheDocument();
-    expect(screen.getByTestId('explore-accordion-genre')).toBeInTheDocument();
+    expect(screen.queryByTestId('home-genre-carousel-block')).not.toBeInTheDocument();
   });
 
   it('ロード完了後はクイズカードが表示されること', () => {
@@ -128,18 +154,23 @@ describe('Home Page UI', () => {
     expect(screen.getByTestId('quiz-card-difficulty')).toBeInTheDocument();
   });
 
-  it('GenreNav は表示せず探索アコーディオンを表示すること', () => {
+  it('GenreNav は表示せずフィルター展開時にカルーセルを表示すること', () => {
     render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
     expect(screen.queryByTestId('genre-nav')).not.toBeInTheDocument();
-    expect(screen.getByTestId('explore-accordion-genre')).toBeInTheDocument();
-    expect(screen.getByTestId('explore-accordion-format')).toBeInTheDocument();
+    expect(screen.queryByTestId('home-genre-carousel-block')).not.toBeInTheDocument();
+    expect(screen.getByTestId('home-search-bar-sticky')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'フィルター' }));
+
+    expect(screen.getByTestId('home-genre-carousel-block')).toBeInTheDocument();
+    expect(screen.getByTestId('home-format-carousel-block')).toBeInTheDocument();
   });
 
-  it('ジャンルアコーディオン展開後カルーセル選択で router.push しないこと', () => {
+  it('ジャンルカルーセル選択で router.push しないこと', () => {
     render(<HomeClient initialGenres={mockGenres} initialTags={[]} initialQuizzes={mockQuizzes} />);
 
-    fireEvent.click(screen.getByTestId('explore-accordion-genre'));
+    fireEvent.click(screen.getByRole('button', { name: 'フィルター' }));
     fireEvent.click(screen.getByTestId('genre-carousel-card-programming'));
 
     expect(push).not.toHaveBeenCalled();

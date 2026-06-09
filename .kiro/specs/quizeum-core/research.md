@@ -923,3 +923,26 @@ src/app/api/webhooks/stripe/           — Missing
 
 **Document Status（Phase 20 設計）**: `design.md` Phase 20 節に反映済。
 
+---
+
+## Phase 21: ホームフィード段階的取得（2026-06-09）
+
+### Summary
+現行 `getLatestQuizzes` / `searchQuizzes` は一括返却（30〜100件）。`listUserPlayHistory` の `limit+1` + base64url カーソルパターンを踏襲し、タブ別は Firestore `startAfter`、検索は既存 `materialize` パイプライン + オフセットカーソル（cap 200）で段階化する。
+
+### Research Log
+
+| Topic | Findings | Implications |
+|-------|----------|--------------|
+| タブ API | 単一 orderBy クエリ | ネイティブカーソル適用可 |
+| searchQuizzes | マルチクエリ + クライアント合成 | 全面 cursor 化は高コスト。offset + fingerprint |
+| 既存利用者 | ジャンル scoped は一括維持 | `searchQuizzes` 非ページング版を残す |
+| ページサイズ | play history 20件 | `HOME_FEED_PAGE_SIZE=20` で統一 |
+
+### Design Decisions
+1. **ハイブリッド** — タブは Firestore、検索は offset（roadmap 採用案）。
+2. **materialize 抽出** — `searchQuizzes` と `searchQuizzesPaginated` でパイプライン共有。
+3. **無効カーソル** — throw のみ。UI リセット前提。
+
+**Document Status（Phase 21 設計）**: `design.md` Phase 21 節に反映済。
+

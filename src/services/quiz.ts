@@ -8,6 +8,7 @@ import {
   where,
   orderBy,
   limit,
+  startAfter,
   getDocs,
   increment,
   writeBatch,
@@ -15,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase/config';
 import { quizzesRef, followsRef, bookmarksRef, questionsRef } from '../lib/firebase/firestore';
-import { Quiz, Question } from '../types';
+import { Quiz, Question, PaginatedQuizResult } from '../types';
 import {
   validateQuizForPublish,
   validateQuizForDraft,
@@ -48,8 +49,31 @@ import {
 import { applyFormatFilter } from '../lib/quiz-format-match';
 import type { QuizFormat } from '../lib/quiz-format';
 import { writeSearchLog } from '../lib/search-log';
+import {
+  HOME_FEED_PAGE_SIZE,
+  SEARCH_MATERIALIZE_CAP,
+  QuizFeedCursorError,
+  buildSearchFingerprint,
+  decodeQuizFeedCursor,
+  decodeSearchOffsetCursor,
+  encodeQuizFeedCursor,
+  encodeSearchOffsetCursor,
+  type QuizFeedTabKind,
+} from '../lib/quiz-feed-cursor';
 
 export type { QuizListSort } from '../lib/metadata-resolution';
+export { QuizFeedCursorError } from '../lib/quiz-feed-cursor';
+
+export interface QuizFeedPageOptions {
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface SearchQuizzesPaginatedOptions {
+  limit?: number;
+  cursor?: string | null;
+  userId?: string;
+}
 
 export interface SearchFilters {
   genreId?: string;
@@ -625,46 +649,121 @@ export async function incrementPlayCount(quizId: string): Promise<void> {
    クイズ一覧・フィード・クエリ機能
    ========================================================================== */
 
+const SEARCH_POOL_SIZE = 100;
+
+type QuizFeedOrderField = 'createdAt' | 'playCount' | 'bookmarksCount';
+
+function orderFieldForTabKind(kind: QuizFeedTabKind): QuizFeedOrderField {
+  if (kind === 'popular') return 'playCount';
+  if (kind === 'trending') return 'bookmarksCount';
+  return 'createdAt';
+}
+
+function quizSortKeyValue(quiz: Quiz, field: QuizFeedOrderField): number {
+  if (field === 'createdAt') {
+    const d = quiz.createdAt;
+    if (d instanceof Date) return d.getTime();
+    if (typeof d === 'object' && d !== null && 'seconds' in d) {
+      return (d as { seconds: number }).seconds * 1000;
+    }
+    return new Date(d as unknown as string).getTime();
+  }
+  if (field === 'playCount') return quiz.playCount ?? 0;
+  return quiz.bookmarksCount ?? 0;
+}
+
+function paginateQuizRows(
+  rows: Quiz[],
+  pageSize: number,
+  kind: QuizFeedTabKind
+): PaginatedQuizResult {
+  const hasMore = rows.length > pageSize;
+  const items = hasMore ? rows.slice(0, pageSize) : rows;
+  const orderField = orderFieldForTabKind(kind);
+  let nextCursor: string | null = null;
+  if (hasMore && items.length > 0) {
+    const last = items[items.length - 1];
+    nextCursor = encodeQuizFeedCursor({
+      v: 1,
+      kind,
+      quizId: last.id,
+      sortKey: quizSortKeyValue(last, orderField),
+    });
+  }
+  return { items, nextCursor };
+}
+
+async function fetchPublishedTabPage(
+  kind: QuizFeedTabKind,
+  options: QuizFeedPageOptions = {}
+): Promise<PaginatedQuizResult> {
+  const pageSize = options.limit ?? HOME_FEED_PAGE_SIZE;
+  const orderField = orderFieldForTabKind(kind);
+  const baseConstraints = [
+    where('status', '==', 'published'),
+    orderBy(orderField, 'desc'),
+  ] as const;
+
+  let q;
+  if (options.cursor) {
+    const decoded = decodeQuizFeedCursor(options.cursor, kind);
+    const cursorSnap = await getDoc(doc(quizzesRef, decoded.quizId));
+    if (!cursorSnap.exists()) {
+      throw new QuizFeedCursorError('Invalid cursor');
+    }
+    q = query(quizzesRef, ...baseConstraints, startAfter(cursorSnap), limit(pageSize + 1));
+  } else {
+    q = query(quizzesRef, ...baseConstraints, limit(pageSize + 1));
+  }
+
+  const snap = await getDocs(q);
+  return paginateQuizRows(
+    snap.docs.map((d) => d.data()),
+    pageSize,
+    kind
+  );
+}
+
+export async function getLatestQuizzesPage(
+  options: QuizFeedPageOptions = {}
+): Promise<PaginatedQuizResult> {
+  return fetchPublishedTabPage('latest', options);
+}
+
+export async function getPopularQuizzesPage(
+  options: QuizFeedPageOptions = {}
+): Promise<PaginatedQuizResult> {
+  return fetchPublishedTabPage('popular', options);
+}
+
+export async function getTrendingQuizzesPage(
+  options: QuizFeedPageOptions = {}
+): Promise<PaginatedQuizResult> {
+  return fetchPublishedTabPage('trending', options);
+}
+
 /**
  * 新着クイズを取得 (公開中のみ)
  */
 export async function getLatestQuizzes(limitCount: number = 10): Promise<Quiz[]> {
-  const q = query(
-    quizzesRef,
-    where('status', '==', 'published'),
-    orderBy('createdAt', 'desc'),
-    limit(limitCount)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((doc) => doc.data());
+  const page = await getLatestQuizzesPage({ limit: limitCount });
+  return page.items;
 }
 
 /**
  * 人気ランキングクイズを取得 (プレイ数順、公開中のみ)
  */
 export async function getPopularQuizzes(limitCount: number = 10): Promise<Quiz[]> {
-  const q = query(
-    quizzesRef,
-    where('status', '==', 'published'),
-    orderBy('playCount', 'desc'),
-    limit(limitCount)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((doc) => doc.data());
+  const page = await getPopularQuizzesPage({ limit: limitCount });
+  return page.items;
 }
 
 /**
  * トレンドクイズを取得 (ブックマーク数順、公開中のみ)
  */
 export async function getTrendingQuizzes(limitCount: number = 10): Promise<Quiz[]> {
-  const q = query(
-    quizzesRef,
-    where('status', '==', 'published'),
-    orderBy('bookmarksCount', 'desc'),
-    limit(limitCount)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((doc) => doc.data());
+  const page = await getTrendingQuizzesPage({ limit: limitCount });
+  return page.items;
 }
 
 /**
@@ -740,17 +839,12 @@ export async function getQuizzesByTag(
 }
 
 /**
- * 複合条件で公開クイズを検索する
+ * 複合検索パイプライン: マージ・フィルタ・AND 合成（ページング／非ページング共有）
  */
-export async function searchQuizzes(
+export async function materializeSearchQuizzes(
   queryText: string,
-  filters: SearchFilters = {},
-  userId?: string
+  filters: SearchFilters = {}
 ): Promise<Quiz[]> {
-  if (userId) {
-    writeSearchLog(userId, queryText, filters.tags, filters.genreId);
-  }
-
   const trimmedQuery = queryText.trim();
   const hasQuery = normalizeSearchText(trimmedQuery).length > 0;
   const tagSpecs = await buildTagMatchSpecs(filters.tags);
@@ -758,7 +852,6 @@ export async function searchQuizzes(
   let base: Quiz[];
 
   if (hasQuery) {
-    // 1. 各種条件に応じた Firestore クエリの並行実行
     const normalizedQuery = normalizeTag(queryText);
 
     const tagQuery = query(
@@ -776,47 +869,41 @@ export async function searchQuizzes(
     const [tagSnap, authorSnap, genreQuizzes, latestQuizzes] = await Promise.all([
       getDocs(tagQuery),
       getDocs(authorQuery),
-      getQuizzesByGenre(queryText, 100).catch(() => []), // ジャンル名が存在しない場合に例外がスローされる可能性があるため catch する
-      getLatestQuizzes(100),
+      getQuizzesByGenre(queryText, SEARCH_POOL_SIZE).catch(() => []),
+      getLatestQuizzes(SEARCH_POOL_SIZE),
     ]);
 
     const tagQuizzes = tagSnap.docs.map((d) => d.data());
     const authorQuizzes = authorSnap.docs.map((d) => d.data());
 
-    // 2. クライアントサイドでのマージ・重複排除
     const rawMerged = [...tagQuizzes, ...authorQuizzes, ...genreQuizzes, ...latestQuizzes];
     base = dedupeQuizzesById(rawMerged);
   } else if (hasTags) {
     if (tagSpecs.length === 1) {
-      base = await getQuizzesByTag(tagSpecs[0].normalizedInput, 100, 'latest');
+      base = await getQuizzesByTag(tagSpecs[0].normalizedInput, SEARCH_POOL_SIZE, 'latest');
     } else {
       const perTag = await Promise.all(
-        tagSpecs.map((spec) => getQuizzesByTag(spec.normalizedInput, 100, 'latest'))
+        tagSpecs.map((spec) => getQuizzesByTag(spec.normalizedInput, SEARCH_POOL_SIZE, 'latest'))
       );
       base = intersectQuizzesById(perTag);
     }
+  } else if (filters.genreId) {
+    base = await getQuizzesByGenre(filters.genreId, SEARCH_POOL_SIZE, 'latest');
   } else {
-    // queryText が空の場合は従来の単一ソース読み込み
-    if (filters.genreId) {
-      base = await getQuizzesByGenre(filters.genreId, 100, 'latest');
-    } else {
-      base = await getLatestQuizzes(100);
-    }
+    base = await getLatestQuizzes(SEARCH_POOL_SIZE);
   }
 
-  // 3. アプリ（サービス）層での大文字小文字を区別しない部分一致フィルタおよび詳細条件フィルターの適用
   const matchedQuizzes = hasQuery
-    ? base.filter((quiz) =>
-      searchTextIncludes(quiz.title || '', trimmedQuery) ||
-      searchTextIncludes(quiz.description || '', trimmedQuery) ||
-      searchTextIncludes(quiz.authorName || '', trimmedQuery) ||
-      searchTextIncludes(quiz.genre || '', trimmedQuery) ||
-      (quiz.tags || []).some((t) => searchTextIncludes(t, trimmedQuery))
-    )
+    ? base.filter(
+        (quiz) =>
+          searchTextIncludes(quiz.title || '', trimmedQuery) ||
+          searchTextIncludes(quiz.description || '', trimmedQuery) ||
+          searchTextIncludes(quiz.authorName || '', trimmedQuery) ||
+          searchTextIncludes(quiz.genre || '', trimmedQuery) ||
+          (quiz.tags || []).some((t) => searchTextIncludes(t, trimmedQuery))
+      )
     : base;
 
-  // 詳細フィルターとジャンルフィルターの適用
-  // filters.genreId が指定されている場合、マージされたジャンルも含むため expandGenreIdsForQuery を用いて判定する
   let finalQuizzes = matchedQuizzes;
 
   if (hasTags) {
@@ -836,38 +923,123 @@ export async function searchQuizzes(
     finalQuizzes = applyFormatFilter(finalQuizzes, filters.format);
   }
 
-  return finalQuizzes.filter((quiz) => {
+  const filtered = finalQuizzes.filter((quiz) => {
     if (filters.difficultyMin != null && quiz.difficulty < filters.difficultyMin) return false;
     if (filters.difficultyMax != null && quiz.difficulty > filters.difficultyMax) return false;
     if (filters.minQuestions != null && quiz.questionCount < filters.minQuestions) return false;
     if (filters.maxQuestions != null && quiz.questionCount > filters.maxQuestions) return false;
     return true;
   });
+
+  return sortQuizzesForList(dedupeQuizzesById(filtered), 'latest');
+}
+
+/**
+ * 複合条件で公開クイズを検索する
+ */
+export async function searchQuizzes(
+  queryText: string,
+  filters: SearchFilters = {},
+  userId?: string
+): Promise<Quiz[]> {
+  if (userId) {
+    writeSearchLog(userId, queryText, filters.tags, filters.genreId);
+  }
+  return materializeSearchQuizzes(queryText, filters);
+}
+
+/**
+ * 複合検索の段階的取得
+ */
+export async function searchQuizzesPaginated(
+  queryText: string,
+  filters: SearchFilters = {},
+  options: SearchQuizzesPaginatedOptions = {}
+): Promise<PaginatedQuizResult> {
+  const pageSize = options.limit ?? HOME_FEED_PAGE_SIZE;
+  const fingerprint = buildSearchFingerprint(queryText, filters);
+
+  if (options.userId) {
+    writeSearchLog(options.userId, queryText, filters.tags, filters.genreId);
+  }
+
+  const materialized = (await materializeSearchQuizzes(queryText, filters)).slice(
+    0,
+    SEARCH_MATERIALIZE_CAP
+  );
+
+  let offset = 0;
+  if (options.cursor) {
+    offset = decodeSearchOffsetCursor(options.cursor, fingerprint);
+  }
+
+  if (offset >= materialized.length) {
+    return { items: [], nextCursor: null };
+  }
+
+  const items = materialized.slice(offset, offset + pageSize);
+  const nextOffset = offset + items.length;
+  const nextCursor =
+    nextOffset < materialized.length
+      ? encodeSearchOffsetCursor(nextOffset, fingerprint)
+      : null;
+
+  return { items, nextCursor };
+}
+
+/**
+ * フォロー中ユーザーのタイムラインフィードを段階的取得
+ */
+export async function getFollowedTimelinePage(
+  followerId: string,
+  options: QuizFeedPageOptions = {}
+): Promise<PaginatedQuizResult> {
+  if (!followerId) {
+    return { items: [], nextCursor: null };
+  }
+
+  const pageSize = options.limit ?? HOME_FEED_PAGE_SIZE;
+  const kind: QuizFeedTabKind = 'timeline';
+
+  const followQuery = query(followsRef, where('followerId', '==', followerId));
+  const followSnap = await getDocs(followQuery);
+  const followingIds = followSnap.docs.map((d) => d.data().followingId);
+
+  if (followingIds.length === 0) {
+    return { items: [], nextCursor: null };
+  }
+
+  const targetIds = followingIds.slice(0, 30);
+  const baseConstraints = [
+    where('status', '==', 'published'),
+    where('authorId', 'in', targetIds),
+    orderBy('createdAt', 'desc'),
+  ] as const;
+
+  let q;
+  if (options.cursor) {
+    const decoded = decodeQuizFeedCursor(options.cursor, kind);
+    const cursorSnap = await getDoc(doc(quizzesRef, decoded.quizId));
+    if (!cursorSnap.exists()) {
+      throw new QuizFeedCursorError('Invalid cursor');
+    }
+    q = query(quizzesRef, ...baseConstraints, startAfter(cursorSnap), limit(pageSize + 1));
+  } else {
+    q = query(quizzesRef, ...baseConstraints, limit(pageSize + 1));
+  }
+
+  const snap = await getDocs(q);
+  return paginateQuizRows(
+    snap.docs.map((d) => d.data()),
+    pageSize,
+    kind
+  );
 }
 
 /**
  * フォロー中ユーザーのタイムラインフィードを取得
  */
 export async function getFollowedTimeline(followerId: string, limitCount: number = 20): Promise<Quiz[]> {
-  // 1. フォローしているユーザーのID一覧を取得
-  const followQuery = query(followsRef, where('followerId', '==', followerId));
-  const followSnap = await getDocs(followQuery);
-  const followingIds = followSnap.docs.map((doc) => doc.data().followingId);
-
-  if (followingIds.length === 0) return [];
-
-  // 2. フォロー中ユーザーの投稿クイズを取得 (公開中のみ)
-  // IN クエリの制限 (最大30件) を考慮し、最新の30フォローユーザーに制限するか、バッチに分ける
-  // ここでは簡単のために最大30人のフォロー中ユーザーの新着を対象にします
-  const targetIds = followingIds.slice(0, 30);
-  const timelineQuery = query(
-    quizzesRef,
-    where('status', '==', 'published'),
-    where('authorId', 'in', targetIds),
-    orderBy('createdAt', 'desc'),
-    limit(limitCount)
-  );
-
-  const snap = await getDocs(timelineQuery);
-  return snap.docs.map((doc) => doc.data());
+  const page = await getFollowedTimelinePage(followerId, { limit: limitCount });
+  return page.items;
 }

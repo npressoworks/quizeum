@@ -245,6 +245,12 @@ export interface PlayHistoryPage {
   nextCursor: string | null;
 }
 
+/** ホーム探索向け段階的取得応答 */
+export interface PaginatedQuizResult {
+  items: Quiz[];
+  nextCursor: string | null;
+}
+
 /** ブックマークした問題1件（親クイズメタ付き） */
 export interface BookmarkedQuestionEntry {
   question: Question;

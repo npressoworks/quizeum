@@ -956,3 +956,17 @@ Phase 11 目標:
 2. **契約維持** — `onConfirm` は既存 choiceId 文字列のまま（`saveAttempt` / `usePlayState` 変更不要）。
 
 **Document Status（Phase 20 設計）**: `design.md` Phase 20 節に反映済。
+
+---
+
+## Phase 21: ホーム無限スクロール・フィルタ UI 再編（2026-06-09）
+
+### Summary
+`ExploreAccordionsPanel` をホームから除去し、カルーセルを `ExploreSearchSection` に統合（常時表示）。`useExploreQuizFeed` に cursor 状態と `loadMore` を追加。`IntersectionObserver` は新規 hook に分離。sticky は `searchBar` 行のみ（`z-index: 80`、sidebar 90 未満）。
+
+### Design Decisions
+1. **カルーセル再利用** — `GenreCarousel` / `FormatCarousel` 変更最小。
+2. **scoped ページ Out** — ジャンル一覧は一括取得維持。
+3. **プレイ状況** — 後段フィルタ + 表示件数不足時の自動 `loadMore`。
+
+**Document Status（Phase 21 設計）**: `design.md` Phase 21 節に反映済。

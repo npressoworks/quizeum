@@ -32,6 +32,8 @@
 
 **Phase 20（2026-06-09）**: 〇×問題（`true-false`）を第一級出題形式として整備。`Quiz.format` 拡張、`true-false-defaults.ts` による固定「〇」「✕」選択肢の生成・正規化、`resolveQuizFormat` の単一形式解決、探索形式フィルタとの整合。プレイ／作問 UI は隣接スペックが担当。
 
+**Phase 21（2026-06-09）**: ホーム向け公開クイズ一覧の段階的取得 API を追加する。タブ別フィードは Firestore `startAfter` カーソル、複合検索は既存ハイブリッドパイプライン上のオフセットカーソルでページ分割する。共通応答型 `PaginatedQuizResult` を定義し、`quizeum-play-flow-ui` の無限スクロールが単一契約で消費できるようにする。
+
 ### Goals
 - ページの初期HTML読み込み時間を通常トラフィック下で平均0.5秒以内に維持する。
 - プレイ中の不意なリロードやオフライン切断時における解答データ損失をローカルで保護・復元する。
@@ -52,6 +54,7 @@
 - **Phase 17 ウミガメ認証・制限・諦め改定（2026-06）**: 二層日次制限、`normalizeQuestionText` キャッシュ、横断カウンタ、`limitType` 付き 429、諦め API の真相非返却、attempt `listId` 引き継ぎ。
 - **Phase 18 模擬試験・フラッシュカード LB 非対象（2026-06）**: `isLeaderboardEligibleAttempt` によるモード除外、全モード prior 件数カウントによる初回権利消滅、`saveAttempt` / `verify-truth` 共通更新パス。
 - **Phase 20 〇×問題形式（2026-06）**: `true-false` の第一級 format 化、固定選択肢 lib、公開検証・形式解決・ラベル整合。
+- **Phase 21 ホームフィード段階的取得（2026-06）**: `PaginatedQuizResult`、タブ別ページ API、複合検索のページ分割、カーソル encode/decode lib。
 
 ### Non-Goals
 - 外部システムや外部ファイルからのクイズ・クイズリストの一括インポート機能の実装。
@@ -2491,3 +2494,144 @@ export function normalizeTrueFalseChoices(
 **Effort**: **S**（1日）
 
 **Document Status（Phase 20 設計）**: 本節に反映。
+
+---
+
+## Phase 21: ホーム向け公開クイズ一覧の段階的取得
+
+### 1. Overview
+
+ホーム探索 UI が全件一括取得（limit 30〜100）から初回少量＋続き読み込みへ移行するため、コア層に共通ページング契約を追加する。タブ別フィード（新着・人気・トレンド・フォロー TL）は単一 Firestore クエリに `startAfter` を適用し、複合検索（`searchQuizzes`）は既存ハイブリッド合成結果を安定ソートしたうえでオフセットカーソルによりスライスする（根本置換は行わない）。
+
+**既定ページサイズ**: `HOME_FEED_PAGE_SIZE = 20`（要件 21.15）
+
+### 2. Boundary Commitments（Phase 21）
+
+| Owns | Out |
+|------|-----|
+| `PaginatedQuizResult` 型 | 無限スクロール UI・IntersectionObserver |
+| `quiz-feed-cursor.ts` encode/decode | sticky 検索バー CSS |
+| タブ別 `*Page` API | ジャンル別・タグ別一覧の段階的取得 |
+| `searchQuizzesPaginated` | プレイ状況クライアント後段フィルタ |
+| 無効カーソル時のエラー応答 | 全文検索エンジン新設 |
+
+### 3. Architecture
+
+```mermaid
+sequenceDiagram
+    participant UI as useExploreQuizFeed
+    participant QS as quiz.ts
+    participant FC as quiz-feed-cursor
+    participant FS as Firestore
+
+    UI->>QS: fetchHomeTabFeedPage(tab, limit, cursor?)
+    QS->>FS: query + orderBy + limit(N+1)
+    FS-->>QS: docs
+    QS->>FC: encodeQuizFeedCursor(lastDoc)
+    QS-->>UI: PaginatedQuizResult
+
+    UI->>QS: searchQuizzesPaginated(q, filters, limit, cursor?)
+    QS->>QS: materializeFilteredSet (既存 pipeline)
+    QS->>QS: slice(offset, offset+limit)
+    QS->>FC: encodeSearchOffsetCursor(offset+len)
+    QS-->>UI: PaginatedQuizResult
+```
+
+**パターン選択**:
+- **タブフィード**: Firestore ネイティブカーソル（`listUserPlayHistory` と同型の base64url JSON）
+- **複合検索**: オフセットカーソル + クエリ／フィルタ fingerprint 検証（条件変更時は UI がリセットする前提）
+
+### 4. Data Models & Contracts
+
+#### `PaginatedQuizResult`（`src/types/index.ts`）
+
+```typescript
+export interface PaginatedQuizResult {
+  items: Quiz[];
+  nextCursor: string | null;
+}
+```
+
+#### タブフィードカーソル（`QuizFeedCursor`）
+
+```typescript
+interface QuizFeedCursorPayload {
+  v: 1;
+  kind: 'latest' | 'popular' | 'trending' | 'timeline';
+  quizId: string;
+  /** ソートキー（createdAt ms / playCount / bookmarksCount） */
+  sortKey: number | string;
+}
+```
+
+- encode: `Buffer.from(JSON.stringify(payload)).toString('base64url')`
+- decode 失敗・`v` 不一致・`kind` 不一致 → エラー throw（要件 21.6、先頭フォールバック禁止）
+
+#### 検索オフセットカーソル（`SearchOffsetCursor`）
+
+```typescript
+interface SearchOffsetCursorPayload {
+  v: 1;
+  offset: number;
+  /** normalize 済み queryText + stable JSON(filters) の短い hash */
+  fingerprint: string;
+}
+```
+
+- 続き要求時、fingerprint が現在リクエストと一致しない場合はエラー（条件変更検知）
+- 素材化上限 `SEARCH_MATERIALIZE_CAP = 200`（初版）。offset が cap を超える場合は `nextCursor: null`
+
+### 5. Service API（`src/services/quiz.ts`）
+
+| 関数 | 用途 | カーソル方式 |
+|------|------|-------------|
+| `getLatestQuizzesPage({ limit?, cursor? })` | 新着タブ | Firestore `startAfter` |
+| `getPopularQuizzesPage({ limit?, cursor? })` | 人気タブ | 同上（`playCount` desc） |
+| `getTrendingQuizzesPage({ limit?, cursor? })` | トレンドタブ | 同上（`bookmarksCount` desc） |
+| `getFollowedTimelinePage({ followerId, limit?, cursor? })` | フォロー TL | 同上（既存 30 author `in` 制限維持） |
+| `searchQuizzesPaginated(queryText, filters, { limit?, cursor?, userId? })` | フィルタ／検索有効時 | オフセット |
+
+**実装規則**:
+1. 各 `*Page` は `limit + 1` 件取得し、超過分があれば `hasMore` とし最後の1件を捨てる（play history パターン）
+2. 既存 `getLatestQuizzes(n)` 等は内部で `getLatestQuizzesPage({ limit: n })` の `.items` を返す薄いラッパーに変更し、呼び出し互換を維持
+3. `searchQuizzesPaginated` は既存 `searchQuizzes` のフィルタパイプラインを `materializeSearchQuizzes(queryText, filters)` に抽出し、初回／続きで共有
+4. 素材化結果は `sortQuizzesForList(..., 'latest')` で安定ソート（検索モードの既定並び）
+
+**`materializeSearchQuizzes` 抽出**:
+- 現行 `searchQuizzes` L754–845 を private 相当の純粋関数へ移動
+- `searchQuizzes`（非ページング）は `materializeSearchQuizzes` の全件返却を維持（ジャンル scoped ページ等の既存利用者向け後方互換）
+
+### 6. File Structure Plan（Phase 21）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/types/index.ts` | **Modify** | `PaginatedQuizResult` |
+| `src/lib/quiz-feed-cursor.ts` | **New** | タブ／検索カーソル encode・decode・fingerprint |
+| `src/services/quiz.ts` | **Modify** | `*Page` API、`materializeSearchQuizzes`、`searchQuizzesPaginated` |
+| `tests/lib/quiz-feed-cursor.test.ts` | **New** | カーソル round-trip・無効入力 |
+| `tests/services/quiz-feed-pagination.test.ts` | **New** | タブページング重複なし、検索 offset、無効カーソルエラー |
+
+### 7. Requirements Traceability（Phase 21）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 21.1–21.6 | 共通ページング契約 | `PaginatedQuizResult`, `quiz-feed-cursor` |
+| 21.7–21.9 | タブ別並び | `get*QuizzesPage` |
+| 21.10–21.11 | フォロー TL | `getFollowedTimelinePage` |
+| 21.12–21.14 | 複合検索段階取得 | `searchQuizzesPaginated`, `materializeSearchQuizzes` |
+| 21.15–21.17 | 件数・重複・published | 各 `*Page` 実装 |
+| 21.18–21.21 | 境界 Out | play-flow UI |
+
+### 8. Testing Strategy（Phase 21）
+
+| 種別 | 検証 |
+|------|------|
+| **Unit** | カーソル encode/decode ラウンドトリップ、壊れた base64 で throw |
+| **Unit** | fingerprint 不一致 cursor でエラー |
+| **Integration** | `getLatestQuizzesPage` 2ページ連続で ID 重複なし |
+| **Integration** | `searchQuizzesPaginated` offset 0/20 で合計件数整合 |
+| **Regression** | 既存 `searchQuizzes` / `getLatestQuizzes(10)` 呼び出し互換 |
+
+**Effort**: **M**（2〜3日）
+
+**Document Status（Phase 21 設計）**: 本節に反映。

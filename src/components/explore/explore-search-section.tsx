@@ -1,13 +1,19 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { UnifiedSearchField } from '@/components/explore/unified-search-field';
+import { GenreCarousel } from '@/components/explore/genre-carousel';
+import { FormatCarousel } from '@/components/explore/format-carousel';
+import { GenreSearchField } from '@/components/explore/genre-search-field';
 import { useWeeklyTopSearch } from '@/hooks/useWeeklyTrends';
 import { normalizeTag } from '@/services/quiz-validation';
-import type { TagMetadata } from '@/types';
+import { filterGenreSuggestions } from '@/lib/filter-genre-suggestions';
+import type { GenreMetadata, TagMetadata } from '@/types';
 import type { HomeFeedFilters } from '@/lib/home-feed-filters';
+import type { QuizFormat } from '@/lib/quiz-format';
 import styles from '@/app/page.module.css';
+import carouselStyles from './explore-carousel.module.css';
 
 /** 難易度ラベルマップ */
 const DIFFICULTY_LABELS: Record<number, string> = {
@@ -32,6 +38,15 @@ export interface ExploreSearchSectionProps {
   playStatusDisabled?: boolean;
   showQuickSearch?: boolean;
   testId?: string;
+  showExploreCarousels?: boolean;
+  genres?: GenreMetadata[];
+  genresLoading?: boolean;
+  genresError?: string | null;
+  onGenresRetry?: () => void;
+  selectedGenreId?: string;
+  onGenreSelect?: (genreId: string) => void;
+  selectedFormat?: QuizFormat | '';
+  onFormatSelect?: (format: QuizFormat | '') => void;
 }
 
 export function ExploreSearchSection({
@@ -48,9 +63,33 @@ export function ExploreSearchSection({
   playStatusDisabled = false,
   showQuickSearch = true,
   testId,
+  showExploreCarousels = false,
+  genres = [],
+  genresLoading = false,
+  genresError = null,
+  onGenresRetry,
+  selectedGenreId = '',
+  onGenreSelect,
+  selectedFormat = '',
+  onFormatSelect,
 }: ExploreSearchSectionProps) {
   const [showFilters, setShowFilters] = useState(false);
+  const [genreSearchQuery, setGenreSearchQuery] = useState('');
   const { tags: weeklyTags, loading: loadingWeekly, error: errorWeekly } = useWeeklyTopSearch();
+
+  const filteredGenres = useMemo(() => {
+    const trimmed = genreSearchQuery.trim();
+    if (!trimmed) return genres;
+    return filterGenreSuggestions(genres, genreSearchQuery, genres.length);
+  }, [genres, genreSearchQuery]);
+
+  const handleGenreSelect = useCallback(
+    (genreId: string) => {
+      onGenreSelect?.(genreId);
+      setGenreSearchQuery('');
+    },
+    [onGenreSelect]
+  );
 
   const quickTags = useMemo(
     () => weeklyTags.filter((tagId) => !filters.tagChips.includes(tagId)).slice(0, 5),
@@ -68,7 +107,10 @@ export function ExploreSearchSection({
       className={styles.searchSection}
       data-testid={testId ?? (lockedGenreId ? 'genre-explore-search' : undefined)}
     >
-      <div className={styles.searchBar}>
+      <div
+        className={`${styles.searchBar} ${showExploreCarousels ? styles.searchBarSticky : ''}`}
+        data-testid={showExploreCarousels ? 'home-search-bar-sticky' : undefined}
+      >
         <div className={styles.searchFieldWrapper}>
           <UnifiedSearchField
             tagChips={filters.tagChips}
@@ -115,6 +157,39 @@ export function ExploreSearchSection({
 
       {showFilters && (
         <div className={styles.filterPanel}>
+          {showExploreCarousels && onGenreSelect && onFormatSelect && (
+            <>
+              <div className={styles.exploreCarouselBlock} data-testid="home-genre-carousel-block">
+                <div
+                  className={carouselStyles.genreSearchWrap}
+                  data-testid="genre-explore-search-field"
+                >
+                  <GenreSearchField
+                    genres={genres}
+                    query={genreSearchQuery}
+                    onQueryChange={setGenreSearchQuery}
+                    value={selectedGenreId}
+                    onChange={handleGenreSelect}
+                    disabled={genresLoading || !!genresError}
+                  />
+                </div>
+                <GenreCarousel
+                  genres={filteredGenres}
+                  loading={genresLoading}
+                  error={genresError}
+                  selectedGenreId={selectedGenreId}
+                  onSelect={handleGenreSelect}
+                  onRetry={onGenresRetry}
+                  emptyMessage={
+                    genreSearchQuery.trim() ? '該当するジャンルがありません。' : undefined
+                  }
+                />
+              </div>
+              <div className={styles.exploreCarouselBlock} data-testid="home-format-carousel-block">
+                <FormatCarousel selectedFormat={selectedFormat} onSelect={onFormatSelect} />
+              </div>
+            </>
+          )}
 
           {/* ── 難易度スライダー ── */}
           <div className={styles.filterGroupFull}>
