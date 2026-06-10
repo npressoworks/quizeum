@@ -138,7 +138,7 @@ export function MyQuizSearchSection({
         <Button
           type="button"
           variant="outline"
-          className="shrink-0 max-md:justify-center"
+          className="h-auto min-h-12 shrink-0 self-stretch max-md:justify-center"
           onClick={() => setShowFilters(!showFilters)}
           data-testid="my-quiz-filter-toggle"
         >

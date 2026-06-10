@@ -38,6 +38,31 @@ export interface MyQuizSourceFlags {
   bookmarkedQuestions: boolean;
 }
 
+export function candidateMatchesSourceFlags(
+  candidate: MyQuizQuestionCandidate,
+  flags: MyQuizSourceFlags
+): boolean {
+  switch (candidate.source) {
+    case 'own':
+      return flags.ownQuizzes;
+    case 'bookmarked-quiz':
+      return flags.bookmarkedQuizzes;
+    case 'bookmarked-list':
+      return flags.bookmarkedLists;
+    case 'bookmarked-question':
+      return flags.bookmarkedQuestions;
+    default:
+      return false;
+  }
+}
+
+export function filterCandidatesBySourceFlags(
+  candidates: MyQuizQuestionCandidate[],
+  flags: MyQuizSourceFlags
+): MyQuizQuestionCandidate[] {
+  return candidates.filter((candidate) => candidateMatchesSourceFlags(candidate, flags));
+}
+
 function dedupeMyQuizCandidates(
   candidates: MyQuizQuestionCandidate[]
 ): MyQuizQuestionCandidate[] {

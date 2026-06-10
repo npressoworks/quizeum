@@ -11,8 +11,10 @@ import { normalizeTag } from '@/services/quiz-validation';
 import { filterGenreSuggestions } from '@/lib/filter-genre-suggestions';
 import type { GenreMetadata, TagMetadata } from '@/types';
 import type { HomeFeedFilters } from '@/lib/home-feed-filters';
+import type { SearchPlayStatus } from '@/lib/search-url-state';
 import type { QuizFormat } from '@/lib/quiz-format';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { badgeVariants } from '@/components/ui/badge';
 import {
   Select,
@@ -23,14 +25,26 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-/** 難易度ラベルマップ */
-const DIFFICULTY_LABELS: Record<number, string> = {
-  1: 'かんたん',
-  2: 'やや易しい',
-  3: '普通',
-  4: 'やや難しい',
-  5: 'むずかしい',
-};
+const DIFFICULTY_MIN = 1;
+const DIFFICULTY_MAX = 5;
+const QUESTIONS_MIN = 1;
+const QUESTIONS_MAX = 50;
+
+const PLAY_STATUS_OPTIONS: { value: SearchPlayStatus; label: string }[] = [
+  { value: 'all', label: 'すべて表示' },
+  { value: 'unplayed', label: '未プレイのみ' },
+  { value: 'played', label: 'プレイ済みのみ' },
+];
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function parseNumericInput(raw: string): number | null {
+  if (raw.trim() === '') return null;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 export interface ExploreSearchSectionProps {
   filters: HomeFeedFilters;
@@ -149,7 +163,7 @@ export function ExploreSearchSection({
         <Button
           type="button"
           variant="outline"
-          className="shrink-0 max-md:justify-center"
+          className="h-auto min-h-12 shrink-0 self-stretch max-md:justify-center"
           onClick={() => setShowFilters(!showFilters)}
         >
           <SlidersHorizontal size={18} />
@@ -216,156 +230,130 @@ export function ExploreSearchSection({
             </>
           )}
 
-          <div className="flex w-full flex-col gap-2.5">
-            <div className="flex items-baseline justify-between gap-2">
+          <div className="flex flex-row flex-wrap items-start gap-4" data-testid="search-filter-row">
+            <div className="flex min-w-[140px] flex-1 flex-col gap-2">
               <span className="text-sm font-semibold text-muted-foreground">難易度</span>
-              <span className="text-sm font-bold text-primary">
-                {filters.difficultyMin === filters.difficultyMax
-                  ? `Lv.${filters.difficultyMin}（${DIFFICULTY_LABELS[filters.difficultyMin]}）`
-                  : `Lv.${filters.difficultyMin} 〜 Lv.${filters.difficultyMax}`}
-              </span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={DIFFICULTY_MIN}
+                  max={DIFFICULTY_MAX}
+                  inputMode="numeric"
+                  className="w-20"
+                  value={filters.difficultyMin}
+                  onChange={(e) => {
+                    const parsed = parseNumericInput(e.target.value);
+                    if (parsed == null) return;
+                    const difficultyMin = clampInt(parsed, DIFFICULTY_MIN, DIFFICULTY_MAX);
+                    onFiltersChange({
+                      difficultyMin,
+                      difficultyMax: Math.max(difficultyMin, filters.difficultyMax),
+                    });
+                  }}
+                  aria-label="難易度最小値"
+                  data-testid="search-filter-difficulty-min"
+                />
+                <span className="text-sm text-muted-foreground">〜</span>
+                <Input
+                  type="number"
+                  min={DIFFICULTY_MIN}
+                  max={DIFFICULTY_MAX}
+                  inputMode="numeric"
+                  className="w-20"
+                  value={filters.difficultyMax}
+                  onChange={(e) => {
+                    const parsed = parseNumericInput(e.target.value);
+                    if (parsed == null) return;
+                    const difficultyMax = clampInt(parsed, DIFFICULTY_MIN, DIFFICULTY_MAX);
+                    onFiltersChange({
+                      difficultyMax,
+                      difficultyMin: Math.min(difficultyMax, filters.difficultyMin),
+                    });
+                  }}
+                  aria-label="難易度最大値"
+                  data-testid="search-filter-difficulty-max"
+                />
+              </div>
             </div>
 
-            <div className="explore-dual-slider">
-              <div
-                className="explore-slider-highlight"
-                style={{
-                  left: `${((filters.difficultyMin - 1) / 4) * 100}%`,
-                  right: `${((5 - filters.difficultyMax) / 4) * 100}%`,
-                }}
-              />
-              <input
-                type="range"
-                min={1}
-                max={5}
-                step={1}
-                value={filters.difficultyMin}
-                className="explore-range-input"
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  onFiltersChange({
-                    difficultyMin: v,
-                    difficultyMax: Math.max(v, filters.difficultyMax),
-                  });
-                }}
-                aria-label="難易度最小値"
-              />
-              <input
-                type="range"
-                min={1}
-                max={5}
-                step={1}
-                value={filters.difficultyMax}
-                className="explore-range-input"
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  onFiltersChange({
-                    difficultyMax: v,
-                    difficultyMin: Math.min(v, filters.difficultyMin),
-                  });
-                }}
-                aria-label="難易度最大値"
-              />
-            </div>
-
-            <div className="flex justify-between px-0.5">
-              {[1, 2, 3, 4, 5].map((lv) => (
-                <span key={lv} className="select-none text-xs font-semibold text-muted-foreground">
-                  {lv}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex w-full flex-col gap-2.5">
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex min-w-[140px] flex-1 flex-col gap-2">
               <span className="text-sm font-semibold text-muted-foreground">問題数</span>
-              <span className="text-sm font-bold text-primary">
-                {filters.minQuestions === filters.maxQuestions
-                  ? `${filters.minQuestions} 問`
-                  : `${filters.minQuestions} 〜 ${filters.maxQuestions} 問`}
-              </span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={QUESTIONS_MIN}
+                  max={QUESTIONS_MAX}
+                  inputMode="numeric"
+                  className="w-20"
+                  value={filters.minQuestions}
+                  onChange={(e) => {
+                    const parsed = parseNumericInput(e.target.value);
+                    if (parsed == null) return;
+                    const minQuestions = clampInt(parsed, QUESTIONS_MIN, QUESTIONS_MAX);
+                    onFiltersChange({
+                      minQuestions,
+                      maxQuestions: Math.max(minQuestions, filters.maxQuestions),
+                    });
+                  }}
+                  aria-label="最小問題数"
+                  data-testid="search-filter-min-questions"
+                />
+                <span className="text-sm text-muted-foreground">〜</span>
+                <Input
+                  type="number"
+                  min={QUESTIONS_MIN}
+                  max={QUESTIONS_MAX}
+                  inputMode="numeric"
+                  className="w-20"
+                  value={filters.maxQuestions}
+                  onChange={(e) => {
+                    const parsed = parseNumericInput(e.target.value);
+                    if (parsed == null) return;
+                    const maxQuestions = clampInt(parsed, QUESTIONS_MIN, QUESTIONS_MAX);
+                    onFiltersChange({
+                      maxQuestions,
+                      minQuestions: Math.min(maxQuestions, filters.minQuestions),
+                    });
+                  }}
+                  aria-label="最大問題数"
+                  data-testid="search-filter-max-questions"
+                />
+              </div>
             </div>
 
-            <div className="explore-dual-slider">
-              <div
-                className="explore-slider-highlight"
-                style={{
-                  left: `${((filters.minQuestions - 1) / 49) * 100}%`,
-                  right: `${((50 - filters.maxQuestions) / 49) * 100}%`,
-                }}
-              />
-              <input
-                type="range"
-                min={1}
-                max={50}
-                step={1}
-                value={filters.minQuestions}
-                className="explore-range-input"
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  onFiltersChange({
-                    minQuestions: v,
-                    maxQuestions: Math.max(v, filters.maxQuestions),
-                  });
-                }}
-                aria-label="最小問題数"
-              />
-              <input
-                type="range"
-                min={1}
-                max={50}
-                step={1}
-                value={filters.maxQuestions}
-                className="explore-range-input"
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  onFiltersChange({
-                    maxQuestions: v,
-                    minQuestions: Math.min(v, filters.minQuestions),
-                  });
-                }}
-                aria-label="最大問題数"
-              />
-            </div>
-
-            <div className="flex justify-between px-0.5">
-              {[1, 10, 20, 30, 40, 50].map((n) => (
-                <span key={n} className="select-none text-xs font-semibold text-muted-foreground">
-                  {n}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            <span className="text-sm font-semibold text-muted-foreground">プレイ状況</span>
-            <Select
-              value={playStatus}
-              disabled={playStatusDisabled}
-              onValueChange={(value) =>
-                onPlayStatusChange(value as 'all' | 'unplayed' | 'played')
-              }
-            >
-              <SelectTrigger
-                className="w-full"
-                title={
-                  playStatusDisabled ? 'ログインするとプレイ状況で絞り込めます' : undefined
+            <div className="flex min-w-[160px] flex-1 flex-col gap-2">
+              <span className="text-sm font-semibold text-muted-foreground">プレイ状況</span>
+              <Select
+                value={playStatus}
+                disabled={playStatusDisabled}
+                onValueChange={(value) =>
+                  onPlayStatusChange(value as 'all' | 'unplayed' | 'played')
                 }
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて表示</SelectItem>
-                <SelectItem value="unplayed">未プレイのみ</SelectItem>
-                <SelectItem value="played">プレイ済みのみ</SelectItem>
-              </SelectContent>
-            </Select>
-            {playStatusDisabled && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                プレイ状況で絞り込むにはログインが必要です
-              </p>
-            )}
+                <SelectTrigger
+                  className="w-full"
+                  title={
+                    playStatusDisabled ? 'ログインするとプレイ状況で絞り込めます' : undefined
+                  }
+                >
+                  <SelectValue>
+                    {PLAY_STATUS_OPTIONS.find((option) => option.value === playStatus)?.label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {PLAY_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {playStatusDisabled && (
+                <p className="text-xs text-muted-foreground">
+                  プレイ状況で絞り込むにはログインが必要です
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

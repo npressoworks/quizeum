@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
+import { Check } from 'lucide-react';
 import type { MyQuizSourceFlags } from '@/lib/my-quiz-pool';
-import { Toggle } from '@/components/ui/toggle';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface MyQuizSourcePanelProps {
   flags: MyQuizSourceFlags;
@@ -25,18 +27,24 @@ export function MyQuizSourcePanel({ flags, onChange }: MyQuizSourcePanelProps) {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2" role="group" aria-label="問題の取得元">
-          {SOURCES.map((src) => (
-            <Toggle
-              key={src.key}
-              variant="outline"
-              pressed={flags[src.key]}
-              onPressedChange={(pressed) => onChange({ ...flags, [src.key]: pressed })}
-              data-testid={src.testId}
-              aria-pressed={flags[src.key]}
-            >
-              {src.label}
-            </Toggle>
-          ))}
+          {SOURCES.map((src) => {
+            const pressed = flags[src.key];
+            return (
+              <Button
+                key={src.key}
+                type="button"
+                variant={pressed ? 'default' : 'outline'}
+                size="sm"
+                className={cn('h-auto gap-1.5 px-3 py-2', !pressed && 'text-muted-foreground')}
+                onClick={() => onChange({ ...flags, [src.key]: !pressed })}
+                data-testid={src.testId}
+                aria-pressed={pressed}
+              >
+                {pressed && <Check className="size-3.5 shrink-0" aria-hidden />}
+                {src.label}
+              </Button>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

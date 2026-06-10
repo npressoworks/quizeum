@@ -206,7 +206,6 @@ export function GenreSearchField({
           ジャンル条件をクリア
         </Button>
       )}
-      <p className="mt-1 text-xs text-muted-foreground">一覧が多い場合は名前の一部を入力して候補から選べます</p>
     </div>
   );
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildMyQuizQuestionPool,
+  filterCandidatesBySourceFlags,
   type MyQuizQuestionCandidate,
   type MyQuizSourceFlags,
 } from '@/lib/my-quiz-pool';
@@ -83,6 +84,9 @@ export function useMyQuizPool(userId: string | undefined) {
   const [rawCandidates, setRawCandidates] = useState<MyQuizQuestionCandidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedOnceRef = useRef(false);
+  const fetchIdRef = useRef(0);
+  const prevSourceFlagsRef = useRef(sourceFlags);
 
   const hasAnySource =
     sourceFlags.ownQuizzes ||
@@ -90,33 +94,71 @@ export function useMyQuizPool(userId: string | undefined) {
     sourceFlags.bookmarkedLists ||
     sourceFlags.bookmarkedQuestions;
 
+  useEffect(() => {
+    hasLoadedOnceRef.current = false;
+    fetchIdRef.current = 0;
+    prevSourceFlagsRef.current = sourceFlags;
+    setRawCandidates([]);
+    setError(null);
+    setLoading(false);
+  }, [userId]);
+
   const fetchPool = useCallback(async () => {
     if (!userId || !hasAnySource) {
-      setRawCandidates([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    const fetchId = ++fetchIdRef.current;
+    const isInitialLoad = !hasLoadedOnceRef.current;
+    if (isInitialLoad) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const pool = await buildMyQuizQuestionPool(userId, sourceFlags);
+      if (fetchId !== fetchIdRef.current) return;
       setRawCandidates(pool);
+      hasLoadedOnceRef.current = true;
     } catch (e) {
+      if (fetchId !== fetchIdRef.current) return;
       console.error('[useMyQuizPool]', e);
       setError(e instanceof Error ? e.message : '問題プールの取得に失敗しました');
-      setRawCandidates([]);
+      if (isInitialLoad) {
+        setRawCandidates([]);
+      }
     } finally {
-      setLoading(false);
+      if (fetchId === fetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [userId, sourceFlags, hasAnySource]);
 
   useEffect(() => {
-    void fetchPool();
-  }, [fetchPool]);
+    if (!userId || !hasAnySource) {
+      setLoading(false);
+      return;
+    }
+
+    const enabledNewSource = (
+      Object.keys(sourceFlags) as (keyof MyQuizSourceFlags)[]
+    ).some((key) => sourceFlags[key] && !prevSourceFlagsRef.current[key]);
+    const isFirstLoad = !hasLoadedOnceRef.current;
+
+    prevSourceFlagsRef.current = sourceFlags;
+
+    if (isFirstLoad || enabledNewSource) {
+      void fetchPool();
+    }
+  }, [userId, hasAnySource, sourceFlags, fetchPool]);
+
+  const sourceScopedCandidates = useMemo(() => {
+    if (!hasAnySource) return [];
+    return filterCandidatesBySourceFlags(rawCandidates, sourceFlags);
+  }, [rawCandidates, sourceFlags, hasAnySource]);
 
   const filteredCandidates = useMemo(
-    () => filterMyQuizCandidates(rawCandidates, filters),
-    [rawCandidates, filters]
+    () => filterMyQuizCandidates(sourceScopedCandidates, filters),
+    [sourceScopedCandidates, filters]
   );
 
   const filteredCount = filteredCandidates.length;

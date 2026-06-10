@@ -54,6 +54,41 @@ describe('ExploreSearchSection', () => {
     expect(screen.getByText('問題数')).toBeInTheDocument();
     expect(screen.getByText('プレイ状況')).toBeInTheDocument();
     expect(screen.getByText('クイック検索:')).toBeInTheDocument();
+    expect(screen.getByTestId('search-filter-difficulty-min')).toHaveAttribute('type', 'number');
+    expect(screen.getByTestId('search-filter-difficulty-max')).toHaveAttribute('type', 'number');
+    expect(screen.getByTestId('search-filter-min-questions')).toHaveAttribute('type', 'number');
+    expect(screen.getByTestId('search-filter-max-questions')).toHaveAttribute('type', 'number');
+    expect(screen.getByRole('combobox')).toHaveTextContent('すべて表示');
+    expect(screen.queryByText('all')).not.toBeInTheDocument();
+  });
+
+  it('プレイ状況の選択中表示は日本語ラベルになる', () => {
+    render(<ExploreSearchSection {...baseProps} playStatus="unplayed" showQuickSearch />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'フィルター' }));
+    expect(screen.getByRole('combobox')).toHaveTextContent('未プレイのみ');
+    expect(screen.queryByText('unplayed')).not.toBeInTheDocument();
+  });
+
+  it('難易度・問題数の数値入力でフィルターを更新する', () => {
+    const onFiltersChange = jest.fn();
+    render(
+      <ExploreSearchSection {...baseProps} showQuickSearch onFiltersChange={onFiltersChange} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'フィルター' }));
+
+    fireEvent.change(screen.getByTestId('search-filter-difficulty-min'), { target: { value: '2' } });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      difficultyMin: 2,
+      difficultyMax: 5,
+    });
+
+    fireEvent.change(screen.getByTestId('search-filter-max-questions'), { target: { value: '20' } });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      maxQuestions: 20,
+      minQuestions: 1,
+    });
   });
 
   it('週間人気タグをクイック検索チップとして表示する', () => {
