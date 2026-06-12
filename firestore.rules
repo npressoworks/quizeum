@@ -62,6 +62,48 @@ service cloud.firestore {
         );
     }
 
+    // クイズ公開範囲（未設定は public）
+    function quizDocVisibility(data) {
+      return !('visibility' in data) || data.visibility == 'public'
+        ? 'public'
+        : data.visibility;
+    }
+
+    function isFollowingQuizAuthor(authorId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + authorId));
+    }
+
+    function userHasProVisibilityAccess() {
+      return isAuthenticated() && (
+        getUserData(request.auth.uid).moderationTier == 'moderator'
+        || getUserData(request.auth.uid).moderationTier == 'senior_moderator'
+        || (
+          getUserData(request.auth.uid).subscriptionTier in ['pro', 'premium']
+          && getUserData(request.auth.uid).subscriptionStatus in ['active', 'trialing']
+        )
+      );
+    }
+
+    function visibilityChangeAllowed(oldVis, newVis) {
+      return newVis == 'public'
+        || newVis == oldVis
+        || userHasProVisibilityAccess();
+    }
+
+    function canReadQuizVisibility(data) {
+      return data.status == 'draft'
+        ? (isAuthenticated() && data.authorId == request.auth.uid)
+        : data.status == 'suspended'
+          ? (isSeniorModeratorOrAdmin() || (isAuthenticated() && data.authorId == request.auth.uid))
+          : (
+            quizDocVisibility(data) == 'public'
+            || (isAuthenticated() && data.authorId == request.auth.uid)
+            || isSeniorModeratorOrAdmin()
+            || (quizDocVisibility(data) == 'followers' && isFollowingQuizAuthor(data.authorId))
+          );
+    }
+
     // 課金フィールドが create 時にクライアントから設定されていないか確認
     function billingFieldsSafeOnCreate() {
       return (
@@ -179,22 +221,24 @@ service cloud.firestore {
     // quizzes コレクションルール
     // -----------------------------------------------------------------
     match /quizzes/{quizId} {
-      // 読み取りルール:
-      // 通常のクイズは誰でも閲覧可能。ただし保留状態 (suspended) は管理者・シニアモデレータのみ閲覧可能。
-      // 存在しないドキュメントへの get も許可（クライアントで null 判定できるようにする）
+      // 読み取りルール: ライフサイクル status と visibility に基づく
       allow read: if resource == null
-        || !('status' in resource.data)
-        || resource.data.status != 'suspended'
-        || isSeniorModeratorOrAdmin()
-        // 作成者本人も確認のため閲覧可能にする
-        || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+        || canReadQuizVisibility(resource.data);
         
       // 作成ルール:
       // 認証済みユーザーのみ新規作成可能。初期の通報件数は0、ステータスは draft または published。
       allow create: if isAuthenticated() && isNotBanned()
         && request.resource.data.authorId == request.auth.uid
         && request.resource.data.flagsCount == 0
-        && request.resource.data.status in ['draft', 'published'];
+        && request.resource.data.status in ['draft', 'published']
+        && (
+          !('visibility' in request.resource.data)
+          || request.resource.data.visibility in ['public', 'private', 'followers']
+        )
+        && visibilityChangeAllowed(
+          'public',
+          quizDocVisibility(request.resource.data)
+        );
         
       // プレイ数・ブックマーク数・良問評価・リーダーボードのみの更新（プレイ完了・ブックマーク操作など）
       function isPublicQuizStatsUpdate() {
@@ -219,6 +263,13 @@ service cloud.firestore {
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.status == resource.data.status
           && request.resource.data.flagsCount == resource.data.flagsCount
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['visibility'])
+            || visibilityChangeAllowed(
+              quizDocVisibility(resource.data),
+              quizDocVisibility(request.resource.data)
+            )
+          )
         ) || isModeratorOrAbove() || isPublicQuizStatsUpdate()
       );
       

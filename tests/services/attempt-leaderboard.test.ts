@@ -1,6 +1,11 @@
+jest.mock('../../src/lib/quiz-access', () => ({
+  ...jest.requireActual('../../src/lib/quiz-access'),
+  assertCanViewQuizAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../src/lib/firebase/config', () => ({ db: {} }));
 
-import { runTransaction } from 'firebase/firestore';
+import { runTransaction, getDoc } from 'firebase/firestore';
 import { saveAttempt } from '../../src/services/attempt';
 jest.mock('firebase/firestore', () => {
   const original = jest.requireActual('firebase/firestore');
@@ -45,6 +50,15 @@ function mockQuiz(overrides: Record<string, unknown> = {}) {
 describe('saveAttempt - Phase 5 leaderboards', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (getDoc as jest.Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        status: 'published',
+        authorId: 'author-1',
+        visibility: 'public',
+        questions: baseQuestions,
+      }),
+    });
   });
 
   test('非全問正解でも初回プレイLBに反映されること', async () => {

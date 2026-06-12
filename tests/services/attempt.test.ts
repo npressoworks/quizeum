@@ -1,6 +1,11 @@
+jest.mock('../../src/lib/quiz-access', () => ({
+  ...jest.requireActual('../../src/lib/quiz-access'),
+  assertCanViewQuizAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../src/lib/firebase/config', () => ({ db: {} }));
 
-import { runTransaction, doc, getDocs, setDoc } from 'firebase/firestore';
+import { runTransaction, doc, getDocs, setDoc, getDoc } from 'firebase/firestore';
 import {
   saveAttempt,
   createLateralAttemptSession,
@@ -41,6 +46,15 @@ describe('AttemptService - saveAttempt', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getDocs as jest.Mock).mockResolvedValue({ docs: [] });
+    (getDoc as jest.Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        status: 'published',
+        authorId: 'author-1',
+        visibility: 'public',
+        questions: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }, { id: 'q4' }, { id: 'q5' }],
+      }),
+    });
   });
 
   test('通常スコアでも初回LBに記録しプレイ回数をインクリメントすること', async () => {

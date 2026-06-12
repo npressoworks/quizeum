@@ -1,4 +1,5 @@
 import { resolveQuizFormat } from '@/lib/quiz-format';
+import { canViewQuiz, resolveFollowerStatus } from '@/lib/quiz-access';
 import { searchAuthorQuizzes } from '@/services/author-quiz-search';
 import { enrichBookmarkedQuestions, getBookmarkedQuizzes } from '@/services/bookmark';
 import { getQuestionsByQuiz } from '@/services/question';
@@ -92,9 +93,19 @@ async function collectOwnQuizzes(userId: string): Promise<MyQuizQuestionCandidat
 
 async function collectBookmarkedQuizzes(userId: string): Promise<MyQuizQuestionCandidate[]> {
   const quizzes = await getBookmarkedQuizzes(userId);
-  const published = quizzes.filter((q) => q.status === 'published');
+  const viewable: Quiz[] = [];
+  for (const quiz of quizzes) {
+    if (quiz.status !== 'published') continue;
+    const isFollower =
+      quiz.authorId !== userId
+        ? await resolveFollowerStatus(userId, quiz.authorId)
+        : false;
+    if (canViewQuiz({ quiz, viewerUid: userId, isFollower })) {
+      viewable.push(quiz);
+    }
+  }
   const groups = await Promise.all(
-    published.map(async (quiz) => {
+    viewable.map(async (quiz) => {
       const questions = await getQuestionsByQuiz(quiz.id);
       return questions.map((q) => toCandidate(q, quiz, 'bookmarked-quiz'));
     })
@@ -109,6 +120,13 @@ async function collectBookmarkedQuestions(userId: string): Promise<MyQuizQuestio
   for (const { question, parentQuizId, parentQuizTitle } of entries) {
     const parentQuiz = parentQuizId ? await getQuiz(parentQuizId) : null;
     if (parentQuiz) {
+      const isFollower =
+        parentQuiz.authorId !== userId
+          ? await resolveFollowerStatus(userId, parentQuiz.authorId)
+          : false;
+      if (!canViewQuiz({ quiz: parentQuiz, viewerUid: userId, isFollower })) {
+        continue;
+      }
       candidates.push(toCandidate(question, parentQuiz, 'bookmarked-question'));
     } else {
       candidates.push({

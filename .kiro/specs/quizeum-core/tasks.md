@@ -1262,3 +1262,102 @@
 - 削除禁止（同名）: 探索 `QuizListSort`、ダッシュボード `QuizListSkeleton`。
 - マイグレーション本番実行はステージング検証後。UI と同一 PR でも Core コミットを先に適用すること。
 - Phase 26 実装完了（2026-06-10）: Jest 166 suites / 835 tests グリーン。リスト API 削除に伴い play-flow 境界の最小 UI 修正（ブックマーク2タブ・ルート削除・プレイ/結果）を同一 PR で実施。`npm run build` は `ai-generate-questions/route.ts` の既存 Schema 型エラーで失敗（Phase 26 外）。
+
+---
+
+### 24. Phase 27: クイズ公開範囲（公開 / 非公開 / フォロワー限定）（2026-06-10）
+
+- [x] 24.1 公開範囲型と読み取り正規化
+  - `QuizVisibility` 型と `Quiz.visibility` オプションフィールドを追加する
+  - 未設定時 `public` として扱う `resolveQuizVisibility` を lib に提供する
+  - **完了状態**: 型チェックが通り、既存クイズ型参照が破綻しないこと
+  - _Requirements: 27.1, 27.2, 27.4_
+  - _Boundary: types_
+
+- [x] 24.2 閲覧アクセス判定 lib の実装
+  - `canViewQuiz` / `assertCanViewQuiz` を `src/lib/quiz-access.ts` に実装する（draft/suspended/public/private/followers、作者・フォロワー・mod）
+  - `isFollowing` を followers 判定に利用する非同期 assert パスを提供する
+  - **完了状態**: 単体テストで全閲覧パターンが期待どおり判定されること
+  - _Requirements: 27.3, 27.5, 27.6, 27.7, 27.8, 27.9, 27.10_
+  - _Depends: 24.1_
+  - _Boundary: quiz-access_
+
+- [x] 24.3 Pro 限定公開範囲の設定ゲート
+  - `assertCanSetQuizVisibility` を実装し、`private` / `followers` 設定時に Pro 契約（またはモデレーター免除）を要求する
+  - 無料ユーザーの `public → private|followers` を拒否し、既存 `private|followers` の維持（同一値更新）と `→ public` 変更は許可する
+  - **完了状態**: Pro なしで private/followers 保存が reject され、ダウングレード後の既存限定公開維持がテストで確認できること
+  - _Requirements: 27.11, 27.12, 27.13, 27.14, 27.15_
+  - _Depends: 24.1_
+  - _Boundary: quiz-access, entitlement_
+
+- [x] 24.4 createQuiz / updateQuiz への公開範囲統合
+  - 作成・更新 API に `visibility` を受け取り、保存前に `assertCanSetQuizVisibility` を呼ぶ
+  - 新規 published 保存時、省略時は `public` を永続化する
+  - **完了状態**: エディタ/UI から渡された visibility が Firestore に保存され、Pro ゲートがサーバー側で強制されること
+  - _Requirements: 27.1, 27.4, 27.11, 27.12, 27.13, 27.14, 27.15_
+  - _Depends: 24.3_
+  - _Boundary: quiz_
+
+- [x] 24.5 探索・一覧・タイムラインクエリの visibility フィルタ
+  - 公開探索系 API（新着・人気・トレンド・ジャンル・タグ・検索）に `visibility == 'public'` 条件を追加する
+  - フォロー TL に `public | followers`、他人プロフィール作者一覧に `public` のみを適用する
+  - **完了状態**: private/followers クイズが公開探索結果に含まれず、フォロー TL で followers クイズがフォロワー向けに取得可能であること
+  - _Requirements: 27.16, 27.17, 27.18, 27.19_
+  - _Depends: 24.1_
+  - _Boundary: quiz_
+
+- [x] 24.6 プレイ・試行・ストリーム API の閲覧ゲート
+  - クイズ取得後に `assertCanViewQuiz` を適用する（quick-press-stream、attempt 関連でクイズ本体を参照する経路）
+  - 未認可時は一貫したエラーコード（例: `QUIZ_ACCESS_DENIED`）を返す
+  - **完了状態**: 非公開・非フォロワーの followers クイズへ URL 直アクセスしてもプレイ開始できないこと
+  - _Requirements: 27.7, 27.8, 27.9, 27.10_
+  - _Depends: 24.2_
+  - _Boundary: AttemptService, quick-press-stream_
+
+- [x] 24.7 ブックマーク・マイクイズプール連携
+  - ブックマーク検証に閲覧規則を適用し、閲覧不可クイズのブックマーク登録を拒否する
+  - マイクイズのブックマークソース収集時、親クイズが閲覧不可なら候補から除外する（自作ソースは従来どおり）
+  - **完了状態**: 非公開クイズのブックマークが reject され、マイクイズプールに他人 private が混入しないこと
+  - _Requirements: 27.20, 27.21, 27.22_
+  - _Depends: 24.2_
+  - _Boundary: bookmark, my-quiz-pool_
+
+- [x] 24.8 Firestore Rules・Indexes の更新
+  - `quizzes` read ルールに visibility（public/private/followers）と follows 存在チェックを追加する
+  - 探索クエリ用複合インデックスに `visibility` を追加する
+  - **完了状態**: rules / indexes がデプロイ可能で、クライアント直 read でも限定公開が漏洩しないこと
+  - _Requirements: 27.23, 27.25_
+  - _Depends: 24.1_
+  - _Boundary: Firestore_
+
+- [x] 24.9 公開範囲バックフィルマイグレーション
+  - `scripts/migrate-quiz-visibility-public.mjs` を追加し、published かつ visibility 未設定 doc に `public` を書き込む
+  - `--dry-run` で件数出力できること
+  - **完了状態**: エミュレータ上で dry-run / 実更新が成功すること
+  - _Requirements: 27.2, 27.24_
+  - _Depends: 24.8_
+  - _Boundary: migrate-quiz-visibility-public_
+
+- [x] 24.10 (P) Phase 27 単体・サービステスト
+  - `quiz-access`、create/update Pro ゲート、一覧 filter、bookmark reject、TL followers を Jest で検証する
+  - **完了状態**: Phase 27 関連テストがすべてグリーンであること
+  - _Requirements: 27.5, 27.7, 27.11, 27.16, 27.17, 27.20_
+  - _Depends: 24.4, 24.5, 24.6, 24.7, 24.9_
+  - _Boundary: Testing_
+
+- [x] 24.11 Phase 27 統合検証
+  - コアテストスイート全体がグリーンであることを確認する
+  - 隣接 UI スペック（ui-editor / ui-quiz-lifecycle / billing）が import 可能な API 契約（visibility 型・Pro エラー・canView）が揃っていることを確認する
+  - **完了状態**: Core 先行マージ可能な状態でビルド・全 Jest がグリーンであること
+  - _Requirements: 27.1, 27.5, 27.10, 27.11, 27.16, 27.20, 27.23, 27.24, 27.26, 27.27, 27.28, 27.29_
+  - _Depends: 24.10_
+  - _Boundary: Integration_
+
+## Implementation Notes (Phase 27)
+
+- 実装順: 24.1 → 24.2/24.3（並行可）→ 24.4 → 24.5/24.6/24.7（24.2 後並行可）→ 24.8 → 24.9 → 24.10 → 24.11。UI スペックは **24.4 完了後**（保存契約確定後）に着手。
+- Pro 限定は **`private` と `followers` の両方**（Discovery A1 確定）。無料ユーザーは既存限定公開を維持、`public → 限定` のみ拒否。
+- 正本: 閲覧判定 `src/lib/quiz-access.ts`、設定ゲート `assertCanSetQuizVisibility`、探索は Core クエリ側で `visibility == 'public'`。
+- `getQuiz` 単体は引き続き ID 取得可とし、**呼び出し側または assertCanViewQuiz ラッパ**で遮断（lifecycle UI / API が消費）。
+- マイグレーション本番実行はステージング検証後。インデックス追加はクエリ変更と同 PR 推奨。
+- Phase 27 実装完了（2026-06-10）: Jest 168 suites / 848 tests グリーン。`saveQuiz` も visibility ゲート対象。既存 attempt テストは `assertCanViewQuizAsync` を mock。

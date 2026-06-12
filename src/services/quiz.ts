@@ -15,7 +15,7 @@ import {
   collection as firestoreCollection,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase/config';
-import { quizzesRef, followsRef, bookmarksRef, questionsRef } from '../lib/firebase/firestore';
+import { quizzesRef, followsRef, bookmarksRef, questionsRef, usersRef } from '../lib/firebase/firestore';
 import { Quiz, Question, PaginatedQuizResult } from '../types';
 import {
   validateQuizForPublish,
@@ -60,9 +60,37 @@ import {
   encodeSearchOffsetCursor,
   type QuizFeedTabKind,
 } from '../lib/quiz-feed-cursor';
+import {
+  assertCanSetQuizVisibilitySync,
+  isDiscoveryPublicQuiz,
+  isFollowTimelineEligibleQuiz,
+  normalizeQuizVisibilityForSave,
+  resolveQuizVisibility,
+} from '../lib/quiz-access';
+import type { EntitlementUserFields } from './entitlement';
 
 export type { QuizListSort } from '../lib/metadata-resolution';
 export { QuizFeedCursorError } from '../lib/quiz-feed-cursor';
+
+async function enforceVisibilityEntitlement(
+  authorId: string,
+  nextVisibility: ReturnType<typeof resolveQuizVisibility>,
+  prevVisibility?: ReturnType<typeof resolveQuizVisibility>
+): Promise<void> {
+  const userSnap = await getDoc(doc(usersRef, authorId));
+  const fields: EntitlementUserFields = userSnap.exists()
+    ? (userSnap.data() as EntitlementUserFields)
+    : {};
+  assertCanSetQuizVisibilitySync(fields, nextVisibility, prevVisibility);
+}
+
+function filterDiscoveryQuizzes(quizzes: Quiz[]): Quiz[] {
+  return quizzes.filter(isDiscoveryPublicQuiz);
+}
+
+function filterFollowTimelineQuizzes(quizzes: Quiz[]): Quiz[] {
+  return quizzes.filter(isFollowTimelineEligibleQuiz);
+}
 
 export interface QuizFeedPageOptions {
   limit?: number;
@@ -150,7 +178,7 @@ async function queryPublishedByCanonicalGenre(
     limit(limitCount)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data());
+  return filterDiscoveryQuizzes(snap.docs.map((d) => d.data()));
 }
 
 async function queryPublishedByGenreIn(genreIds: string[], limitCount: number): Promise<Quiz[]> {
@@ -162,7 +190,7 @@ async function queryPublishedByGenreIn(genreIds: string[], limitCount: number): 
     limit(limitCount)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data());
+  return filterDiscoveryQuizzes(snap.docs.map((d) => d.data()));
 }
 
 async function queryPublishedByCanonicalTag(
@@ -180,7 +208,7 @@ async function queryPublishedByCanonicalTag(
     limit(limitCount)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data());
+  return filterDiscoveryQuizzes(snap.docs.map((d) => d.data()));
 }
 
 async function queryPublishedByLegacyTag(tag: string, limitCount: number): Promise<Quiz[]> {
@@ -191,7 +219,7 @@ async function queryPublishedByLegacyTag(tag: string, limitCount: number): Promi
     limit(limitCount)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data());
+  return filterDiscoveryQuizzes(snap.docs.map((d) => d.data()));
 }
 
 /**
@@ -228,6 +256,15 @@ export async function createQuiz(
   const processedQuestions: Question[] = [];
 
   const inputQuestions = quiz.questions || [];
+  const effectiveStatus = quiz.status ?? 'draft';
+  const nextVisibility = normalizeQuizVisibilityForSave(
+    quiz.visibility,
+    effectiveStatus
+  );
+  if (nextVisibility !== undefined) {
+    await enforceVisibilityEntitlement(quiz.authorId, nextVisibility);
+  }
+
   for (const q of inputQuestions) {
     const qDocRef = doc(questionsRef);
     const qId = qDocRef.id;
@@ -265,6 +302,7 @@ export async function createQuiz(
     bookmarksCount: 0,
     createdAt: now,
     updatedAt: now,
+    ...(nextVisibility !== undefined ? { visibility: nextVisibility } : {}),
   };
 
   batch.set(quizDocRef, newQuiz);
@@ -399,6 +437,20 @@ export async function updateQuiz(
   const mergedGenre = data.genre ?? currentQuiz.genre;
   const mergedTags = data.tags ?? currentQuiz.tags;
   const effectiveStatus = data.status ?? currentQuiz.status;
+  const prevVisibility = resolveQuizVisibility(currentQuiz);
+  const nextVisibility =
+    data.visibility !== undefined
+      ? data.visibility
+      : normalizeQuizVisibilityForSave(undefined, effectiveStatus) ?? prevVisibility;
+
+  if (data.visibility !== undefined || effectiveStatus === 'published') {
+    await enforceVisibilityEntitlement(
+      currentQuiz.authorId,
+      nextVisibility,
+      prevVisibility
+    );
+    updatePayload.visibility = nextVisibility;
+  }
 
   if (data.genre !== undefined || data.tags !== undefined) {
     try {
@@ -599,6 +651,12 @@ export async function saveQuiz(
     updatedAt: now,
   };
 
+  const nextVisibility = normalizeQuizVisibilityForSave(quizData.visibility, status);
+  if (nextVisibility !== undefined) {
+    await enforceVisibilityEntitlement(quizData.authorId, nextVisibility);
+    payload.visibility = nextVisibility;
+  }
+
   if (status === 'published') {
     const errors = validateQuizForPublish(payload);
     if (errors.length > 0) {
@@ -719,7 +777,7 @@ async function fetchPublishedTabPage(
 
   const snap = await getDocs(q);
   return paginateQuizRows(
-    snap.docs.map((d) => d.data()),
+    filterDiscoveryQuizzes(snap.docs.map((d) => d.data())),
     pageSize,
     kind
   );
@@ -793,7 +851,11 @@ export async function getQuizzesByAuthor(authorId: string, includeUnpublished: b
     );
   }
   const snap = await getDocs(q);
-  return snap.docs.map((doc) => doc.data());
+  const rows = snap.docs.map((doc) => doc.data());
+  if (!includeUnpublished) {
+    return filterDiscoveryQuizzes(rows);
+  }
+  return rows;
 }
 
 /**
@@ -936,7 +998,7 @@ export async function materializeSearchQuizzes(
     return true;
   });
 
-  return sortQuizzesForList(dedupeQuizzesById(filtered), 'latest');
+  return sortQuizzesForList(dedupeQuizzesById(filterDiscoveryQuizzes(filtered)), 'latest');
 }
 
 /**
@@ -1035,7 +1097,7 @@ export async function getFollowedTimelinePage(
 
   const snap = await getDocs(q);
   return paginateQuizRows(
-    snap.docs.map((d) => d.data()),
+    filterFollowTimelineQuizzes(snap.docs.map((d) => d.data())),
     pageSize,
     kind
   );

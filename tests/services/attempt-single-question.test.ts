@@ -1,6 +1,11 @@
+jest.mock('../../src/lib/quiz-access', () => ({
+  ...jest.requireActual('../../src/lib/quiz-access'),
+  assertCanViewQuizAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../src/lib/firebase/config', () => ({ db: {} }));
 
-import { runTransaction, getDocs } from 'firebase/firestore';
+import { runTransaction, getDocs, getDoc } from 'firebase/firestore';
 import { saveAttempt } from '../../src/services/attempt';
 import { isLeaderboardEligibleAttempt } from '../../src/lib/leaderboard-update';
 
@@ -61,6 +66,15 @@ describe('saveAttempt - 1問単位モード', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getDocs as jest.Mock).mockResolvedValue({ docs: [] });
+    (getDoc as jest.Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        status: 'published',
+        authorId: 'author-1',
+        visibility: 'public',
+        questions: Array.from({ length: 10 }, (_, i) => ({ id: `q${i + 1}` })),
+      }),
+    });
   });
 
   test('my-quiz: 親クイズ10問でも totalQuestions:1 で保存成功する', async () => {

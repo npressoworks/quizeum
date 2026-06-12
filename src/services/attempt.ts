@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase/config';
 import { expandGenreIdsForQuery, quizMatchesGenreFilter } from '../lib/metadata-resolution';
+import { assertCanViewQuizAsync } from '../lib/quiz-access';
 import { quizzesRef, usersRef } from '../lib/firebase/firestore';
 import {
   Attempt,
@@ -78,6 +79,14 @@ export async function saveAttempt(
   attemptData: Omit<Attempt, 'id' | 'completedAt'>
 ): Promise<string> {
   assertPlayModeAllowedForSave(attemptData.mode);
+
+  const quizPreview = await getDoc(doc(quizzesRef, attemptData.quizId));
+  if (!quizPreview.exists()) {
+    throw new Error(`クイズが見つかりません: ${attemptData.quizId}`);
+  }
+  const viewerUid =
+    attemptData.userId && attemptData.userId !== 'guest' ? attemptData.userId : null;
+  await assertCanViewQuizAsync(quizPreview.data() as Quiz, viewerUid);
 
   const completedAt = new Date();
   const attemptDocRef = doc(attemptsCollection);

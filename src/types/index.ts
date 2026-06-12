@@ -112,6 +112,9 @@ export interface LeaderboardRecord {
   completedAt: Date;
 }
 
+/** 公開済みクイズの閲覧範囲（未設定は public として後方互換） */
+export type QuizVisibility = 'public' | 'private' | 'followers';
+
 // 4. クイズ (Quiz)
 export interface Quiz {
   id: string;             // クイズID (FirestoreドキュメントID)
@@ -129,6 +132,8 @@ export interface Quiz {
   questions: Question[];  // 問題の配列 (表示高速化用・非正規化コピー)
   questionCount: number;  // 問題数
   status: 'draft' | 'published' | 'suspended'; // ステータス
+  /** 公開範囲（published 時のみ有効。未設定は public） */
+  visibility?: QuizVisibility;
   flagsCount: number;     // 累計通報数
   playCount: number;      // 挑戦回数
   bookmarksCount: number; // ブックマークされている数

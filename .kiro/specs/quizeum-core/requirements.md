@@ -643,3 +643,51 @@
 16. The [Quizeum System] shall [ブックマーク（クイズ・問題）、マイクイズ（`my-quiz`）、問題参照リンク作問（`sourceQuestionId`）を本要件の範囲に含めない（維持対象）]。
 17. The [Quizeum System] shall [既存 `attempts` ドキュメントの物理削除を本要件の範囲に含めない]。
 18. The [Quizeum System] shall [リスト探索・作成・編集 UI の除去を本要件の範囲に含めない（隣接 UI スペックが担当）]。
+
+### 要件 27: クイズ公開範囲（公開 / 非公開 / フォロワー限定）（Phase 27）
+**目的:** Quizeumのクリエイターとして、公開済みクイズの閲覧範囲を「全体公開」「非公開（作者のみ）」「フォロワー限定」から選びたい。Pro 契約者は非公開・フォロワー限定を設定でき、無料ユーザーは既存の限定公開クイズを維持しつつ新たに限定公開へ変更できない。それにより、下書きとは別軸で公開後のオーディエンスを制御できる。
+
+#### 受け入れ基準
+
+**データモデルと既定値**
+1. The [Quizeum System] shall [公開済みクイズについて、公開範囲を `public`（全体公開）、`private`（作者のみ）、`followers`（フォロワー限定）のいずれかで表現すること]。
+2. When [クイズドキュメントに公開範囲フィールドが存在しないとき], the [Quizeum System] shall [公開範囲を `public` として扱うこと（後方互換）]。
+3. When [クイズのライフサイクル状態が `draft` または `suspended` であるとき], the [Quizeum System] shall [公開範囲より先に既存のライフサイクル規則（作者・モデレーション等）を適用すること]。
+4. When [新規クイズを下書き保存するとき], the [Quizeum System] shall [公開範囲を保存してよいが、探索フィードには含めないこと（既存 `draft` 規則と整合）]。
+
+**閲覧アクセス（`canViewQuiz` 相当の一貫規則）**
+5. When [閲覧者が未認証または第三者であり、公開範囲が `public` でライフサイクル状態が `published` であるクイズへアクセスしたとき], the [Quizeum System] shall [閲覧を許可すること]。
+6. When [閲覧者が作者本人であるとき], the [Quizeum System] shall [ライフサイクル状態が `draft`・`published`・`suspended` のいずれでも、当該作者に対し閲覧を許可すること（既存 suspended 作者閲覧規則と整合）]。
+7. When [公開範囲が `private` でライフサイクル状態が `published` であるクイズへ、作者以外がアクセスしたとき], the [Quizeum System] shall [閲覧を拒否すること]。
+8. When [公開範囲が `followers` でライフサイクル状態が `published` であるクイズへアクセスしたとき], the [Quizeum System] shall [作者、当該作者をフォローしている認証済みユーザー、およびシニアモデレータ／管理者にのみ閲覧を許可すること]。
+9. When [公開範囲が `followers` で、閲覧者が認証済みだが当該作者をフォローしていないとき], the [Quizeum System] shall [閲覧を拒否すること]。
+10. When [クイズ詳細・プレイ開始・試行保存・早押しストリーム等、クイズ本体へのアクセス経路が呼び出されたとき], the [Quizeum System] shall [上記閲覧規則を一貫して適用すること（フィード除外のみに依存してはならない）]。
+
+**Pro エンタイトルメント（設定時ゲート）**
+11. When [認証済みユーザーがクイズ作成または更新により、公開範囲を `private` または `followers` に設定しようとしたとき], the [Quizeum System] shall [当該ユーザーが Pro プラン（有効契約）またはモデレーター免除対象である場合のみ保存を許可すること]。
+12. If [無料ユーザー（有効な Pro 契約なし）が公開範囲を `private` または `followers` に設定して保存しようとした場合], the [Quizeum System] shall [保存を拒否し、Pro プランが必要である旨を返すこと]。
+13. When [無料ユーザーが既に `public` である公開済みクイズの公開範囲を `private` または `followers` に変更しようとしたとき], the [Quizeum System] shall [変更を拒否すること（ダウングレード後の新規限定化を防ぐ）]。
+14. When [ユーザーのサブスクリプションが Pro から無料に変更されたあとも], the [Quizeum System] shall [既存の `private` および `followers` クイズの公開範囲フィールドを自動的に `public` に変更してはならない]。
+15. When [無料ユーザーが既存の `private` または `followers` クイズの公開範囲を `public` に変更するとき], the [Quizeum System] shall [変更を許可すること]。
+
+**探索・一覧・タイムライン**
+16. When [ホーム・検索・ジャンル・タグ・人気・新着・トレンド等の公開探索フィードを返すとき], the [Quizeum System] shall [ライフサイクル状態が `published` かつ公開範囲が `public` のクイズのみを含めること]。
+17. When [フォロー TL を返すとき], the [Quizeum System] shall [フォロー先作者のうち、ライフサイクル状態が `published` かつ公開範囲が `public` または `followers` のクイズのみを含めること]。
+18. When [他人のプロフィール向けに作者別公開クイズ一覧を返すとき], the [Quizeum System] shall [ライフサイクル状態が `published` かつ公開範囲が `public` のクイズのみを含めること]。
+19. When [作者本人向けに作者別クイズ一覧を返すとき], the [Quizeum System] shall [下書き・公開済み（全公開範囲）・保留を区別して返却できること]。
+
+**ブックマーク・マイクイズ連携**
+20. When [ブックマーク登録またはブックマーク経由の問題取得が要求されたとき], the [Quizeum System] shall [当該クイズについて閲覧規則（要件 5–9）を満たす場合のみ許可すること]。
+21. When [マイクイズ用問題プールを合成するとき], the [Quizeum System] shall [自作クイズソースについて下書き・非公開・フォロワー限定を含めてよいこと（既存 Phase 23 契約維持）]。
+22. When [ブックマーククイズまたはブックマーク問題ソースから問題を収集するとき], the [Quizeum System] shall [親クイズが閲覧規則を満たさない場合は候補に含めないこと]。
+
+**セキュリティ・永続化**
+23. The [Quizeum System] shall [Firestore Security Rules において、公開範囲に基づくクイズ読み取り制限を定義すること（クライアント直 read 経路の遮断）]。
+24. When [既存の公開済みクイズに公開範囲フィールドが未設定のとき], the [Quizeum System] shall [マイグレーションまたは読み取り時既定値により `public` として扱えること]。
+25. The [Quizeum System] shall [公開範囲に応じた複合クエリに必要な Firestore インデックスを定義すること（設計で確定）]。
+
+**境界・隣接**
+26. The [Quizeum System] shall [エディタの公開範囲選択 UI、無料ユーザー向け警告ダイアログ、Pro 誘導、料金画面の特典文言を本要件の範囲に含めない（`quizeum-ui-editor` / `quizeum-billing-subscription-ui` が担当）]。
+27. The [Quizeum System] shall [クイズ詳細・プレイ画面の未認可 UX（非公開メッセージ、フォロー促し等）を本要件の範囲に含めない（`quizeum-ui-quiz-lifecycle` / `quizeum-play-flow-ui` が担当）]。
+28. The [Quizeum System] shall [シークレットリンク・パスワード共有・共同編集者招待を本フェーズの範囲に含めない]。
+29. The [Quizeum System] shall [Stripe Webhook 自体の改修を本要件の範囲に含めない（既存 tier 更新を利用。ダウングレード後の限定公開維持は保存時ゲートで担保）]。

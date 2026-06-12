@@ -1031,3 +1031,22 @@ src/app/api/webhooks/stripe/           — Missing
 
 **Document Status（Phase 26 設計）**: `design.md` Phase 26 節に反映済。
 
+---
+
+## Phase 27: クイズ公開範囲（2026-06-10）
+
+### Summary
+- **Discovery Type**: Extension（brownfield）。`status` のみの現行モデルに `visibility` 二軸を追加。Phase 13 で Out だった「プライベートクイズ」を Pro 特典として In。
+- **Key Findings**:
+  - フィードは `published` フィルタ済みだが、`getQuiz` は ID 直アクセスで draft も閲覧可能 — **フィード除外だけでは不十分**。
+  - フォローは `follows/{followerId}_{followingId}` で実装済み。Rules でも `exists()` 参照可能。
+  - Pro ゲートパターンは `ai-authoring-route-helpers` + `resolveUserEntitlements` が正本。
+- **User Decision（A1 確定）**: `private` **および** `followers` の設定は Pro 必須（無料は既存限定公開維持、`public → 限定` のみ拒否）。
+
+### Design Decisions
+1. **`quiz-access.ts` 新設** — `canViewQuiz` / `assertCanSetQuizVisibility` を1か所集約。
+2. **バックフィル** — 既存 published に `visibility: 'public'`。読み取り時フォールバックも二重化。
+3. **Rules + サーバー API** — tier 検証は API 正本、Rules は read 漏洩防止。
+
+**Document Status（Phase 27 設計）**: `design.md` Phase 27 節に反映済。
+

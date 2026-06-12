@@ -3323,3 +3323,256 @@ const LEGACY_PLAY_MODE_LABELS: Partial<Record<Attempt['mode'], string>> = {
 **Effort**: **M**（2〜3日、UI スペックと同一 PR または Core 先行マージ推奨）
 
 **Document Status（Phase 26 設計）**: 本節に反映。Phase 8 / Phase 23 のリスト関連節は **廃止**（履歴参照のみ）。
+
+---
+
+## Phase 27: クイズ公開範囲（公開 / 非公開 / フォロワー限定）（Core）
+
+### 1. Overview
+
+Phase 27 は `quizzes.visibility` を導入し、ライフサイクル `status` と直交する公開範囲を制御する。`private` および `followers` の**設定**は Pro 契約（またはモデレーター免除）必須。ダウングレード後も既存の限定公開は維持し、`public → private|followers` のみ無料ユーザーに拒否する。閲覧判定は `src/lib/quiz-access.ts` に集約し、フィード・詳細・プレイ API・Rules で defense-in-depth する。
+
+**設計確定（Discovery A1 確定 2026-06-10）**:
+- `followers` の**作成・設定**も `private` と同様 Pro 必須（無料ユーザーは選択不可）。
+- 既存 `visibility` 未設定ドキュメントは **`public`** として読み取り・クエリする。
+
+### 2. Boundary Commitments（Phase 27）
+
+| Owns | Out |
+|------|-----|
+| `Quiz.visibility` 型・デフォルト・マイグレーション | エディタ公開範囲 UI（ui-editor） |
+| `canViewQuiz` / `assertCanSetQuizVisibility` | 未認可詳細・プレイ UX（ui-quiz-lifecycle） |
+| 全公開フィード/検索/TL クエリの visibility 合成 | `/pricing` 特典 copy（billing-subscription-ui） |
+| `createQuiz` / `updateQuiz` Pro ゲート | OGP メタの文言デザイン（lifecycle UI が表示、Core は noindex フラグ提供可） |
+| Firestore Rules read 制限 | Stripe Webhook 改修 |
+| ブックマーク検証への閲覧規則適用 | シークレットリンク |
+
+**Allowed dependencies**: `resolveUserEntitlements`（`entitlement.ts`）、`isFollowing`（`user.ts`）、既存 `getQuizzesByAuthor` / 一覧 API。
+
+**Revalidation triggers**: `Quiz` 型変更、Rules 変更、一覧 API フィルタ変更は play-flow / ui-discovery / auth-profile / my-quiz-ui の再検証が必要。
+
+### 3. Architecture
+
+```mermaid
+flowchart TD
+  subgraph CoreLib["src/lib/quiz-access.ts"]
+    resolveVis["resolveQuizVisibility()"]
+    canView["canViewQuiz()"]
+    assertSet["assertCanSetQuizVisibility()"]
+  end
+  subgraph Services["Services"]
+    create["createQuiz / updateQuiz"]
+    feeds["getLatest / search / timeline"]
+    getQ["getQuiz + assertView"]
+    bm["bookmark-validation"]
+    attempt["attempt / quick-press APIs"]
+  end
+  subgraph Entitlement["entitlement.ts"]
+    pro["hasProEntitlements()"]
+  end
+  create --> assertSet
+  assertSet --> pro
+  feeds --> resolveVis
+  getQ --> canView
+  canView --> isFollowing["isFollowing()"]
+  bm --> canView
+  attempt --> canView
+  Rules["firestore.rules"] --> resolveVis
+```
+
+#### 3.1 型（`src/types/index.ts`）
+
+```typescript
+export type QuizVisibility = 'public' | 'private' | 'followers';
+
+export interface Quiz {
+  // ...existing
+  visibility?: QuizVisibility; // 未設定 = public（読み取り時正規化）
+}
+```
+
+- `draft` 保存時: `visibility` を任意で保持。探索対象外は `status` で従来どおり。
+- `published` 保存時: `visibility` 省略時は **`public`** を書き込む（新規）。既存 doc は読み取り時 `resolveQuizVisibility` で `public` フォールバック。
+
+#### 3.2 閲覧判定（`src/lib/quiz-access.ts` — **New**）
+
+```typescript
+export function resolveQuizVisibility(
+  quiz: Pick<Quiz, 'visibility'>
+): QuizVisibility {
+  return quiz.visibility ?? 'public';
+}
+
+export type CanViewQuizInput = {
+  quiz: Pick<Quiz, 'authorId' | 'status' | 'visibility'>;
+  viewerUid: string | null | undefined;
+  isFollower?: boolean; // 呼び出し側が事前解決可（Rules 外）
+  isSeniorModeratorOrAdmin?: boolean;
+};
+
+export function canViewQuiz(input: CanViewQuizInput): boolean {
+  const { quiz, viewerUid } = input;
+  if (quiz.status === 'suspended') {
+    return (
+      !!input.isSeniorModeratorOrAdmin ||
+      (!!viewerUid && quiz.authorId === viewerUid)
+    );
+  }
+  if (quiz.status === 'draft') {
+    return !!viewerUid && quiz.authorId === viewerUid;
+  }
+  // published
+  if (viewerUid && quiz.authorId === viewerUid) return true;
+  if (input.isSeniorModeratorOrAdmin) return true;
+  const vis = resolveQuizVisibility(quiz);
+  if (vis === 'public') return true;
+  if (vis === 'private') return false;
+  // followers
+  return !!viewerUid && !!input.isFollower;
+}
+```
+
+**サーバー取得パターン**（詳細・プレイ・API）:
+
+```typescript
+export async function assertCanViewQuiz(
+  quiz: Quiz,
+  viewerUid: string | null,
+  opts?: { skipFollowCheck?: boolean }
+): Promise<void> {
+  let isFollower = false;
+  if (
+    viewerUid &&
+    quiz.authorId !== viewerUid &&
+    resolveQuizVisibility(quiz) === 'followers'
+  ) {
+    isFollower = await isFollowing(viewerUid, quiz.authorId);
+  }
+  if (!canViewQuiz({ quiz, viewerUid, isFollower, ... })) {
+    throw new QuizAccessDeniedError('QUIZ_ACCESS_DENIED');
+  }
+}
+```
+
+#### 3.3 設定時 Pro ゲート（`assertCanSetQuizVisibility`）
+
+```typescript
+const PRO_VISIBILITY: QuizVisibility[] = ['private', 'followers'];
+
+export async function assertCanSetQuizVisibility(
+  uid: string,
+  nextVisibility: QuizVisibility,
+  prevVisibility?: QuizVisibility
+): Promise<void> {
+  if (!PRO_VISIBILITY.includes(nextVisibility)) return;
+  const entitlements = await resolveUserEntitlements(uid);
+  if (canAccessProVisibility(entitlements)) return; // pro/premium active OR moderator exempt
+  // 既存 private/followers の維持（同一値への no-op 更新）は許可
+  if (prevVisibility === nextVisibility) return;
+  throw new ProRequiredForVisibilityError('pro-required-for-visibility');
+}
+```
+
+- **モデレーター免除**: `canAccessAiAuthoring` と同型 — `moderationTier` が `moderator` / `senior_moderator` なら Pro なし可（design 確定）。
+- **ダウングレード**: Webhook は visibility を触らない。無料ユーザーが `public → private|followers` を試みたときのみ 403。
+
+#### 3.4 サービス層変更（`src/services/quiz.ts`）
+
+| 関数 | 変更 |
+|------|------|
+| `createQuiz` | `visibility` 引数受け取り → `assertCanSetQuizVisibility` → 永続化 |
+| `updateQuiz` | 同上。`prev.visibility` と `next.visibility` を比較 |
+| `getLatestQuizzes*` / `getPopular*` / `getTrending*` / `getQuizzesByGenre` / `getQuizzesByTag` | `where('visibility','==','public')` 追加（未バックフィル doc は migration またはクライアント後段フィルタ — **正本: バックフィル + クエリ**） |
+| `searchQuizzes` / `materializeSearchQuizzes` | published + public のみ |
+| `getFollowedTimelinePage` | published + (`public` OR `followers`) + authorId in following |
+| `getQuizzesByAuthor(authorId, false)` | published + **public** のみ |
+| `getQuizzesByAuthor(authorId, true)` | 作者本人 API — 全 status/visibility（ダッシュボード用） |
+
+**インデックス例**（`firestore.indexes.json`）:
+
+- `status ASC, visibility ASC, createdAt DESC`
+- `status ASC, visibility ASC, bookmarksCount DESC`（トレンド）
+- 既存 index に `visibility` フィールドを追加する形で設計時に diff 確定
+
+#### 3.5 Firestore Rules（`firestore.rules`）
+
+```javascript
+function quizVisibility() {
+  return !('visibility' in resource.data) || resource.data.visibility == 'public'
+    ? 'public'
+    : resource.data.visibility;
+}
+
+function canReadQuiz() {
+  return resource == null
+    || quizVisibility() == 'public'
+    || (isAuthenticated() && resource.data.authorId == request.auth.uid)
+    || isSeniorModeratorOrAdmin()
+    || (quizVisibility() == 'followers'
+        && isAuthenticated()
+        && exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + resource.data.authorId)))
+    || (resource.data.status == 'suspended' && ...); // 既存 suspended 規則と合成
+}
+```
+
+- `private` + `published`: 作者・mod のみ（上記 `authorId` / mod 分岐）。
+- **create/update**: クライアント直 write 経路がある場合、`visibility in ['public','private','followers']` 検証。Pro ゲートは **サーバー API 正本**（Rules だけでは tier 検証困難 — Admin SDK / API route 経由保存を正とする既存パターン踏襲）。
+
+#### 3.6 隣接サービス
+
+| モジュール | 変更 |
+|-----------|------|
+| `src/lib/bookmark-validation.ts` | `canViewQuiz` 相当チェック（published + 閲覧可） |
+| `src/lib/my-quiz-pool.ts` | ブックマークソース収集時に閲覧可クイズのみ（自作は従来どおり全 status） |
+| `src/app/api/quiz/quick-press-stream/route.ts` | `assertCanViewQuiz` |
+| attempt 保存 API | プレイ対象クイズの閲覧可検証 |
+
+#### 3.7 マイグレーション（`scripts/migrate-quiz-visibility-public.mjs`）
+
+- 全 `quizzes` where `status == 'published'` and `visibility` 未設定 → `visibility: 'public'` バッチ更新
+- `--dry-run` 対応
+- ステージング検証後本番
+
+### 4. File Structure Plan（Phase 27）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/types/index.ts` | Modify | `QuizVisibility`, `Quiz.visibility` |
+| `src/lib/quiz-access.ts` | **New** | resolve/canView/assertSet/assertView |
+| `src/services/quiz.ts` | Modify | CRUD ゲート、一覧クエリ |
+| `src/services/entitlement.ts` または `src/lib/pricing-entitlement.ts` | Modify | `canAccessProVisibility()` |
+| `src/lib/bookmark-validation.ts` | Modify | 閲覧規則 |
+| `src/lib/my-quiz-pool.ts` | Modify | ブックマークソース filter |
+| `src/app/api/quiz/quick-press-stream/route.ts` | Modify | access gate |
+| `firestore.rules` | Modify | visibility read |
+| `firestore.indexes.json` | Modify | 複合 index |
+| `scripts/migrate-quiz-visibility-public.mjs` | **New** | バックフィル |
+| `tests/lib/quiz-access.test.ts` | **New** | 閲覧・Pro ゲート |
+| `tests/services/quiz-visibility.test.ts` | **New** | CRUD・一覧 filter |
+
+### 5. Requirements Traceability（Phase 27）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 27.1–27.4 | 型・既定値 | `types`, `resolveQuizVisibility` |
+| 27.5–27.10 | 閲覧規則 | `quiz-access.ts`, API gates |
+| 27.11–27.15 | Pro 設定ゲート | `assertCanSetQuizVisibility`, create/update |
+| 27.16–27.19 | 一覧・TL | `quiz.ts` queries |
+| 27.20–27.22 | BM・マイクイズ | bookmark-validation, my-quiz-pool |
+| 27.23–27.25 | Rules・migration | rules, indexes, script |
+| 27.26–27.29 | 境界 Out | 隣接 UI |
+
+### 6. Testing Strategy（Phase 27）
+
+| 種別 | 検証 |
+|------|------|
+| **Unit** | `canViewQuiz` — public/private/followers × author/follower/stranger/draft |
+| **Unit** | `assertCanSetQuizVisibility` — Pro あり/なし、ダウングレード後維持、public→private 拒否 |
+| **Unit** | 一覧 API — private/followers が探索結果に含まれない |
+| **Unit** | フォロー TL — followers クイズがフォロワー向けに含まれる |
+| **Integration** | migration dry-run 件数 |
+| **Regression** | 既存 published クイズ（visibility なし）が public 扱いでフィードに残る |
+
+**Effort**: **M**（2–3日、UI スペックは Core 完了後）
+
+**Document Status（Phase 27 設計）**: 本節に反映。

@@ -16,7 +16,7 @@ import {
   BookmarkFeed,
   BookmarkedQuestionEntry,
 } from '../types';
-import { assertParentQuizPublished } from '../lib/bookmark-validation';
+import { assertParentQuizPublished, assertQuizBookmarkable } from '../lib/bookmark-validation';
 import { createNotification } from './notification';
 
 // テスト環境かどうかを判定するためのフラグ
@@ -80,7 +80,10 @@ async function fetchPublishedQuizzesByDocIds(quizIds: string[]): Promise<Quiz[]>
   return quizzes;
 }
 
-async function assertQuestionBookmarkable(questionId: string): Promise<Question> {
+async function assertQuestionBookmarkable(
+  questionId: string,
+  viewerUid: string
+): Promise<Question> {
   const questionRef = doc(questionsRef, questionId);
   const questionSnap = await getDoc(questionRef);
 
@@ -98,6 +101,7 @@ async function assertQuestionBookmarkable(questionId: string): Promise<Question>
     const quiz = quizDoc.data() as Quiz;
 
     assertParentQuizPublished(quiz.status);
+    await assertQuizBookmarkable(quiz, viewerUid);
 
     const foundQuestion = quiz.questions?.find((q) => q.id === questionId);
     if (!foundQuestion) {
@@ -129,6 +133,7 @@ async function assertQuestionBookmarkable(questionId: string): Promise<Question>
     }
     const quiz = quizSnap.data() as Quiz;
     assertParentQuizPublished(quiz.status);
+    await assertQuizBookmarkable(quiz, viewerUid);
   }
 
   return question;
@@ -162,7 +167,18 @@ export async function toggleBookmark(
 
   let questionForNotify: Question | null = null;
   if (targetType === 'question' && !isTestEnv) {
-    questionForNotify = await assertQuestionBookmarkable(targetId);
+    questionForNotify = await assertQuestionBookmarkable(targetId, userId);
+  }
+
+  if (targetType === 'quiz' && !isTestEnv) {
+    const quizSnap = await getDoc(doc(quizzesRef, targetId));
+    if (!quizSnap.exists()) {
+      throw new Error('Target document does not exist.');
+    }
+    const already = await isBookmarked(userId, targetId);
+    if (!already) {
+      await assertQuizBookmarkable(quizSnap.data() as Quiz, userId);
+    }
   }
 
   if (isTestEnv) {
