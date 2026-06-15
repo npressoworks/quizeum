@@ -66,4 +66,44 @@ describe('validateGeneratedQuestions', () => {
     const errors = validateGeneratedQuestions(questions, 'mixed');
     expect(errors).toHaveLength(0);
   });
+
+  test('複数選択式で choices が null/undefined の場合はエラー', () => {
+    const questions = Array.from({ length: 10 }, (_, i) => makeValidMcQuestion(i));
+    questions[0] = { ...questions[0], choices: undefined };
+    const errors = validateGeneratedQuestions(questions, 'multiple-choice');
+    expect(errors.some((e) => e.questionField === 'answers' && e.message.includes('選択肢リストが定義されていません'))).toBe(true);
+  });
+
+  test('〇✕形式で choices が null/undefined の場合はエラー', () => {
+    const questions = Array.from({ length: 10 }, (_, i) => makeValidMcQuestion(i));
+    questions[0] = { ...questions[0], type: 'true-false', choices: undefined };
+    const errors = validateGeneratedQuestions(questions, 'multiple-choice');
+    expect(errors.some((e) => e.questionField === 'answers' && e.message.includes('選択肢リストが定義されていません'))).toBe(true);
+  });
+
+  test('記述式で correctTextAnswerList が null/undefined の場合はエラー', () => {
+    const questions = Array.from({ length: 10 }, (_, i) => makeValidMcQuestion(i));
+    questions[0] = { ...questions[0], type: 'text-input', correctTextAnswerList: undefined };
+    const errors = validateGeneratedQuestions(questions, 'text-input');
+    expect(errors.some((e) => e.questionField === 'answers' && e.message.includes('正解テキストリストが定義されていません'))).toBe(true);
+  });
+
+  test('並び替え形式で sortingItems が null/undefined の場合はエラー', () => {
+    const questions = Array.from({ length: 10 }, (_, i) => makeValidMcQuestion(i));
+    questions[0] = { ...questions[0], type: 'sorting', sortingItems: undefined };
+    const errors = validateGeneratedQuestions(questions, 'sorting');
+    expect(errors.some((e) => e.questionField === 'sortingItems' && e.message.includes('並び替え要素リストが定義されていません'))).toBe(true);
+  });
+
+  test('連想形式で associationHints が null/undefined の場合はエラー', () => {
+    const questions = Array.from({ length: 10 }, (_, i) => makeValidMcQuestion(i));
+    questions[0] = {
+      ...questions[0],
+      type: 'association',
+      associationHints: undefined,
+      correctTextAnswerList: ['正解'],
+    };
+    const errors = validateGeneratedQuestions(questions, 'association');
+    expect(errors.some((e) => e.questionField === 'associationHints' && e.message.includes('連想ヒントリストが定義されていません'))).toBe(true);
+  });
 });

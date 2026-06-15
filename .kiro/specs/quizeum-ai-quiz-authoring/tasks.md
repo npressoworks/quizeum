@@ -20,7 +20,7 @@
   - _Requirements: 1.4, 1.5, 2.5, 2.6, 2.8, 2.13, 3.1, 3.2, 5.1, 5.2, 6.7_
   - _Boundary: ai-authoring-utils_
 
-- [ ] 1.3 `validateGeneratedQuestions` export と検証テストの修正 (P)
+- [x] 1.3 `validateGeneratedQuestions` export と検証テストの修正 (P)
   - `quiz-validation.ts` の `validateGeneratedQuestions` を修正し、問題タイプごとの必須プロパティ（`choices`, `correctTextAnswerList`, `sortingItems`, `associationHints` 等）の有無を厳格に検証するロジックを追加する。
   - `tests/services/quiz-validation-ai.test.ts` を更新し、必須フィールドが欠損した問題データの拒否判定を検証する。
   - 完了時、検証関数の単体テストが green であること。

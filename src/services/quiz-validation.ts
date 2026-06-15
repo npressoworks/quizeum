@@ -195,7 +195,16 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
 
   switch (question.type) {
     case 'multiple-choice': {
-      const choices = question.choices ?? [];
+      if (question.choices === null || question.choices === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '選択肢リストが定義されていません',
+        });
+        break;
+      }
+      const choices = question.choices;
       if (choices.length < MIN_MULTIPLE_CHOICE_COUNT || choices.length > MAX_MULTIPLE_CHOICE_COUNT) {
         errors.push({
           field: 'questions',
@@ -215,7 +224,16 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
     }
 
     case 'true-false': {
-      const choices = question.choices ?? [];
+      if (question.choices === null || question.choices === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '選択肢リストが定義されていません',
+        });
+        break;
+      }
+      const choices = question.choices;
       const correctCount = choices.filter((c) => c.isCorrect).length;
       if (choices.length !== 2) {
         errors.push({
@@ -243,7 +261,16 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
     }
 
     case 'text-input': {
-      const list = question.correctTextAnswerList ?? [];
+      if (question.correctTextAnswerList === null || question.correctTextAnswerList === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解テキストリストが定義されていません',
+        });
+        break;
+      }
+      const list = question.correctTextAnswerList;
       if (list.length === 0) {
         errors.push({
           field: 'questions',
@@ -299,8 +326,17 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
       break;
     }
 
-    case 'quick-press':
-      if ((question.correctTextAnswerList ?? []).length === 0) {
+    case 'quick-press': {
+      if (question.correctTextAnswerList === null || question.correctTextAnswerList === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解テキストリストが定義されていません',
+        });
+        break;
+      }
+      if (question.correctTextAnswerList.length === 0) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
@@ -309,9 +345,19 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
         });
       }
       break;
+    }
 
     case 'sorting': {
-      const items = question.sortingItems ?? [];
+      if (question.sortingItems === null || question.sortingItems === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'sortingItems',
+          message: '並び替え要素リストが定義されていません',
+        });
+        break;
+      }
+      const items = question.sortingItems;
       if (items.length < 2 || items.length > 6) {
         errors.push({
           field: 'questions',
@@ -336,7 +382,29 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
     }
 
     case 'association': {
-      const hints = question.associationHints ?? [];
+      let missingField = false;
+      if (question.associationHints === null || question.associationHints === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'associationHints',
+          message: '連想ヒントリストが定義されていません',
+        });
+        missingField = true;
+      }
+      if (question.correctTextAnswerList === null || question.correctTextAnswerList === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'answers',
+          message: '正解テキストリストが定義されていません',
+        });
+        missingField = true;
+      }
+      if (missingField) {
+        break;
+      }
+      const hints = question.associationHints;
       if (hints.length < 1 || hints.length > 5) {
         errors.push({
           field: 'questions',
@@ -345,7 +413,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
           message: '連想ヒントは1〜5個設定してください',
         });
       }
-      if ((question.correctTextAnswerList ?? []).length === 0) {
+      if (question.correctTextAnswerList.length === 0) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
@@ -356,8 +424,30 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
       break;
     }
 
-    case 'lateral-thinking':
-      if (!question.aiContextDetails?.trim()) {
+    case 'lateral-thinking': {
+      let missingField = false;
+      if (question.aiContextDetails === null || question.aiContextDetails === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'aiContextDetails',
+          message: 'AI用の裏設定が定義されていません',
+        });
+        missingField = true;
+      }
+      if (question.truthKeywords === null || question.truthKeywords === undefined) {
+        errors.push({
+          field: 'questions',
+          questionIndex: idx,
+          questionField: 'truthKeywords',
+          message: '必須正解キーワードが定義されていません',
+        });
+        missingField = true;
+      }
+      if (missingField) {
+        break;
+      }
+      if (!question.aiContextDetails.trim()) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
@@ -365,7 +455,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
           message: 'AI用の裏設定（真相）を入力してください',
         });
       }
-      if ((question.truthKeywords ?? []).filter((kw) => kw.trim()).length === 0) {
+      if (question.truthKeywords.filter((kw) => kw.trim()).length === 0) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
@@ -374,6 +464,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
         });
       }
       break;
+    }
 
     default:
       break;
