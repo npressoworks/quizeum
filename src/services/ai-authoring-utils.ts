@@ -127,7 +127,7 @@ export function buildAiQuizGenerationPrompt(input: {
       ? `複合形式。各問題の type は ${MIXED_ALLOWED_QUESTION_TYPES.join(', ')} のいずれか。`
       : `全問題の type は「${input.format}」に一致させる（multiple-choice 形式では true-false も可）。`;
 
-  return `${contextBlock}ユーザーの作問指示:\n${input.prompt.trim()}\n\n形式: ${input.format}\n${formatInstruction}\n正確で教育的な日本語の問題を ${AI_QUIZ_QUESTION_COUNT} 問生成してください。`;
+  return `${contextBlock}ユーザーの作問指示:\n${input.prompt.trim()}\n\n形式: ${input.format}\n${formatInstruction}\n正確な日本語の問題を ${AI_QUIZ_QUESTION_COUNT} 問生成してください。`;
 }
 
 interface AiQuestionJsonItem {
@@ -159,7 +159,7 @@ function mapChoices(raw: AiQuestionJsonItem['choices'], type: Question['type']):
   if (type === 'true-false') {
     const correctSide =
       raw?.find((c) => c.isCorrect)?.choiceText === '✕' ||
-      raw?.find((c) => c.isCorrect)?.choiceText === '×'
+        raw?.find((c) => c.isCorrect)?.choiceText === '×'
         ? 'batsu'
         : 'maru';
     return createTrueFalseChoices(correctSide);
@@ -184,11 +184,33 @@ function mapSortingItems(raw: AiQuestionJsonItem['sortingItems']): SortingItem[]
       { id: '2', text: '要素 2', correctOrder: 1 },
     ];
   }
-  return raw.map((item, i) => ({
+
+  // 初期マッピングを行う
+  const mapped = raw.map((item, i) => ({
     id: String(i + 1),
     text: (item.text ?? `要素 ${i + 1}`).trim(),
     correctOrder: Number.isInteger(item.correctOrder) ? item.correctOrder! : i,
   }));
+
+  // correctOrder の値でソートする（安定ソートにするために元のインデックスも考慮）
+  const sorted = [...mapped].sort((a, b) => {
+    if (a.correctOrder !== b.correctOrder) {
+      return a.correctOrder - b.correctOrder;
+    }
+    return Number(a.id) - Number(b.id);
+  });
+
+  // ソートされた順序に基づいて、0 から始まる連番を correctOrder に再設定する。
+  // これにより、AIが 1始まり（1, 2, 3...）で生成した場合や、重複があった場合でも
+  // システムが要求する 0 〜 (length-1) の一意な整数値に正規化され、バリデーションエラーを確実に防ぎます。
+  sorted.forEach((item, index) => {
+    const originalItem = mapped.find((m) => m.id === item.id);
+    if (originalItem) {
+      originalItem.correctOrder = index;
+    }
+  });
+
+  return mapped;
 }
 
 function mapSingleAiItem(item: AiQuestionJsonItem, format: QuizFormat): Question {

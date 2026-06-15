@@ -163,4 +163,29 @@ describe('mapAiJsonToQuestions', () => {
     expect(associationQuestions[0].associationHints).toHaveLength(2);
     expect(associationQuestions[0].correctTextAnswerList).toEqual(['正解0']);
   });
+
+  test('sorting 形式の correctOrder が1始まりや重複している場合でも正しく 0始まりの連番に補正する', () => {
+    const raw = Array.from({ length: AI_QUIZ_QUESTION_COUNT }, (_, i) => ({
+      type: 'sorting',
+      questionText: `問題${i}`,
+      explanation: `解説${i}`,
+      sortingItems: [
+        { text: '要素C', correctOrder: 3 },
+        { text: '要素A', correctOrder: 1 },
+        { text: '要素B', correctOrder: 2 },
+      ],
+    }));
+    const questions = mapAiJsonToQuestions(raw, 'sorting');
+    const firstQ = questions[0];
+    expect(firstQ.sortingItems).toHaveLength(3);
+
+    // correctOrder の値が昇順でソートされ、0, 1, 2 に再割り当てされていることを検証
+    const itemA = firstQ.sortingItems?.find((item) => item.text === '要素A');
+    const itemB = firstQ.sortingItems?.find((item) => item.text === '要素B');
+    const itemC = firstQ.sortingItems?.find((item) => item.text === '要素C');
+
+    expect(itemA?.correctOrder).toBe(0); // 元の 1 は 0 に
+    expect(itemB?.correctOrder).toBe(1); // 元の 2 は 1 に
+    expect(itemC?.correctOrder).toBe(2); // 元の 3 は 2 に
+  });
 });
