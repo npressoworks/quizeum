@@ -58,13 +58,15 @@
 
 ## Design Decisions
 
-### Decision: 作問は既存 SDK + JSON 構造化出力
-- **Context**: 要件 2 — 10問一括、形式別 JSON
-- **Alternatives**: 10回個別呼び出し / プレーンテキスト + 正規表現パース
-- **Selected Approach**: `@google/generative-ai` の `responseMimeType: application/json` + `responseSchema` で10問配列を1回取得
-- **Rationale**: 既存 env・SDK・Route パターンと一致。パース失敗リスクを schema で低減
-- **Trade-offs**: 大出力 truncation リスク — プロンプトで簡潔指示 + 422 で全体拒否（要件 6.7）
-- **Follow-up**: 実装時に `GEMINI_MODEL_ID` を `gemini-2.0-flash` 等現行利用可能モデルへ更新推奨
+### Decision: 作問は既存 SDK + JSON 構造化出力（出題形式別の動的スキーマ生成とanyOfの採用）
+- **Context**: 要件 2.5, 2.6, 2.13 — 10問一括生成において、出題形式に適したJSON構造のみを出力させ、不要なフィールドの混入を防ぐ
+- **Alternatives Considered**:
+  1. すべてのプロパティを省略可能（nullable）とした単一の汎用スキーマ（既存）：AIが不要なフィールド（例：記述式におけるchoicesなど）を誤生成するリスクがあり、検証エラーを招くため却下。
+  2. プロンプト（自然言語）の指示による制限：スキーマ自体が汎用的なままだと、AIは依然として不正確なプロパティを返却することがあり、挙動の安定性に欠けるため却下。
+- **Selected Approach**: `@google/generative-ai` の `responseSchema` に渡す `Schema` オブジェクトを、要求された `format` に応じて動的にビルドする。さらに、`format === 'mixed'` の場合は、許容する4つの問題タイプ（`multiple-choice`, `true-false`, `text-input`, `sorting`）のスキーマを `anyOf` 配列に指定したUnion構造にする。
+- **Rationale**: Gemini APIの構造化出力はJSON Schemaの `anyOf` に対応しており、不要なフィールドを最初からスキーマから除外することで、各問題タイプに特化した正確なJSON構造を強制できる。
+- **Trade-offs**: TypeScriptの `Schema` 型定義で `anyOf` が直接サポートされていないため、キャスト（`as unknown as Schema`）が必要になる。
+- **Follow-up**: 実装時に各問題タイプで必要な必須プロパティ（`choices`, `correctTextAnswerList`, `sortingItems`, `associationHints`）が正しく含まれているかの検証ロジック（`validateGeneratedQuestions`）も整備する。
 
 ### Decision: サムネは @google/genai + Admin Storage
 - **Context**: 要件 4 — タイトル・説明から画像生成・Storage URL
