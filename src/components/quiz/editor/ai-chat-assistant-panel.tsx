@@ -165,7 +165,7 @@ export function AiChatAssistantPanel({
                 )}
 
                 {/* Tool Invocations log representation */}
-                {toolInvocations?.map((tool) => {
+                {toolInvocations?.map((tool: any) => {
                   const isCall = tool.state === 'call';
                   const isSearch = tool.toolName === 'googleSearch';
                   
