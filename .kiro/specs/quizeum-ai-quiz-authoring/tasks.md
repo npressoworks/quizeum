@@ -9,7 +9,7 @@
   - _Requirements: 2.2_
   - _Boundary: Infrastructure_
 
-- [ ] 1.2 Firestore カウンタとセキュリティルールの構築
+- [x] 1.2 Firestore カウンタとセキュリティルールの構築
   - 日次チャットメッセージ数およびツール実行数を制限するため、Firestore パス `users/{uid}/dailyAiAuthoringCounts/chat` のデータモデルを追加定義する
   - `firestore.rules` を更新し、クライアントから `dailyAiAuthoringCounts/chat` への直接書き込みを拒否し、読み取りは認証済み本人からのみ許可するルールを定義する
   - *done基準*: Firestore セキュリティルールが更新され、テストエミュレータ等でクライアントからの偽装書込が拒否されること。

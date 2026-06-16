@@ -5,8 +5,10 @@ export const AI_QUIZ_PROMPT_MAX_LENGTH = 500;
 export const AI_QUIZ_QUESTION_COUNT = 10;
 export const PRO_DAILY_QUESTION_GENERATION_LIMIT = 100;
 export const PRO_DAILY_THUMBNAIL_GENERATION_LIMIT = 20;
+export const PRO_DAILY_CHAT_LIMIT = 100;
 export const DAILY_AUTHORING_DOC_QUESTIONS = 'questions';
 export const DAILY_AUTHORING_DOC_THUMBNAIL = 'thumbnail';
+export const DAILY_AUTHORING_DOC_CHAT = 'chat';
 
 export const MIXED_ALLOWED_QUESTION_TYPES = [
   'multiple-choice',
@@ -64,4 +66,5 @@ export interface AiGenerateThumbnailResponse {
 export interface AiAuthoringUsageResponse {
   questions: AiAuthoringUsage;
   thumbnail: AiAuthoringUsage;
+  chat: AiAuthoringUsage;
 }
