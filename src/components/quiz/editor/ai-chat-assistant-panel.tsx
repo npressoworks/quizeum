@@ -198,14 +198,14 @@ export function AiChatAssistantPanel({
             type="text"
             className={styles.input}
             placeholder={isLimitReached ? '本日の制限回数に達しました' : 'AIに指示を送る...'}
-            value={input}
+            value={input || ''}
             onChange={handleInputChange}
             disabled={isGenerating || isLimitReached}
           />
           <button
             type="submit"
             className={styles.sendButton}
-            disabled={isGenerating || !input.trim() || isLimitReached}
+            disabled={isGenerating || !input?.trim() || isLimitReached}
             aria-label="メッセージを送信"
           >
             <Send size={16} />

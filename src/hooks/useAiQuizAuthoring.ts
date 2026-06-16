@@ -29,6 +29,7 @@ export function useAiQuizAuthoring({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [usageQuestions, setUsageQuestions] = useState<AiAuthoringUsage | null>(null);
   const [usageThumbnail, setUsageThumbnail] = useState<AiAuthoringUsage | null>(null);
+  const [usageChat, setUsageChat] = useState<AiAuthoringUsage | null>(null);
   const [isUsageLoading, setIsUsageLoading] = useState(false);
 
   const fetchUsage = useCallback(async () => {
@@ -54,6 +55,7 @@ export function useAiQuizAuthoring({
       }
       setUsageQuestions(data.questions);
       setUsageThumbnail(data.thumbnail);
+      setUsageChat(data.chat);
     } catch {
       setErrorMessage('残り回数の取得に失敗しました');
     } finally {
@@ -206,6 +208,7 @@ export function useAiQuizAuthoring({
     errorMessage,
     usageQuestions,
     usageThumbnail,
+    usageChat,
     isUsageLoading,
     generateQuestions,
     generateThumbnail,

@@ -51,6 +51,10 @@ import { QuizEditorActionBar } from '@/components/quiz/editor/quiz-editor-action
 import { AiQuizAuthoringPanel } from '@/components/quiz/editor/ai-quiz-authoring-panel';
 import { AiQuizProUpsell } from '@/components/quiz/editor/ai-quiz-pro-upsell';
 import { useAiQuizAuthoring } from '@/hooks/useAiQuizAuthoring';
+import { useAiChatAssistant } from '@/hooks/useAiChatAssistant';
+import { AiChatAssistantButton } from '@/components/quiz/editor/ai-chat-assistant-button';
+import { AiChatAssistantPanel } from '@/components/quiz/editor/ai-chat-assistant-panel';
+import { Button } from '@/components/ui/button';
 import { hasUnlimitedAiQuestionsForUser } from '@/lib/pricing-entitlement';
 import type { QuestionEditorHandlers } from '@/components/quiz/editor/question-editor-types';
 import type { GenreMetadata, TagMetadata } from '@/types';
@@ -439,6 +443,23 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
       setTimeout(() => setShowToast(false), 4000);
     },
     onSetThumbnailUrl: setThumbnailUrl,
+  });
+
+  const aiChat = useAiChatAssistant({
+    userId: user?.id,
+    isProUser: canUseAiAuthoring,
+    quizState: {
+      title,
+      description,
+      genre,
+      tags,
+      questions,
+      thumbnailUrl,
+    },
+    setQuestions,
+    setTitle,
+    setDescription,
+    setThumbnailUrl,
   });
 
   const aiThumbnailUsageLabel =
@@ -1210,22 +1231,52 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
         />
 
         {canUseAiAuthoring ? (
-          <AiQuizAuthoringPanel
-            format={format}
-            isGenerating={aiAuthoring.isGeneratingQuestions}
-            generationStatus={aiAuthoring.generationStatus}
-            isUsageLoading={aiAuthoring.isUsageLoading}
-            usageQuestions={aiAuthoring.usageQuestions}
-            errorMessage={aiAuthoring.errorMessage}
-            onGenerate={(prompt) =>
-              aiAuthoring.generateQuestions(prompt, format, {
-                title,
-                description,
-                genre,
-              })
-            }
-            onClearError={aiAuthoring.clearError}
-          />
+          <>
+            {/* ハイブリッド起動ボタンセクション (コールドスタート対策) */}
+            <div className="flex flex-wrap gap-3 mb-6 bg-muted/20 border border-border p-4 rounded-xl items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-bold flex items-center gap-1.5">
+                  <Sparkles size={16} className="text-primary" /> AI アシスタント
+                </span>
+                <span className="text-xs text-muted-foreground">対話形式またはワンクリックで AI に作問やチェックを依頼できます</span>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="cursor-pointer border-primary/40 hover:border-primary/80 transition-colors"
+                  onClick={aiChat.triggerAuthoringWelcome}
+                >
+                  AIで作問開始
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  className="cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                  onClick={() => aiChat.triggerQuickAction('check-all')}
+                >
+                  全問包括チェック
+                </Button>
+              </div>
+            </div>
+
+            <AiQuizAuthoringPanel
+              format={format}
+              isGenerating={aiAuthoring.isGeneratingQuestions}
+              generationStatus={aiAuthoring.generationStatus}
+              isUsageLoading={aiAuthoring.isUsageLoading}
+              usageQuestions={aiAuthoring.usageQuestions}
+              errorMessage={aiAuthoring.errorMessage}
+              onGenerate={(prompt) =>
+                aiAuthoring.generateQuestions(prompt, format, {
+                  title,
+                  description,
+                  genre,
+                })
+              }
+              onClearError={aiAuthoring.clearError}
+            />
+          </>
         ) : (
           <AiQuizProUpsell isLoggedIn={!!user} redirectPath={editorPath} />
         )}
@@ -1296,6 +1347,26 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
             ✕
           </button>
         </div>
+      )}
+
+      {canUseAiAuthoring && (
+        <>
+          <AiChatAssistantButton
+            isProUser={canUseAiAuthoring}
+            isChatOpen={aiChat.isChatOpen}
+            setIsChatOpen={aiChat.setIsChatOpen}
+          />
+          <AiChatAssistantPanel
+            isOpen={aiChat.isChatOpen}
+            onClose={() => aiChat.setIsChatOpen(false)}
+            messages={aiChat.messages}
+            input={aiChat.input}
+            isGenerating={aiChat.isGenerating}
+            handleInputChange={aiChat.handleInputChange}
+            handleSubmit={aiChat.handleSubmit}
+            chatLimitUsage={aiAuthoring.usageChat}
+          />
+        </>
       )}
     </div>
   );
