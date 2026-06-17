@@ -572,3 +572,53 @@
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
+
+/* イントロメッセージ後のアクションボタングループ */
+.introActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-left: 2px;
+}
+
+.introActionButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  animation: messageSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.introActionButton:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.5);
+  transform: translateX(2px);
+}
+
+.introActionButton:active:not(:disabled) {
+  transform: translateX(0);
+}
+
+.introActionButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.introActionIcon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.introActionLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #d4d4e8;
+}

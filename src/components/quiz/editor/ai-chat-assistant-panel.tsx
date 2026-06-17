@@ -41,6 +41,8 @@ interface AiChatAssistantPanelProps {
   }>;
   approveToolCall: (toolCallId: string) => void;
   rejectToolCall: (toolCallId: string) => void;
+  /** イントロメッセージのアクションボタンからメッセージおよび入力ヒントをセットする */
+  onSuggest: (localMessage: string, inputHint: string) => void;
 }
 
 function getJapaneseToolName(name: string): string {
@@ -57,6 +59,45 @@ function getJapaneseToolName(name: string): string {
   }
 }
 
+// イントロメッセージ後に表示するアクションボタン定義
+const INTRO_ACTIONS = [
+  {
+    id: 'create',
+    icon: '📝',
+    label: '問題を作成',
+    localMessage: '**問題作成**について、以下のように指示できます：\n\n> 「（テーマ）について（難易度）の問題を（形式）で1問作成して」\n\n**例：**\n- 「日本の歴史について初級の4択問題を1問作成して」\n- 「プログラミングのPythonについて中級の記述問題を作成して」\n\n上の入力欄にテーマを入れて送信してください！',
+    inputHint: '（テーマ）について問題を1問作成して',
+  },
+  {
+    id: 'check',
+    icon: '🔍',
+    label: 'ファクトチェック',
+    localMessage: '**ファクトチェック**は、問題内容の正確性を検証します：\n\n> 「（問題ID または 「全問題」）のファクトチェックをして」\n\n**例：**\n- 「全問題のファクトチェックをして」\n- 「1番目の問題の内容を確認して」\n\nエディタに問題がある状態で指示を送ると、Google検索と組み合わせて検証します！',
+    inputHint: '全問題のファクトチェックをして',
+  },
+  {
+    id: 'edit',
+    icon: '✏️',
+    label: '問題を編集',
+    localMessage: '**問題の編集・修正**は、既存の問題をブラッシュアップします：\n\n> 「（問題番号 または ID）の問題を（修正内容）に変えて」\n\n**例：**\n- 「1問目の問題文をより難しく書き直して」\n- 「2問目の解説をわかりやすく修正して」\n- 「3問目に選択肢を2つ追加して」\n\n変更前に必ずプレビューが表示されるので、確認してから反映できます！',
+    inputHint: '（問題番号）の問題を修正して',
+  },
+  {
+    id: 'bulk',
+    icon: '⚡',
+    label: '10問一括生成',
+    localMessage: '**10問一括生成**で、クイズをまとめて作成します：\n\n> 「（テーマ）について（難易度）の問題を10問まとめて作って」\n\n**例：**\n- 「世界の首都について初級の4択問題を10問作って」\n- 「TypeScriptの型システムについて中級の問題を10問生成して」\n\n生成後にプレビューが表示され、承認するとすべてエディタに追加されます！',
+    inputHint: '（テーマ）について問題を10問まとめて作って',
+  },
+  {
+    id: 'thumbnail',
+    icon: '🖼️',
+    label: 'サムネイル生成',
+    localMessage: '**サムネイル画像の自動生成**で、クイズのカバー画像をAIで作成します：\n\n> 「サムネイルを生成して」または「（イメージの指示）でカバー画像を作って」\n\n**例：**\n- 「サムネイルを生成して」\n- 「宇宙をテーマにしたクールなカバー画像を作って」\n\nタイトル・説明文があるとより適切な画像が生成されます！',
+    inputHint: 'サムネイルを生成して',
+  },
+] as const;
+
 export function AiChatAssistantPanel({
   isOpen,
   onClose,
@@ -69,8 +110,10 @@ export function AiChatAssistantPanel({
   pendingApprovals,
   approveToolCall,
   rejectToolCall,
+  onSuggest,
 }: AiChatAssistantPanelProps) {
   const historyRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const getMessageText = (msg: any) => {
     if (msg.content) return msg.content;
@@ -336,6 +379,7 @@ export function AiChatAssistantPanel({
             const isUser = msg.role === 'user';
             const textContent = getMessageText(msg);
             const toolInvocations = getToolInvocations(msg);
+            const isIntroMsg = msg.id === 'intro-message';
             
             return (
               <div
@@ -358,6 +402,23 @@ export function AiChatAssistantPanel({
                   </div>
                 )}
 
+                {/* intro-message の直後に機能ボタンを表示 */}
+                {isIntroMsg && (
+                  <div className={styles.introActions}>
+                    {INTRO_ACTIONS.map((action) => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        className={styles.introActionButton}
+                        onClick={() => onSuggest(action.localMessage, action.inputHint)}
+                        disabled={isGenerating}
+                      >
+                        <span className={styles.introActionIcon}>{action.icon}</span>
+                        <span className={styles.introActionLabel}>{action.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {/* Tool Invocations log representation */}
                 {toolInvocations?.map((tool: any) => {
                   const isCall = tool.state === 'call';
@@ -486,6 +547,7 @@ export function AiChatAssistantPanel({
       <div className={styles.footer}>
         <form onSubmit={handleSubmit} className={styles.inputForm}>
           <input
+            ref={inputRef}
             type="text"
             className={styles.input}
             placeholder={

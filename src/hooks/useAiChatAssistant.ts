@@ -35,6 +35,10 @@ export interface UseAiChatAssistantResult {
   triggerQuickAction: (actionType: 'bulk-generate' | 'check-all' | 'check-single', targetQuestionId?: string) => void;
   triggerAuthoringWelcome: () => void;
   openChatWithIntro: () => void;
+  /** ローカルにアシスタントメッセージを追記する（APIコール不要） */
+  appendLocalMessage: (text: string) => void;
+  /** 入力欄にテキストをセットしてフォーカスする */
+  fillInput: (text: string) => void;
   pendingApprovals: Record<string, {
     toolCallId: string;
     toolName: string;
@@ -260,6 +264,23 @@ export function useAiChatAssistant({
     setInput('');
   };
 
+  // ローカルにアシスタントメッセージを追記（APIコールなし）
+  const appendLocalMessage = (text: string) => {
+    setMessages((prev: any[]) => [
+      ...prev,
+      {
+        id: `local-${Date.now()}`,
+        role: 'assistant',
+        parts: [{ type: 'text', text }],
+      },
+    ]);
+  };
+
+  // 入力欄にテキストをセットする
+  const fillInput = (text: string) => {
+    setInput(text);
+  };
+
   // ユーザーが提案された変更を承認（エディタへ反映）した際の処理
   const approveToolCall = (toolCallId: string) => {
     const pending = pendingApprovals[toolCallId];
@@ -472,6 +493,8 @@ export function useAiChatAssistant({
     triggerQuickAction,
     triggerAuthoringWelcome,
     openChatWithIntro,
+    appendLocalMessage,
+    fillInput,
     pendingApprovals,
     approveToolCall,
     rejectToolCall,

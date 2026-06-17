@@ -1369,6 +1369,10 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
             pendingApprovals={aiChat.pendingApprovals}
             approveToolCall={aiChat.approveToolCall}
             rejectToolCall={aiChat.rejectToolCall}
+            onSuggest={(localMessage, inputHint) => {
+              aiChat.appendLocalMessage(localMessage);
+              aiChat.fillInput(inputHint);
+            }}
           />
         </>
       )}
