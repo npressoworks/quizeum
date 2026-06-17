@@ -39,6 +39,8 @@ export interface UseAiChatAssistantResult {
   appendLocalMessage: (text: string) => void;
   /** 入力欄にテキストをセットしてフォーカスする */
   fillInput: (text: string) => void;
+  /** 会話履歴を強制リセットしてイントロメッセージを表示する */
+  resetChat: () => void;
   pendingApprovals: Record<string, {
     toolCallId: string;
     toolName: string;
@@ -281,6 +283,22 @@ export function useAiChatAssistant({
     setInput(text);
   };
 
+  // 会話履歴を強制リセットしてイントロメッセージを再表示
+  const resetChat = () => {
+    setMessages([
+      {
+        id: 'intro-message',
+        role: 'assistant',
+        parts: [
+          {
+            type: 'text',
+            text: 'こんにちは！**AI作問アシスタント**です 🎓\n\nクイズ作問をサポートします。以下のことができます：\n\n- 📝 **問題を作成** — テーマを伝えると問題・選択肢を生成します\n- 🔍 **ファクトチェック** — 問題の内容が正確か検証します\n- ✏️ **問題を編集・修正** — 既存の問題をブラッシュアップします\n- 🗑️ **問題を削除** — 不要な問題を取り除きます\n- 🖼️ **サムネイル画像を生成** — クイズのカバー画像をAIで作成します\n\nなんでもお気軽にどうぞ！',
+          },
+        ],
+      },
+    ]);
+  };
+
   // ユーザーが提案された変更を承認（エディタへ反映）した際の処理
   const approveToolCall = (toolCallId: string) => {
     const pending = pendingApprovals[toolCallId];
@@ -495,6 +513,7 @@ export function useAiChatAssistant({
     openChatWithIntro,
     appendLocalMessage,
     fillInput,
+    resetChat,
     pendingApprovals,
     approveToolCall,
     rejectToolCall,

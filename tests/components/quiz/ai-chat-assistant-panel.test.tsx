@@ -51,6 +51,8 @@ describe('AiChatAssistantPanel', () => {
     rejectToolCall: jest.fn(),
     // イントロアクションボタン用
     onSuggest: jest.fn(),
+    // リセットボタン用
+    onReset: jest.fn(),
   };
 
   it('非表示の時はレンダリングされない', () => {

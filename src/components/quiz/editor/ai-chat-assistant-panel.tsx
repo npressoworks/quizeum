@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { Sparkles, X, Send, Globe, Check, Loader2 } from 'lucide-react';
+import { Sparkles, X, Send, Globe, Check, Loader2, RotateCcw } from 'lucide-react';
 import { MarkdownContent } from '@/components/markdown/markdown-content';
 import styles from './ai-chat-assistant.module.css';
 
@@ -43,6 +43,8 @@ interface AiChatAssistantPanelProps {
   rejectToolCall: (toolCallId: string) => void;
   /** イントロメッセージのアクションボタンからメッセージおよび入力ヒントをセットする */
   onSuggest: (localMessage: string, inputHint: string) => void;
+  /** 会話履歴をリセットしてイントロメッセージを表示する */
+  onReset: () => void;
 }
 
 function getJapaneseToolName(name: string): string {
@@ -111,6 +113,7 @@ export function AiChatAssistantPanel({
   approveToolCall,
   rejectToolCall,
   onSuggest,
+  onReset,
 }: AiChatAssistantPanelProps) {
   const historyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -360,15 +363,27 @@ export function AiChatAssistantPanel({
           <Sparkles size={18} className={styles.headerIcon} />
           <span>AI作問アシスタント</span>
         </div>
-        <button
-          type="button"
-          data-testid="ai-chat-close-button"
-          className={styles.closeButton}
-          onClick={onClose}
-          aria-label="チャットを閉じる"
-        >
-          <X size={18} />
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            data-testid="ai-chat-reset-button"
+            className={styles.closeButton}
+            onClick={onReset}
+            aria-label="会話をリセット"
+            title="会話をリセット"
+          >
+            <RotateCcw size={15} />
+          </button>
+          <button
+            type="button"
+            data-testid="ai-chat-close-button"
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label="チャットを閉じる"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Chat History */}

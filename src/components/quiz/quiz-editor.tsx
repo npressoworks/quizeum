@@ -1373,6 +1373,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
               aiChat.appendLocalMessage(localMessage);
               aiChat.fillInput(inputHint);
             }}
+            onReset={aiChat.resetChat}
           />
         </>
       )}
