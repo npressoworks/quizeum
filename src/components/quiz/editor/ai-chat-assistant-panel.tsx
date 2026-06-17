@@ -692,7 +692,7 @@ export function AiChatAssistantPanel({
               </button>
             </div>
             <div className={styles.previewModalBody}>
-              {renderToolPreview(previewModal.toolName, previewModal.args)}
+              {renderToolPreview(previewModal.toolName, previewModal.args, true)}
             </div>
           </div>
         </div>,

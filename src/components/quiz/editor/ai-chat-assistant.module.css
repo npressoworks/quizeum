@@ -720,6 +720,21 @@
   color: #e2e2e9;
   font-size: 1.1rem;
   line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+}
+
+.previewModalBody .questionPreview,
+.previewModalBody .questionPreviewDanger {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.previewModalBody .questionPreview ul {
+  flex: 1;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .previewModalBody .previewField {
