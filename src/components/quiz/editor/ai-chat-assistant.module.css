@@ -671,8 +671,7 @@
   border-radius: 16px;
   width: 90%;
   max-width: 900px;
-  min-height: 650px;
-  max-height: 85vh;
+  max-height: 95vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(168, 85, 247, 0.2);
