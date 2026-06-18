@@ -15,7 +15,7 @@ import {
   QuizEditorErrorSummary,
   scrollToFirstValidationError,
 } from '@/components/quiz/editor/quiz-editor-validation';
-import { hasAnyQuestionUserInput } from '@/services/quiz-question-input';
+import { hasAnyQuestionUserInput, hasQuestionUserInput } from '@/services/quiz-question-input';
 import {
   createDefaultChoices,
   MAX_MULTIPLE_CHOICE_COUNT,
@@ -23,7 +23,7 @@ import {
 } from '@/services/quiz-choice-utils';
 import { Quiz, Question } from '@/types';
 import { editorClasses as styles } from '@/components/quiz/editor/quiz-editor-classes';
-import { Plus, AlertTriangle, ArrowLeft, Sparkles } from 'lucide-react';
+import { Plus, AlertTriangle, ArrowLeft, Sparkles, ChevronsUpDown } from 'lucide-react';
 import { reindexCorrectOrder } from '@/components/sorting/sortable-sorting-list';
 import {
   buildTestPlayPayload,
@@ -48,7 +48,6 @@ import { QuizFormatSelector } from '@/components/quiz/editor/quiz-format-selecto
 import { QuizMetadataSection } from '@/components/quiz/editor/quiz-metadata-section';
 import { QuestionCard } from '@/components/quiz/editor/question-card';
 import { QuizEditorActionBar } from '@/components/quiz/editor/quiz-editor-action-bar';
-import { AiQuizAuthoringPanel } from '@/components/quiz/editor/ai-quiz-authoring-panel';
 import { AiQuizProUpsell } from '@/components/quiz/editor/ai-quiz-pro-upsell';
 import { useAiQuizAuthoring } from '@/hooks/useAiQuizAuthoring';
 import { useAiChatAssistant } from '@/hooks/useAiChatAssistant';
@@ -104,9 +103,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
   const [errorText, setErrorText] = useState<string | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
-  // トースト通知ステート
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+
 
   // フォームステート
   const [title, setTitle] = useState('');
@@ -125,6 +122,8 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
   // 問題関連ステート
   const [questions, setQuestions] = useState<Question[]>([]);
   const [cowNoticeIds, setCowNoticeIds] = useState<Set<string>>(new Set());
+  /** 折りたたみ中の問題IDセット */
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   /** テストプレイ復帰後に Firestore 取得でドラフトを上書きしない */
   const skipServerQuizLoadRef = useRef(false);
   const prevQuizIdRef = useRef<string | undefined>(undefined);
@@ -224,7 +223,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
       setQuestions((prev) => {
         if (prev.length > 0) return prev;
         const q: Question = {
-          id: Math.random().toString(36).substring(2, 9),
+          id: crypto.randomUUID(),
           type: 'multiple-choice',
           questionText: '',
           explanation: '',
@@ -312,7 +311,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
     const defaultType = activeFormat === 'mixed' ? 'multiple-choice' : activeFormat;
 
     const newQuestion: Question = {
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID(),
       type: defaultType,
       questionText: '',
       explanation: '',
@@ -452,12 +451,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
     userId: user?.id,
     isProUser: canUseAiAuthoring,
     quizId,
-    onAppendQuestions: (generated) => {
-      setQuestions((prev) => [...prev, ...generated]);
-      setToastMessage(`AI作問が完了し、問題が${generated.length}件追加されました！`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
-    },
+    onAppendQuestions: () => {},
     onSetThumbnailUrl: setThumbnailUrl,
   });
 
@@ -524,6 +518,10 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
     if (questions.length <= 1) {
       alert('最低1問は必要です。');
       return;
+    }
+    // 編集済みの問題を削除する場合は確認を求める
+    if (hasQuestionUserInput(questions[idx])) {
+      if (!confirm(`問題 ${idx + 1} には入力内容があります。削除してもよいですか？`)) return;
     }
     const nextQuestions = questions.filter((_, i) => i !== idx);
     setQuestions(nextQuestions);
@@ -679,7 +677,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
       return;
     }
 
-    const newId = Math.random().toString(36).substring(2, 9);
+    const newId = crypto.randomUUID();
     nextQuestions[qIdx].choices = [
       ...choices,
       {
@@ -791,7 +789,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
         alert('並び替え要素は最大6個までです。');
         return;
       }
-      const newId = Math.random().toString(36).substring(2, 9);
+      const newId = crypto.randomUUID();
       nextQuestions[qIdx].sortingItems = [
         ...items,
         { id: newId, text: `要素 ${items.length + 1}`, correctOrder: items.length }
@@ -1247,52 +1245,33 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
         />
 
         {canUseAiAuthoring ? (
-          <>
-            {/* ハイブリッド起動ボタンセクション (コールドスタート対策) */}
-            <div className="flex flex-wrap gap-3 mb-6 bg-muted/20 border border-border p-4 rounded-xl items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <span className="text-sm font-bold flex items-center gap-1.5">
-                  <Sparkles size={16} className="text-primary" /> AI アシスタント
-                </span>
-                <span className="text-xs text-muted-foreground">対話形式またはワンクリックで AI に作問やチェックを依頼できます</span>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="cursor-pointer border-primary/40 hover:border-primary/80 transition-colors"
-                  onClick={aiChat.triggerAuthoringWelcome}
-                >
-                  AIで作問開始
-                </Button>
-                <Button
-                  type="button"
-                  variant="default"
-                  className="cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                  onClick={() => aiChat.triggerQuickAction('check-all')}
-                >
-                  全問包括チェック
-                </Button>
-              </div>
+          /* ハイブリッド起動ボタンセクション (コールドスタート対策) */
+          <div className="flex flex-wrap gap-3 mb-6 bg-muted/20 border border-border p-4 rounded-xl items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-bold flex items-center gap-1.5">
+                <Sparkles size={16} className="text-primary" /> AI アシスタント
+              </span>
+              <span className="text-xs text-muted-foreground">対話形式またはワンクリックで AI に作問やチェックを依頼できます</span>
             </div>
-
-            <AiQuizAuthoringPanel
-              format={format}
-              isGenerating={aiAuthoring.isGeneratingQuestions}
-              generationStatus={aiAuthoring.generationStatus}
-              isUsageLoading={aiAuthoring.isUsageLoading}
-              usageQuestions={aiAuthoring.usageQuestions}
-              errorMessage={aiAuthoring.errorMessage}
-              onGenerate={(prompt) =>
-                aiAuthoring.generateQuestions(prompt, format, {
-                  title,
-                  description,
-                  genre,
-                })
-              }
-              onClearError={aiAuthoring.clearError}
-            />
-          </>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="cursor-pointer border-primary/40 hover:border-primary/80 transition-colors"
+                onClick={aiChat.triggerAuthoringWelcome}
+              >
+                AIで作問開始
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                className="cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                onClick={() => aiChat.triggerQuickAction('check-all')}
+              >
+                全問包括チェック
+              </Button>
+            </div>
+          </div>
         ) : (
           <AiQuizProUpsell isLoggedIn={!!user} redirectPath={editorPath} />
         )}
@@ -1302,9 +1281,30 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
             <h2 className={styles.sectionTitle} style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
               問題管理
             </h2>
-            <button type="button" className={styles.addQuestionBtn} onClick={handleAddQuestion}>
-              <Plus size={16} /> 問題を追加
-            </button>
+            <div className="flex items-center gap-2">
+              {/* 全問一括最小化 / 展開トグル */}
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 cursor-pointer rounded-md border border-border bg-muted/50 px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                onClick={() => {
+                  const allCollapsed = questions.every((q) => collapsedIds.has(q.id));
+                  if (allCollapsed) {
+                    // 全展開
+                    setCollapsedIds(new Set());
+                  } else {
+                    // 全最小化
+                    setCollapsedIds(new Set(questions.map((q) => q.id)));
+                  }
+                }}
+                title={questions.every((q) => collapsedIds.has(q.id)) ? 'すべて展開' : 'すべて折りたたむ'}
+              >
+                <ChevronsUpDown size={15} />
+                {questions.every((q) => collapsedIds.has(q.id)) ? 'すべて展開' : 'すべて折りたたむ'}
+              </button>
+              <button type="button" className={styles.addQuestionBtn} onClick={handleAddQuestion}>
+                <Plus size={16} /> 問題を追加
+              </button>
+            </div>
           </div>
 
           {user && (
@@ -1330,6 +1330,15 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
                 keywordInputs={keywordInputs}
                 handlers={questionEditorHandlers}
                 isRefReadOnly={isReferenceLinkQuestion(q)}
+                isCollapsed={collapsedIds.has(q.id)}
+                onToggleCollapse={() =>
+                  setCollapsedIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(q.id)) next.delete(q.id);
+                    else next.add(q.id);
+                    return next;
+                  })
+                }
               />
             ))}
           </div>
@@ -1343,27 +1352,7 @@ export const QuizEditorContent: React.FC<QuizEditorProps> = ({
         onPublish={() => handleSave('published')}
       />
 
-      {showToast && (
-        <div 
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-card/90 border border-border p-4 rounded-xl shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300"
-          style={{ minWidth: '320px' }}
-          data-testid="ai-toast-notification"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-500">
-            <Sparkles size={18} />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">生成完了</p>
-            <p className="text-xs text-muted-foreground">{toastMessage}</p>
-          </div>
-          <button 
-            onClick={() => setShowToast(false)} 
-            className="text-muted-foreground hover:text-foreground text-xs p-1 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+
 
       {canUseAiAuthoring && (
         <>

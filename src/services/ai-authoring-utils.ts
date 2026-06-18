@@ -238,7 +238,7 @@ function mapSingleAiItem(item: AiQuestionJsonItem, format: QuizFormat): Question
   }
 
   const question: Question = {
-    id: Math.random().toString(36).substring(2, 11),
+    id: crypto.randomUUID(),
     type: type as Question['type'],
     questionText: (item.questionText ?? '').trim(),
     explanation: (item.explanation ?? '').trim(),

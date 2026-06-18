@@ -19,10 +19,10 @@ export function AiQuizProUpsell({ isLoggedIn, redirectPath }: AiQuizProUpsellPro
       <div className="flex flex-col gap-3">
         <h3 className="flex items-center gap-2 text-lg font-semibold">
           <Sparkles size={20} className="text-primary" />
-          AI 作問（Pro 限定）
+          AI アシスタント（Pro 限定）
         </h3>
         <p className="text-sm text-muted-foreground">
-          Pro プランでは、プロンプトから 10 問を一括生成し、サムネイルも AI で作成できます。
+          Pro プランでは、AI アシスタントがチャット形式での作問をサポートしたり、全問の整合性をチェックしたりできます。
         </p>
         {isLoggedIn ? (
           <Link href="/pricing" className={cn(buttonVariants(), 'w-fit')}>

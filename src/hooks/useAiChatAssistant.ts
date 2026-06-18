@@ -318,7 +318,7 @@ export function useAiChatAssistant({
           }
           const newQuestions = parsedArray.data.map((q) => ({
             ...q,
-            id: q.id || Math.random().toString(36).substring(2, 11),
+            id: crypto.randomUUID(),
             imageUrl: null,
             limitTime: null,
             correctCount: 0,

@@ -33,7 +33,7 @@ export const editorClasses = {
   tagLimitInfo: 'self-end text-xs text-muted-foreground',
   questionHeader: 'mb-5 flex items-center justify-between',
   addQuestionBtn:
-    'cursor-pointer rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90',
+    'inline-flex items-center gap-2 cursor-pointer rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90',
   questionList: 'flex flex-col gap-6',
   questionCard:
     'relative rounded-md border border-border bg-muted/20 p-6 transition-shadow hover:border-primary/30 hover:shadow-md',

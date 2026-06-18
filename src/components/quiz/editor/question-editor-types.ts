@@ -60,4 +60,8 @@ export interface QuestionCardProps {
   keywordInputs: Record<number, string>;
   handlers: QuestionEditorHandlers;
   isRefReadOnly: boolean;
+  /** 折りたたみ状態（親から制御） */
+  isCollapsed: boolean;
+  /** 折りたたみトグルコールバック */
+  onToggleCollapse: () => void;
 }
