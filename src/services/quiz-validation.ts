@@ -405,7 +405,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
         break;
       }
       const hints = question.associationHints;
-      if (hints.length < 1 || hints.length > 5) {
+      if (!hints || hints.length < 1 || hints.length > 5) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
@@ -413,7 +413,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
           message: '連想ヒントは1〜5個設定してください',
         });
       }
-      if (question.correctTextAnswerList.length === 0) {
+      if (!question.correctTextAnswerList || question.correctTextAnswerList.length === 0) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
@@ -447,7 +447,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
       if (missingField) {
         break;
       }
-      if (!question.aiContextDetails.trim()) {
+      if (!question.aiContextDetails || !question.aiContextDetails.trim()) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
@@ -455,7 +455,7 @@ function collectQuestionValidationErrors(question: Question, idx: number): QuizP
           message: 'AI用の裏設定（真相）を入力してください',
         });
       }
-      if (question.truthKeywords.filter((kw) => kw.trim()).length === 0) {
+      if (!question.truthKeywords || question.truthKeywords.filter((kw) => kw.trim()).length === 0) {
         errors.push({
           field: 'questions',
           questionIndex: idx,
