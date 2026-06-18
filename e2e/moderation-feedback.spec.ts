@@ -88,14 +88,16 @@ test.describe('コミュニティモデレーション・フィードバック�
     await difficultyStar3.click();
 
     // ジャンル選択
-    const genreSelect = page.getByTestId('genre-editor-select');
-    await expect(genreSelect).toBeVisible({ timeout: 5000 });
-    const firstGenre = genreSelect.locator('option[value]:not([value=""])').first();
-    await expect(firstGenre).toBeAttached({ timeout: 5000 });
-    const genreValue = await firstGenre.getAttribute('value');
-    if (genreValue) {
-      await genreSelect.selectOption(genreValue);
-    }
+    const searchInput = page.getByTestId('genre-editor-search-input');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
+    await searchInput.focus();
+
+    const dropdown = page.getByTestId('genre-editor-search-dropdown');
+    await expect(dropdown).toBeVisible({ timeout: 15000 });
+
+    const firstOption = dropdown.locator('[data-testid^="genre-editor-search-option-"]').first();
+    await expect(firstOption).toBeVisible({ timeout: 15000 });
+    await firstOption.click();
 
     await page.locator('button').filter({ hasText: /^公開$/ }).first().click();
     

@@ -210,3 +210,41 @@
 - Phase 24 タスク 6.1・6.2（リストエディタ Tailwind 移行）は **実施済みだが機能廃止により成果物ごと削除**。本 Phase 26 はスペック境界の改定と残存参照の掃除が目的。
 - 維持: Phase 24 クイズエディタ移行（タスク 1–5, 7–8）、`quiz-editor-classes.ts`、`quiz-list-skeleton.tsx`（ダッシュボード用）。
 - 実装順: play-flow 28.1 → 11.1 → 11.2 → 11.3。
+
+---
+
+## 12. Phase 27: ジャンル選択UIの検索バー化（サジェスト付き）
+
+- [x] 12.1 (P) ジャンル選択コンポーネントをサジェスト付き検索バーにリファクタリングする
+  - `src/components/quiz/genre-editor-select.tsx` の内部実装を、`<select>` から `<input type="text">` ＋絶対配置のドロップダウンリストによるカスタム検索バーに変更する
+  - 入力値（`searchQuery`）が `genres` マスタ内の `displayName` に部分一致する項目をドロップダウンに候補として表示する
+  - フォーカス時に全候補を表示し、一致するものがない場合は「一致するジャンルがありません」と表示する
+  - ドロップダウン内の項目を `onMouseDown` したときに `onChange` を呼び出し、検索バーに入力値を表示してドロップダウンを閉じる
+  - 入力中に他の場所をクリックしてフォーカスが外れた場合、現在選択されているジャンル名にインプットの値を復元し、ドロップダウンを閉じる
+  - マスタ未登録のジャンルが `value` に指定されている場合（`hasOrphanValue`）は、その値をそのまま初期表示し、マスタ未登録である警告を表示する
+  - ラッパー要素に `data-testid="genre-editor-select-wrap"`、入力欄に `data-testid="genre-editor-search-input"`、ドロップダウンに `data-testid="genre-editor-search-dropdown"`、各候補に `data-testid="genre-editor-search-option-{genreId}"` を付与する
+  - `npm run build` が成功することを確認する
+  - _Requirements: 1.4, 1.7, 1.8, 1.9, 1.10, 1.11, 7.5_
+  - _Boundary: GenreEditorSelect_
+  - _Depends: 1.1_
+
+- [x] 12.2 ジャンル選択コンポーネントの Jest 単体テストを改修する
+  - `tests/components/genre-editor-select.test.tsx` を修正し、プルダウン用の `option` アサーションから、インプットフォーカス、サジェスト表示、絞り込み、選択（`onChange` 呼び出し）、orphan値表示、エラー時の挙動などの検索バーの仕様に適合したアサーションに変更する
+  - `npm run test` がパスすることを確認する
+  - _Requirements: 8.7_
+  - _Boundary: GenreEditorSelectTest_
+  - _Depends: 12.1_
+
+- [x] 12.3 既存の E2E テストのジャンル選択操作を修正する
+  - `e2e/phase8.spec.ts` などの E2E テストファイルで、ジャンル選択処理を行っている `selectFirstGenre` などの関数および操作を、プルダウンの `selectOption` から、検索バーへのフォーカス・文字入力・ドロップダウン候補クリックのフローに書き換える
+  - 影響を受けるすべての E2E テスト（`e2e/phase8.spec.ts`, `e2e/advanced-quiz-features.spec.ts`, `e2e/learning-support.spec.ts`, `e2e/moderation-feedback.spec.ts`）を修正し、テストがグリーンになることを確認する
+  - _Requirements: 8.7_
+  - _Boundary: E2ETesting_
+  - _Depends: 12.1_
+
+- [x] 12.4 統合検証を実行する
+  - `npm run build` および `npm run lint` が新規のエラーなく成功することを確認する
+  - クイズエディタが起動し、ジャンル選択をサジェスト検索で行い、クイズの下書き保存・公開が正常に行えることを手動および自動テストで検証する
+  - _Requirements: 8.5, 8.6, 8.7_
+  - _Boundary: Integration_
+  - _Depends: 12.2, 12.3_

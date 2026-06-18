@@ -539,5 +539,87 @@ Phase 24 Migration Strategy の **Phase 4（ListEditor + AttachPanel）** およ
 | **E2E** | `phase8.spec.ts` — クイズ参照リンク・genre-editor のみ（リスト attach なし） |
 | **E2E** | `creator-streaming-skeleton.spec.ts` — `quiz-editor-skeleton` のみ（`list-editor-skeleton` なし） |
 | **Regression** | 8 形式・参照問題・Markdown・sorting DnD |
+ 
+ **Effort**: **S**（0.5 日、`quizeum-play-flow-ui` 28.1 完了後の確認・E2E 掃除）
+ 
+---
 
-**Effort**: **S**（0.5 日、`quizeum-play-flow-ui` 28.1 完了後の確認・E2E 掃除）
+## Phase 27: ジャンル選択UIの検索バー化（サジェスト付き）
+
+### 1. Overview
+クイズエディタにおけるジャンル選択UIを、従来のプルダウン（`<select>`）から、入力に応じたサジェスト候補表示と選択が可能な検索バー（`<input type="text">` ＋絶対配置のドロップダウンリスト）に置き換えます。これにより、マスタデータ（`genres`）に登録されている多数のジャンルから目的のものを探しやすくなり、操作性が向上します。
+
+### 2. Boundary Commitments（Phase 27）
+* **This Spec Owns**:
+  * `src/components/quiz/genre-editor-select.tsx` のUI/UXリファクタリング。
+  * `tests/components/genre-editor-select.test.tsx` の Jest テスト修正。
+  * 各種 E2E テスト内のジャンル選択手順の修正（`selectFirstGenre` 関数等の更新）。
+* **Out of Boundary**:
+  * データモデル（`Quiz` 型の `genre`, `canonicalGenreId` フィールド等）の構造変更。
+  * `genres` マスタデータ取得サービス（`listActiveGenres` 等）のロジック変更。
+
+### 3. File Structure Plan（Phase 27）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/components/quiz/genre-editor-select.tsx` | **Modify** | プルダウンからサジェスト付き検索バー（インプット ＋ ポップオーバー）へのリファクタリング。 |
+| `tests/components/genre-editor-select.test.tsx` | **Modify** | 検索バーの挙動（サジェスト、絞り込み、選択、orphan値表示、エラー表示等）に合わせた Jest テストの更新。 |
+| `e2e/phase8.spec.ts` | **Modify** | `selectFirstGenre` を検索バー操作に変更。 |
+| `e2e/advanced-quiz-features.spec.ts` | **Modify** | `genreSelect` 操作手順を検索バー操作に変更。 |
+| `e2e/learning-support.spec.ts` | **Modify** | `genreSelect` 操作手順を検索バー操作に変更。 |
+| `e2e/moderation-feedback.spec.ts` | **Modify** | `genreSelect` 操作手順を検索バー操作に変更。 |
+
+### 4. Component Details & Flows
+
+#### `GenreEditorSelect`
+* **ローカルステート**:
+  * `searchQuery` (`string`): 検索バーの入力値。初期値は `value`（ジャンルID）に合致する `genres` の `displayName` とする。見つからない場合は `value` そのもの（`hasOrphanValue`）を表示。
+  * `isOpen` (`boolean`): ドロップダウンポップアップの表示・非表示フラグ。
+  * `isFocused` (`boolean`): 入力バーのフォーカス状態。
+* **レンダリング構成**:
+  * 全体を囲むラッパー要素: `data-testid="genre-editor-select-wrap"`
+  * インプット要素: `<input type="text">` に `data-testid="genre-editor-search-input"` を付与。
+  * ポップアップ要素: `<div class="absolute z-50 ...">`。`isOpen` が `true` の時のみレンダリングし、`data-testid="genre-editor-search-dropdown"` を付与。
+  * 候補リスト項目: 各項目は `data-testid={`genre-editor-search-option-${g.id}`}` を付与。
+* **ユーザー操作とイベントの流れ**:
+  1. **フォーカス / クリック**:
+     * 検索バーにフォーカス、またはクリックしたとき、`isOpen` を `true` にし、入力内容が空なら全ジャンル候補を表示。
+  2. **キーワード入力**:
+     * ユーザーが文字を入力したとき、`searchQuery` を更新。
+     * 表示候補を `g.displayName` に入力文字列が部分一致（大文字小文字を区別せず）するものにフィルタリング。
+     * 一致するものが存在しない場合、「一致するジャンルがありません」とポップアップに表示。
+  3. **候補選択**:
+     * リスト内の候補を `onMouseDown`（`e.preventDefault()` を併用して blur による非表示を防ぐ）またはクリックしたとき、その候補の `id` で `onChange(genreId)` をトリガー。
+     * `searchQuery` を選択したジャンルの `displayName` に更新し、`isOpen` を `false` に変更。
+  4. **フォーカスアウト (Blur)**:
+     * ドロップダウン以外をクリックしてフォーカスが外れた場合、`isOpen` を `false` に変更。
+     * 選択されている有効なジャンルがある場合、`searchQuery` の値をそのジャンルの `displayName` にリセット（入力中の未選択テキストを破棄）。
+  5. **マスタ未登録値のハンドリング (Orphan Value)**:
+     * `value` が空ではなく、`genres` の中に一致するものが存在しない場合（`hasOrphanValue` が真）、インプットには `value`（または `value` が orphanLabel として渡された文字列）を表示。インプットの横または下に警告表示（「マスタ未登録」）を表示し、既存仕様を維持。
+
+### 5. Testing Strategy
+
+* **Unit Tests (`genre-editor-select.test.tsx`)**:
+  * 検索入力による絞り込み表示のテスト（`history` と入力して「歴史」が表示されること）。
+  * 候補クリックで `onChange` が期待するIDで呼ばれることのテスト。
+  * フォーカス時に全候補が表示されることのテスト。
+  * orphan 値が正しく初期値として検索バーに表示されることのテスト。
+  * エラー・再試行ボタンの検証。
+* **E2E Tests (`e2e/*.spec.ts`)**:
+  * Playwright でのジャンル選択アクションを以下のように更新し、テストが通ることを検証：
+    ```typescript
+    // 例: 検索バー操作への更新
+    async function selectFirstGenre(page: Page) {
+      const searchInput = page.getByTestId('genre-editor-search-input');
+      await expect(searchInput).toBeVisible({ timeout: 15000 });
+      await searchInput.focus(); // フォーカスしてドロップダウンを表示
+      
+      const dropdown = page.getByTestId('genre-editor-search-dropdown');
+      await expect(dropdown).toBeVisible({ timeout: 15000 });
+      
+      // 最初のアクティブなジャンル候補をクリック
+      const firstOption = dropdown.locator('[data-testid^="genre-editor-search-option-"]').first();
+      await expect(firstOption).toBeVisible({ timeout: 15000 });
+      await firstOption.click();
+    }
+    ```

@@ -137,3 +137,24 @@
 - `quizeum-ui-foundation/design.md` — テーマ bridge、プリミティブ共有 seam
 - `quizeum-ui-layout-shell/design.md` — シェル内ページ描画前提
 - `.kiro/steering/roadmap.md` Phase 24 — shadcn 標準寄せ Visual Direction
+
+---
+
+## Phase 27: ジャンル選択UIの検索バー化 (2026-06-18)
+
+### Decision: バニラ React + Tailwind によるサジェスト検索ドロップダウンのカスタム実装
+- **Context**: ジャンル選択をプルダウンから検索バーへリファクタリング。
+- **Alternatives Considered**:
+  1. shadcn / Radix UI の Popover + Command を使用する。
+  2. バニラ React + Tailwind CSS によるカスタムドロップダウン。
+- **Selected Approach**: 2. バニラ React + Tailwind CSS によるカスタム実装。
+- **Rationale**:
+  - E2Eテスト (Playwright) からのテストIDによるアクセスが容易で、Radix UI の複雑なDOMを回避できる。
+  - 新たなライブラリ依存を追加せず、既存の React 19 / Next.js 16 環境と 100% 互換性を保てる。
+  - `hasOrphanValue` 等の Quizeum 独自仕様（マスタ未登録ジャンルの一時表示など）をシンプルに統合できる。
+- **Trade-offs**: ポップアップの表示位置などを自前で制御する必要があるが、シンプルなリスト選択で十分である。
+- **Follow-up**: ドロップダウン候補クリック時の `onBlur` 競合（先にドロップダウンが閉じてしまう問題）を `onMouseDown`（`preventDefault` 併用）で制御する。
+
+### Risks & Mitigations (Phase 27)
+- **E2Eテストの破壊**: `selectOption` に依存している全 E2E テストが失敗する。
+  - *Mitigation*: 各 E2E テストファイルにある `selectFirstGenre` などのテスト内操作を、検索バーへのフォーカス・文字入力・ドロップダウン候補選択のフローに一括修正する。

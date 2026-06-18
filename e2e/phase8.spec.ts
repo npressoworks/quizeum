@@ -15,13 +15,16 @@ async function ensureLoggedIn(page: Page) {
 }
 
 async function selectFirstGenre(page: Page) {
-  const genreSelect = page.getByTestId('genre-editor-select');
-  await expect(genreSelect).toBeEnabled({ timeout: 15000 });
-  const firstGenre = genreSelect.locator('option[value]:not([value=""])').first();
-  await expect(firstGenre).toBeAttached({ timeout: 15000 });
-  const value = await firstGenre.getAttribute('value');
-  expect(value).toBeTruthy();
-  await genreSelect.selectOption(value!);
+  const searchInput = page.getByTestId('genre-editor-search-input');
+  await expect(searchInput).toBeVisible({ timeout: 15000 });
+  await searchInput.focus();
+
+  const dropdown = page.getByTestId('genre-editor-search-dropdown');
+  await expect(dropdown).toBeVisible({ timeout: 15000 });
+
+  const firstOption = dropdown.locator('[data-testid^="genre-editor-search-option-"]').first();
+  await expect(firstOption).toBeVisible({ timeout: 15000 });
+  await firstOption.click();
 }
 
 async function publishMinimalQuiz(page: Page, title: string) {
@@ -37,6 +40,11 @@ async function publishMinimalQuiz(page: Page, title: string) {
     .fill('Phase 8 E2E 自動生成クイズ');
 
   await selectFirstGenre(page);
+
+  // 難易度（☆3）を設定
+  const difficultyStar3 = page.getByRole('button', { name: '難易度 3' }).first();
+  await expect(difficultyStar3).toBeVisible({ timeout: 5000 });
+  await difficultyStar3.click();
 
   const qTextarea = page.locator('[data-testid^="auto-grow-question-text"]').first();
   await expect(qTextarea).toBeVisible({ timeout: 15000 });

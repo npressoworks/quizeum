@@ -92,15 +92,15 @@ service cloud.firestore {
     }
 
     function canReadQuizVisibility(data) {
-      return data.status == 'draft'
-        ? (isAuthenticated() && data.authorId == request.auth.uid)
-        : data.status == 'suspended'
-          ? (isSeniorModeratorOrAdmin() || (isAuthenticated() && data.authorId == request.auth.uid))
+      return ('status' in data && data.status == 'draft')
+        ? (isAuthenticated() && 'authorId' in data && data.authorId == request.auth.uid)
+        : ('status' in data && data.status == 'suspended')
+          ? (isSeniorModeratorOrAdmin() || (isAuthenticated() && 'authorId' in data && data.authorId == request.auth.uid))
           : (
             quizDocVisibility(data) == 'public'
-            || (isAuthenticated() && data.authorId == request.auth.uid)
+            || (isAuthenticated() && 'authorId' in data && data.authorId == request.auth.uid)
             || isSeniorModeratorOrAdmin()
-            || (quizDocVisibility(data) == 'followers' && isFollowingQuizAuthor(data.authorId))
+            || (quizDocVisibility(data) == 'followers' && 'authorId' in data && isFollowingQuizAuthor(data.authorId))
           );
     }
 

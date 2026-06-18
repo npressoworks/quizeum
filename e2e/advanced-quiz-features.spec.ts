@@ -35,37 +35,31 @@ async function ensureSharedNormalQuiz(page: any, dialogMessages: string[]) {
   await choiceInputs.nth(3).fill('useRef');
 
   // ジャンル選択
-  const genreSelect = page.getByTestId('genre-editor-select');
-  await expect(genreSelect).toBeVisible({ timeout: 5000 });
-  const firstGenre = genreSelect.locator('option[value]:not([value=""])').first();
-  await expect(firstGenre).toBeAttached({ timeout: 5000 });
-  const genreValue = await firstGenre.getAttribute('value');
-  if (genreValue) {
-    await genreSelect.selectOption(genreValue);
-  }
+  const genreSearchInput = page.getByTestId('genre-editor-search-input');
+  await expect(genreSearchInput).toBeVisible({ timeout: 15000 });
+  await genreSearchInput.focus();
+
+  const dropdown = page.getByTestId('genre-editor-search-dropdown');
+  await expect(dropdown).toBeVisible({ timeout: 15000 });
+
+  const firstOption = dropdown.locator('[data-testid^="genre-editor-search-option-"]').first();
+  await expect(firstOption).toBeVisible({ timeout: 15000 });
+  await firstOption.click();
+
+  // 難易度（☆3）を設定
+  const difficultyStar3 = page.getByRole('button', { name: '難易度 3' }).first();
+  await expect(difficultyStar3).toBeVisible({ timeout: 5000 });
+  await difficultyStar3.click();
 
   // 公開
   const publishBtn = page.locator('button').filter({ hasText: /^公開$/ }).first();
   await expect(publishBtn).toBeVisible();
   await publishBtn.click();
 
-  // 公開完了アラートを閉じる
-  await expect.poll(() => dialogMessages).toContain('クイズを公開しました！');
-  await expect(page).toHaveURL(/\/creator\/dashboard/);
-
-  // ダッシュボードから作成したクイズを探してURLからIDを取得
-  await page.goto('/');
-  const searchInput = page.locator('input[placeholder="タイトル、説明文、作成者、タグでクイズを検索..."]');
-  await expect(searchInput).toBeVisible();
-  await searchInput.fill(uniqueTitle);
-  
-  const quizCard = page.locator(`text=${uniqueTitle}`).first();
-  await expect(quizCard).toBeVisible();
-  await quizCard.click();
-
-  await expect(page).toHaveURL(/\/quiz\/([\w-]+)$/);
+  // 公開完了と成功画面への遷移を待つ
+  await expect(page).toHaveURL(/\/quiz\/([^/]+)\/success/, { timeout: 30000 });
   const currentUrl = page.url();
-  const match = currentUrl.match(/\/quiz\/([\w-]+)$/);
+  const match = currentUrl.match(/\/quiz\/([^/]+)\/success/);
   if (match) {
     sharedNormalQuizId = match[1];
   }
