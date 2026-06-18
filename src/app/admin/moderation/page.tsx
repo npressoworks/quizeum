@@ -258,12 +258,20 @@ export default function AdminModerationPage() {
           通報が5回に達した保留コンテンツを審査し、公開復帰または削除を行います。
         </p>
         {isAdmin && (
-          <Link
-            href="/admin/users"
-            className="inline-block text-sm text-muted-foreground hover:text-foreground"
-          >
-            👤 ユーザー評判管理画面へ
-          </Link>
+          <div className="flex gap-4">
+            <Link
+              href="/admin/users"
+              className="inline-block text-sm text-muted-foreground hover:text-foreground hover:underline"
+            >
+              👤 ユーザー評判管理画面へ
+            </Link>
+            <Link
+              href="/admin/genres"
+              className="inline-block text-sm text-muted-foreground hover:text-foreground hover:underline"
+            >
+              🎭 ジャンル直接管理画面へ
+            </Link>
+          </div>
         )}
       </header>
 

@@ -278,12 +278,20 @@ export default function AdminUsersPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
       <div>
-        <Link
-          href="/admin/moderation"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← モデレーション審査キューに戻る
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href="/admin/moderation"
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            ← モデレーション審査キューに戻る
+          </Link>
+          <Link
+            href="/admin/genres"
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            🎭 ジャンル直接管理画面へ
+          </Link>
+        </div>
       </div>
 
       <header className="space-y-2">
