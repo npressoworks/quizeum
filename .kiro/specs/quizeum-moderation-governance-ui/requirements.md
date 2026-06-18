@@ -18,6 +18,7 @@
   - `moderationTier` を用いた管理者・モデレータ専用画面への厳格なアクセス制限（ガード）。
   - 管理者専用のジャンル管理・追加画面（`/admin/genres`）の新規作成、およびそこでのジャンル直接追加フォーム（ID、表示名、説明、PNG/JPEG/GIFアイコン画像アップロード）の提供。
   - 管理画面間（`/admin/moderation`, `/admin/users`, `/admin/genres`）の相互ナビゲーション導線の追加。
+  - ジャンル直接管理画面（`/admin/genres`）および新ジャンル新設申請画面（`/community/genres`）における、Gemini APIを利用したジャンルアイコン画像AI生成機能の提供。
 - **Out of scope**:
   - `metadata_genres` ドキュメントの書き込みや Cloud Functions 側の投票集計トリガー本体のバックエンド処理（`quizeum-core`が担当）。
   - 既存ジャンルの物理的な削除機能（不要になったジャンルは非表示または非アクティブ化で対応し、物理削除は本要件の対象外とする）。
@@ -131,4 +132,16 @@
 1. When [管理者以外のユーザーが `/admin` にアクセスしたとき], the [Moderation Governance UI] shall [404または403エラー画面を表示してアクセスを遮断すること]。
 2. While [ユーザーの認証情報を確認中である間], the [Moderation Governance UI] shall [画面全体にローディングインジケータを表示すること]。
 3. When [管理者が `/admin` にアクセスしたとき], the [Moderation Governance UI] shall [「モデレーション審査（`/admin/moderation`）」「ユーザー評判管理（`/admin/users`）」「ジャンル直接管理（`/admin/genres`）」の各機能のタイトル、説明、および遷移用リンクを含んだナビゲーションカードを表示すること]。
+
+
+### Requirement 9: AIジャンルアイコン生成機能 (AI Genre Icon Generation)
+**Objective:** As a System Administrator or Quizeum User, I want to generate a genre icon image using AI based on the genre display name and description, so that I can easily create a high-quality icon without manually uploading a file.
+
+#### Acceptance Criteria
+1. When [管理者またはユーザーが「AIで生成」ボタンをクリックしたとき], if [ジャンル名（日本語）または説明文が未入力であるとき], the [Moderation Governance UI] shall [「ジャンル名と説明を入力してください」というインラインエラーを表示し、生成処理を中止すること]。
+2. While [AIによるアイコン画像の生成処理が実行中である間], the [Moderation Governance UI] shall [「AIで生成」ボタンを非活性化し、ローディングインジケータを表示すること]。
+3. When [AIによるアイコン画像の生成処理が成功したとき], the [Moderation Governance UI] shall [生成された画像のプレビューを表示し、その画像をフォームのジャンルアイコンとして設定すること]。
+4. If [AIによる画像生成処理がAPIエラーやタイムアウト等で失敗したとき], the [Moderation Governance UI] shall [「画像の生成に失敗しました。しばらくしてから再度お試しください」というエラーメッセージを表示し、生成ボタンを活性状態に戻すこと]。
+5. When [一般ユーザーが新ジャンル申請画面（`/community/genres`）でAIアイコン生成を実行したとき], if [そのユーザーの当日の生成回数がデイリー上限（1日5回）に達しているとき], the [Moderation Governance UI] shall [「本日の画像生成上限に達しました」というエラーメッセージを表示して生成をブロックすること]。
+6. When [管理者ユーザーがジャンル管理画面（`/admin/genres`）でAIアイコン生成を実行したとき], the [Moderation Governance UI] shall [デイリー生成上限を適用せずに画像を生成すること]。
 

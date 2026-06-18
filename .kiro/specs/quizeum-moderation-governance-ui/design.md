@@ -73,8 +73,10 @@ src/
 │   │   └── admin/
 │   │       ├── seed-genres/
 │   │       │   └── route.ts       # 初期ジャンル一括投入APIルート (5.1, 5.3, 5.4, 5.5)
-│   │       └── genres/
-│   │           └── route.ts       # [NEW] 管理者専用ジャンル管理・登録APIルート (7.1, 7.4, 7.5)
+│   │       ├── genres/
+│   │       │   └── route.ts       # 管理者専用ジャンル管理・登録APIルート (7.1, 7.4, 7.5)
+│   │       └── generate-icon/
+│   │           └── route.ts       # [NEW] AIジャンルアイコン生成APIルート (9.1, 9.4, 9.5, 9.6)
 │   └── community/
 │       ├── merge/
 │       │   └── page.tsx           # タグ/ジャンルマージリクエスト画面 (2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 6.4, 6.5, 6.6, 6.14)
@@ -186,6 +188,12 @@ sequenceDiagram
 | 8.1 | 管理者以外のポータル画面アクセス制限 | `/admin` Page | middleware.ts / guard | ポータル表示フロー |
 | 8.2 | ポータル画面ロード中インジケータ表示 | `/admin` Page | UI spinner | ポータル表示フロー |
 | 8.3 | 各管理者メニューカードおよびリンクの表示 | `/admin` Page | UI Card | ポータル表示フロー |
+| 9.1 | AI生成時入力バリデーション（インラインエラー） | `/admin/genres` Page / `/community/genres` | Button interaction | AI生成フロー |
+| 9.2 | 生成中ローディングインジケータと非活性化 | `/admin/genres` Page / `/community/genres` | Button / Spinner | AI生成フロー |
+| 9.3 | 生成成功画像プレビューとフォーム値設定 | `/admin/genres` Page / `/community/genres` | Preview / State | AI生成フロー |
+| 9.4 | 生成失敗エラー表示とボタン活性化復帰 | `/admin/genres` Page / `/community/genres` | Error banner / State | AI生成フロー |
+| 9.5 | 一般ユーザーデイリー生成上限制限（1日5回） | `/api/genres/generate-icon` | checkDailyLimit | AI生成フロー |
+| 9.6 | 管理者生成上限免除（無制限） | `/api/genres/generate-icon` | skipDailyLimit | AI生成フロー |
 
 ---
 
@@ -199,9 +207,10 @@ sequenceDiagram
 | `AdminModeration` | UI / Page | 通報審査、初期ジャンル投入UI | 1.1-1.5, 5.1-5.3, 5.6, 5.7, 7.8, 6.13 | `useAuth`, `/api/admin/seed-genres` | UI State |
 | `AdminGenres` | UI / Page | 登録済みジャンル一覧、ジャンル直接登録フォーム | 7.1-7.7, 6.10-6.12, 6.16 | `useAuth`, `/api/admin/genres`, `uploadImage`, `validateGenreIconFile` | UI State / TSX |
 | `CommunityMerge` | UI / Page | マージ起案、加重投票、進捗可視化 | 2.1-2.7, 6.4-6.6, 6.14 | `ModerationService`, `useAuth` | UI State |
-| `CommunityGenres` | UI / Page | ジャンル新設申請（画像付）、投票、履歴閲覧 | 3.1-3.5, 4.1-4.3, 6.7-6.9, 6.15 | `ModerationService`, Storage | UI State |
+| `CommunityGenres` | UI / Page | ジャンル新設申請（画像付）、投票、履歴閲覧 | 3.1-3.5, 4.1-4.3, 6.7-6.9, 6.15, 9.1-9.5 | `ModerationService`, Storage, `/api/genres/generate-icon` | UI State |
 | `seed-genres API` | API Route | 初期ジャンル一括登録認可・実行 | 5.1, 5.3, 5.4, 5.5 | `tagMerge` service, Firebase Admin Auth | JSON response |
 | `admin-genres API` | API Route | 全ジャンル取得、新規ジャンル直接登録 | 7.1, 7.4, 7.5 | Firebase Admin Auth / Firestore | JSON response |
+| `generate-icon API` | API Route | AIによるジャンルアイコン画像生成 | 9.5, 9.6 | Gemini GenAI, Admin SDK Auth / Storage | JSON response |
 
 ---
 
@@ -270,6 +279,25 @@ sequenceDiagram
      - `createdAt`: (Timestamp / Date)
      - `updatedAt`: (Timestamp / Date)
   5. 登録完了後、ステータス `200` で成功レスポンスを返す。
+
+#### generate-icon API (`src/app/api/genres/generate-icon/route.ts`)
+- **Intent**: 認証済みセッションのもとで、Gemini (Imagen) モデルを呼び出してジャンル名や説明に応じたアイコン画像（PNG）を生成・一時保存し、画像 URL を返却する。
+- **Requirements**: 9.4, 9.5, 9.6
+
+##### API Contract
+
+| Method | Endpoint | Request | Response | Errors |
+|--------|----------|---------|----------|--------|
+| POST | `/api/genres/generate-icon` | `{ displayName: string, description: string, userId: string }` | `{ success: boolean, iconImageUrl: string, usage?: { current: number, limit: number } }` | 400 (Bad Request), 401 (Unauthorized), 429 (Too Many Requests), 503 (Service Unavailable), 500 |
+
+- **処理フロー**:
+  1. セッション認証トークン（Bearer Token）から UID および `users/{uid}` から権限（`moderationTier`, `role`）を検証。
+  2. 一般ユーザーの場合、Firestore のトランザクションを使用してデイリー生成制限（上限5回、パス: `users/{uid}/authoring_limits/genre-icon`）を確認。上限超過時は `429 Too Many Requests` を返却。管理者の場合はチェックを免除。
+  3. `displayName` と `description` の中身をチェックし、空の場合は `400 Bad Request`。
+  4. `gemini-2.5-flash-image` (Imagen) モデルを呼び出し、ジャンルに適したプロンプトを構築して画像生成（PNG）を実行。
+  5. 生成された画像を Admin Cloud Storage の `temp/genre-icons/{uid}_{timestamp}.png` に保存し、パブリック URL を取得。
+  6. Firestore の生成カウンタをインクリメント（管理者はスキップ）。
+  7. 生成成功メッセージと画像 URL をステータス `200` で返却。
 
 ---
 

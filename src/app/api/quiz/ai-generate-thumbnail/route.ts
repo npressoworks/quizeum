@@ -17,7 +17,7 @@ const imageModelId =
   process.env.GEMINI_IMAGE_MODEL_ID ?? 'gemini-2.5-flash-image';
 
 function buildThumbnailPrompt(title: string, description: string): string {
-  return `クイズのサムネイル画像を生成してください。タイトル: ${title}。説明: ${description}。教育的で魅力的なクイズカバー画像。テキストは最小限。`;
+  return `クイズのサムネイル画像を生成してください。タイトル: ${title}。説明: ${description}。魅力的なクイズカバー画像。テキストは最小限。`;
 }
 
 function extractImageBuffer(response: {

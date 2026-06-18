@@ -357,11 +357,6 @@ export default function CommunityGenresPage() {
 
   if (!user) return null;
 
-  // 一般ユーザーから見えないようにするため、非管理者は 404 (notFound) とする
-  if (!isAdmin) {
-    notFound();
-  }
-
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
       <header className="space-y-2">
