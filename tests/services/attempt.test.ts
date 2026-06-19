@@ -5,13 +5,20 @@ jest.mock('../../src/lib/quiz-access', () => ({
 
 jest.mock('../../src/lib/firebase/config', () => ({ db: {} }));
 
+jest.mock('../../src/services/attempt-session', () => ({
+  getPendingSyncAttempts: jest.fn(),
+  clearPendingSyncAttempt: jest.fn(),
+}));
+
 import { runTransaction, doc, getDocs, setDoc, getDoc } from 'firebase/firestore';
 import {
   saveAttempt,
   createLateralAttemptSession,
   getFailedQuestions,
   updateFailedQuestions,
+  syncPendingAttempts,
 } from '../../src/services/attempt';
+import { getPendingSyncAttempts, clearPendingSyncAttempt } from '../../src/services/attempt-session';
 jest.mock('firebase/firestore', () => {
   const original = jest.requireActual('firebase/firestore');
   return {
@@ -408,5 +415,103 @@ describe('AttemptService - createLateralAttemptSession', () => {
         aiTurnLimit: 30,
       })
     );
+  });
+});
+
+describe('AttemptService - syncPendingAttempts', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('保留中の attempt がある場合、詳細データも含めて saveAttempt が呼び出され成功時にローカルからクリアされること', async () => {
+    const mockPending = {
+      localId: 'local-123',
+      userId: 'user-uid',
+      quizId: 'test-quiz-id',
+      listId: null,
+      mode: 'normal' as const,
+      score: 1,
+      totalQuestions: 2,
+      elapsedSeconds: 30,
+      failedQuestionIds: ['q2'],
+      completedAt: new Date().toISOString(),
+      questionAnswers: [],
+      questionAnswerDetails: [
+        {
+          questionId: 'q1',
+          questionType: 'multiple-choice' as const,
+          isCorrect: true,
+          elapsedSeconds: 15,
+          hintsUsedCount: 0,
+        },
+        {
+          questionId: 'q2',
+          questionType: 'multiple-choice' as const,
+          isCorrect: false,
+          elapsedSeconds: 15,
+          hintsUsedCount: 0,
+        },
+      ],
+      aiTurnCount: 0,
+      aiTurnLimit: null,
+    };
+
+    (getPendingSyncAttempts as jest.Mock).mockReturnValue([mockPending]);
+
+    const mockQuizSnap = {
+      exists: () => true,
+      data: () => ({
+        playCount: 10,
+        questions: [{ id: 'q1' }, { id: 'q2' }],
+      }),
+    };
+    const mockTransaction = {
+      get: jest.fn().mockReturnValue(mockQuizSnap),
+      set: jest.fn(),
+      update: jest.fn(),
+    };
+    (runTransaction as jest.Mock).mockImplementation((db, callback) => callback(mockTransaction));
+    (getDoc as jest.Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        status: 'published',
+        questions: [{ id: 'q1' }, { id: 'q2' }],
+      }),
+    });
+
+    const successCount = await syncPendingAttempts();
+
+    expect(successCount).toBe(1);
+    expect(clearPendingSyncAttempt).toHaveBeenCalledWith('local-123');
+  });
+
+  test('同期失敗（saveAttemptで例外スロー）した場合、ローカルストレージの未同期データがクリアされずに保持されること', async () => {
+    const mockPending = {
+      localId: 'local-456',
+      userId: 'user-uid',
+      quizId: 'test-quiz-id',
+      listId: null,
+      mode: 'normal' as const,
+      score: 1,
+      totalQuestions: 2,
+      elapsedSeconds: 30,
+      failedQuestionIds: ['q2'],
+      completedAt: new Date().toISOString(),
+      questionAnswers: [],
+      questionAnswerDetails: [],
+      aiTurnCount: 0,
+      aiTurnLimit: null,
+    };
+
+    (getPendingSyncAttempts as jest.Mock).mockReturnValue([mockPending]);
+
+    (getDoc as jest.Mock).mockResolvedValue({
+      exists: () => false,
+    });
+
+    const successCount = await syncPendingAttempts();
+
+    expect(successCount).toBe(0);
+    expect(clearPendingSyncAttempt).not.toHaveBeenCalled();
   });
 });
