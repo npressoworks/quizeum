@@ -18,6 +18,8 @@ type ChoiceAnswerPanelProps = {
   onConfirm: (answer: string) => void;
   initialAnswer?: string;
   disabled?: boolean;
+  onChoiceClick?: (choiceId: string) => void;
+  onChoicesOrderResolved?: (order: string[]) => void;
 };
 
 const choiceCardClass =
@@ -28,6 +30,8 @@ export function ChoiceAnswerPanel({
   onConfirm,
   initialAnswer = '',
   disabled = false,
+  onChoiceClick,
+  onChoicesOrderResolved,
 }: ChoiceAnswerPanelProps) {
   const choices = question.choices ?? [];
   const multiSelect = isMultiCorrectChoiceQuestion(question);
@@ -40,10 +44,19 @@ export function ChoiceAnswerPanel({
     setSelectedIds(parseChoiceAnswerIds(initialAnswer));
   }, [question.id, initialAnswer]);
 
+  useEffect(() => {
+    if (onChoicesOrderResolved) {
+      onChoicesOrderResolved(choices.map((c) => c.id));
+    }
+  }, [question.id, choices, onChoicesOrderResolved]);
+
   const name = useMemo(() => `choice-${question.id}`, [question.id]);
 
   const toggleChoice = (choiceId: string) => {
     if (disabled) return;
+    if (onChoiceClick) {
+      onChoiceClick(choiceId);
+    }
     if (multiSelect) {
       setSelectedIds((prev) =>
         prev.includes(choiceId) ? prev.filter((id) => id !== choiceId) : [...prev, choiceId]
@@ -114,7 +127,12 @@ export function ChoiceAnswerPanel({
         <RadioGroup
           value={selectedIds[0] ?? ''}
           onValueChange={(value) => {
-            if (!disabled && value) setSelectedIds([value]);
+            if (!disabled && value) {
+              if (onChoiceClick) {
+                onChoiceClick(value);
+              }
+              setSelectedIds([value]);
+            }
           }}
           disabled={disabled}
           className="flex flex-col gap-3"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Question } from '@/types';
 import {
   findTrueFalseChoiceId,
@@ -13,12 +13,16 @@ type TrueFalseAnswerPanelProps = {
   question: Question;
   onConfirm: (answer: string) => void;
   disabled?: boolean;
+  onChoiceClick?: (choiceId: string) => void;
+  onChoicesOrderResolved?: (order: string[]) => void;
 };
 
 export function TrueFalseAnswerPanel({
   question,
   onConfirm,
   disabled = false,
+  onChoiceClick,
+  onChoicesOrderResolved,
 }: TrueFalseAnswerPanelProps) {
   const maruId = useMemo(
     () => findTrueFalseChoiceId(question.choices, 'maru'),
@@ -29,8 +33,17 @@ export function TrueFalseAnswerPanel({
     [question.choices, question.id]
   );
 
+  useEffect(() => {
+    if (onChoicesOrderResolved) {
+      onChoicesOrderResolved([maruId, batsuId].filter(Boolean) as string[]);
+    }
+  }, [maruId, batsuId, onChoicesOrderResolved]);
+
   const handleSelect = (choiceId: string | undefined) => {
     if (disabled || !choiceId) return;
+    if (onChoiceClick) {
+      onChoiceClick(choiceId);
+    }
     onConfirm(choiceId);
   };
 

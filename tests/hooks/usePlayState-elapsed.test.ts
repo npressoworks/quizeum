@@ -219,8 +219,8 @@ describe('usePlayState 区間累計経過時間', () => {
         id: 'q_choice',
         type: 'multiple-choice',
         choices: [
-          { id: 'c1', text: '選択肢1', isCorrect: true },
-          { id: 'c2', text: '選択肢2', isCorrect: false },
+          { id: 'c1', choiceText: '選択肢1', isCorrect: true, selectedCount: 0 },
+          { id: 'c2', choiceText: '選択肢2', isCorrect: false, selectedCount: 0 },
         ],
         correctTextAnswerList: ['c1'],
       },
@@ -229,8 +229,8 @@ describe('usePlayState 区間累計経過時間', () => {
         id: 'q_sort',
         type: 'sorting',
         sortingItems: [
-          { id: 'i1', text: 'アイテム1' },
-          { id: 'i2', text: 'アイテム2' },
+          { id: 'i1', text: 'アイテム1', correctOrder: 0 },
+          { id: 'i2', text: 'アイテム2', correctOrder: 1 },
         ],
         correctTextAnswerList: ['i1,i2'],
       }

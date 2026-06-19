@@ -137,6 +137,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     answeredIds,
     failedIds,
     questionAnswers,
+    questionAnswerDetails,
     score,
     elapsedSeconds,
     timeLeft,
@@ -151,6 +152,11 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
     lastAnswerResult,
     isFinished,
     beginLimitCountdown,
+    registerChoicesOrder,
+    registerInitialItemOrder,
+    incrementHintsUsed,
+    trackChoiceClick,
+    startQuickPressTimer,
   } = usePlayState({
     quizId,
     userId: user?.id || 'guest',
@@ -222,6 +228,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
       elapsedSeconds,
       failedQuestionIds: finalFailed,
       questionAnswers: toQuestionAnswerRecords(questionAnswers),
+      questionAnswerDetails,
       aiTurnCount: 0,
       aiTurnLimit: null,
     };
@@ -617,6 +624,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
         [items[i], items[j]] = [items[j], items[i]];
       }
       setSortingItems(items);
+      registerInitialItemOrder(currentQuestion.id, items.map((item) => item.id));
     }
 
     if (currentQuestion.type === 'association') {
@@ -1036,6 +1044,8 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
           <TrueFalseAnswerPanel
             question={currentQuestion}
             onConfirm={submitAnswer}
+            onChoiceClick={(choiceId) => trackChoiceClick(currentQuestion.id, choiceId)}
+            onChoicesOrderResolved={(order) => registerChoicesOrder(currentQuestion.id, order)}
             disabled={
               isNormalFeedbackFlow
                 ? feedbackPending
@@ -1049,6 +1059,8 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
             question={currentQuestion}
             onConfirm={submitAnswer}
             initialAnswer={questionAnswers[currentQuestion.id]}
+            onChoiceClick={(choiceId) => trackChoiceClick(currentQuestion.id, choiceId)}
+            onChoicesOrderResolved={(order) => registerChoicesOrder(currentQuestion.id, order)}
             disabled={
               isNormalFeedbackFlow
                 ? feedbackPending
@@ -1139,6 +1151,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
                 className="btn btn-secondary"
                 style={{ width: '100%', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)' }}
                 onClick={() => {
+                  incrementHintsUsed(currentQuestion.id);
                   setActiveHintIdx((prev) => {
                     const next = prev + 1;
                     setAssociationHintIndices((prevIndices) => ({
@@ -1237,7 +1250,13 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
       {/* アクションボタンバー (ヒント表示) */}
       <div className={styles.actionsBar}>
         {currentQuestion?.hint && !showNormalFeedback && (
-          <button className="btn btn-secondary" onClick={() => setShowHint(true)}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              setShowHint(true);
+              incrementHintsUsed(currentQuestion.id);
+            }}
+          >
             💡 ヒントを表示
           </button>
         )}
@@ -1282,7 +1301,10 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
                 <button
                   type="button"
                   className={`${styles.startReadingBtn} btn`}
-                  onClick={() => setIsReadingStarted(true)}
+                  onClick={() => {
+                    setIsReadingStarted(true);
+                    startQuickPressTimer();
+                  }}
                   data-analytics="quiz-quickpress-reading-start"
                 >
                   🔊 問読みを開始する
