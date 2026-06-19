@@ -519,6 +519,7 @@ function pendingSyncToAttempt(pending: PendingSyncAttempt): Omit<Attempt, 'id'> 
     elapsedSeconds: pending.elapsedSeconds,
     failedQuestionIds: pending.failedQuestionIds,
     questionAnswers: pending.questionAnswers,
+    questionAnswerDetails: pending.questionAnswerDetails,
     difficultyVote: pending.difficultyVote ?? null,
     aiTurnCount: pending.aiTurnCount,
     aiTurnLimit: pending.aiTurnLimit,

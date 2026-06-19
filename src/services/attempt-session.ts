@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 解答セッション保護およびオフライン自動同期モジュール
  *
  * 機能:
@@ -10,7 +10,7 @@
  * Requirements: 3.2, 3.3
  */
 
-import { Attempt, QuestionAnswerRecord } from '../types';
+import { Attempt, QuestionAnswerRecord, QuestionAnswerDetail } from '../types';
 
 /* ==========================================================================
    定数 / キー設計
@@ -44,6 +44,8 @@ export interface PlayProgressData {
   failedQuestionIds: string[];
   /** 問題ごとのユーザー回答 */
   questionAnswers?: Record<string, string>;
+  /** 問題ごとの詳細な解答行動データ（新規追加） */
+  questionAnswerDetails?: QuestionAnswerDetail[];
   /** 現在の正解数 */
   currentScore: number;
   /** 全問題数 */
@@ -70,6 +72,8 @@ export interface PendingSyncAttempt {
   elapsedSeconds: number;
   failedQuestionIds: string[];
   questionAnswers?: QuestionAnswerRecord[];
+  /** 問題ごとの詳細な解答行動データ（新規追加） */
+  questionAnswerDetails?: QuestionAnswerDetail[];
   difficultyVote?: number | null;
   aiTurnCount: number;
   aiTurnLimit: number | null;

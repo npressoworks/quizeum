@@ -190,6 +190,35 @@ export interface QuestionAnswerRecord {
   userAnswer: string;
 }
 
+/**
+ * 問題ごとの詳細な解答行動データ（すべての問題形式に対応）
+ */
+export interface QuestionAnswerDetail {
+  questionId: string;
+  questionType: 'true-false' | 'multiple-choice' | 'text-input' | 'quick-press' | 'sorting' | 'association' | 'lateral-thinking';
+  isCorrect: boolean;
+  elapsedSeconds: number;                // この問題の解答にかかった時間（秒、小数点を含む）
+  hintsUsedCount: number;                // 使用したヒント数
+
+  // 1. 選択式・真偽値クイズ用 (multiple-choice, true-false)
+  selectedChoiceId?: string | null;      // 選択した選択肢ID
+  choicesOrder?: string[] | null;        // 提示された選択肢IDのシャッフル順
+  choicesInteractionsCount?: number;     // 決定までに選択肢をクリック・変更した回数
+
+  // 2. 記述式・短答・早押しクイズ用 (text-input, quick-press, association)
+  userAnswer?: string | null;            // 入力された回答文字列（記述・短答・連想用）
+  quickPressSeconds?: number | null;     // 早押しボタンを押すまでの経過時間
+
+  // 3. 並び替えクイズ用 (sorting)
+  initialItemOrder?: string[] | null;    // 提示時の初期アイテム順
+  finalItemOrder?: string[] | null;      // ユーザーが決定した最終アイテム順
+
+  // 4. 水平思考クイズ用 (lateral-thinking)
+  aiTurnCount?: number | null;           // 質問ターン数
+  truthSummary?: string | null;          // 真相解答の最終テキスト
+  lateralPlayEndedStatus?: 'passed' | 'gave_up' | null; // 合格/リタイアのステータス
+}
+
 export interface Attempt {
   id: string;
   userId: string;
@@ -216,6 +245,7 @@ export interface Attempt {
   elapsedSeconds: number; // 経過秒数
   failedQuestionIds: string[]; // 間違えた問題ID配列
   questionAnswers?: QuestionAnswerRecord[]; // 問題ごとのユーザー回答（表示用）
+  questionAnswerDetails?: QuestionAnswerDetail[]; // 各問題ごとの詳細な解答行動データ（新規追加）
   difficultyVote?: number | null; // 難易度投票値
   aiQuestionsHistory?: AiQuestion[]; // AI対話履歴
   aiTurnCount: number;    // 質問ターン数
