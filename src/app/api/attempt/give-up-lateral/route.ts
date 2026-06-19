@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminFirestore } from '@/lib/firebase/admin';
 import { normalizeElapsedSeconds } from '@/lib/format-play-elapsed';
-import { Attempt, Quiz } from '@/types';
+import { Attempt, Quiz, QuestionAnswerDetail } from '@/types';
 import { extractBearerToken, verifyFirebaseIdToken } from '@/lib/firebase/auth-verify';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -83,11 +83,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const quizTransactionSnap = await transaction.get(quizRef);
       if (!quizTransactionSnap.exists) throw new Error('クイズが見つかりません。');
 
+      const detailRecord: QuestionAnswerDetail = {
+        questionId: lateralQuestion.id,
+        questionType: 'lateral-thinking',
+        isCorrect: false,
+        elapsedSeconds: savedElapsedSeconds,
+        hintsUsedCount: 0,
+        aiTurnCount: attempt.aiTruthAttempts?.length ?? 0,
+        truthSummary: null,
+        lateralPlayEndedStatus: 'gave_up',
+      };
+
       transaction.update(attemptRef, {
         completedAt: now,
         score: 0,
         gaveUpLateral: true,
         elapsedSeconds: savedElapsedSeconds,
+        questionAnswerDetails: [detailRecord],
       });
 
       transaction.update(quizRef, {

@@ -20,7 +20,7 @@ import { getAdminFirestore } from '@/lib/firebase/admin';
 import { buildLeaderboardUpdatesForQuiz } from '@/lib/leaderboard-update';
 import { normalizeElapsedSeconds } from '@/lib/format-play-elapsed';
 import { buildVerifyTruthPrompt, parseTruthVerifyResponse } from '@/services/verify-truth-utils';
-import { Attempt, Quiz } from '@/types';
+import { Attempt, Quiz, QuestionAnswerDetail } from '@/types';
 import { extractBearerToken, verifyFirebaseIdToken } from '@/lib/firebase/auth-verify';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
@@ -141,12 +141,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!quizTransactionSnap.exists) throw new Error('クイズが見つかりません。');
         const currentQuiz = quizTransactionSnap.data() as Quiz;
 
+        const detailRecord: QuestionAnswerDetail = {
+          questionId: lateralQuestion.id,
+          questionType: 'lateral-thinking',
+          isCorrect: true,
+          elapsedSeconds: savedElapsedSeconds,
+          hintsUsedCount: 0,
+          aiTurnCount: (attempt.aiTruthAttempts?.length ?? 0) + 1,
+          truthSummary: truthSummary,
+          lateralPlayEndedStatus: 'passed',
+        };
+
         transaction.update(attemptRef, {
           completedAt: now,
           score: attempt.totalQuestions,
           failedQuestionIds: [],
           elapsedSeconds: savedElapsedSeconds,
           aiTruthAttempts: FieldValue.arrayUnion(newTruthAttempt),
+          questionAnswerDetails: [detailRecord],
         });
 
         const quizUpdates: Record<string, unknown> = {

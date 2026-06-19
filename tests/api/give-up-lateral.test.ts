@@ -3,10 +3,12 @@ import { NextRequest } from 'next/server';
 
 const mockVerify = jest.fn();
 const mockRunTransaction = jest.fn();
+const mockTxUpdate = jest.fn();
 
 const quizData = {
   questions: [
     {
+      id: 'q-1',
       type: 'lateral-thinking',
       explanation: 'プレイヤー向けの解説',
       aiContextDetails: '裏設定の真相',
@@ -71,10 +73,11 @@ describe('POST /api/attempt/give-up-lateral', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockVerify.mockResolvedValue('uid-1');
+    mockTxUpdate.mockClear();
     mockRunTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
       const tx = {
         get: async () => ({ exists: true, data: () => quizData }),
-        update: jest.fn(),
+        update: mockTxUpdate,
       };
       await fn(tx);
     });
@@ -89,6 +92,19 @@ describe('POST /api/attempt/give-up-lateral', () => {
     expect(body.completed).toBe(true);
     expect(body.revealText).toBeUndefined();
     expect(mockRunTransaction).toHaveBeenCalled();
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        questionAnswerDetails: [
+          expect.objectContaining({
+            questionId: 'q-1',
+            questionType: 'lateral-thinking',
+            isCorrect: false,
+            lateralPlayEndedStatus: 'gave_up',
+          })
+        ]
+      })
+    );
   });
 
   it('既に完了済みの attempt は 409 を返す', async () => {

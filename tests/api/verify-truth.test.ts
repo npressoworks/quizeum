@@ -5,10 +5,12 @@ const mockVerify = jest.fn();
 const mockGenerateContent = jest.fn();
 const mockAttemptUpdate = jest.fn();
 const mockRunTransaction = jest.fn();
+const mockTxUpdate = jest.fn();
 
 const quizData = {
   questions: [
     {
+      id: 'q-1',
       type: 'lateral-thinking',
       aiContextDetails: '男は遭難しウミガメのスープを飲んだ',
       truthKeywords: ['ウミガメ', '遭難', 'スープ'],
@@ -100,10 +102,11 @@ describe('POST /api/attempt/verify-truth (Phase 15)', () => {
     jest.clearAllMocks();
     mockVerify.mockResolvedValue('uid-1');
     mockAttemptUpdate.mockResolvedValue(undefined);
+    mockTxUpdate.mockClear();
     mockRunTransaction.mockImplementation(async (_fn: (tx: unknown) => Promise<void>) => {
       const tx = {
         get: async () => ({ exists: true, data: () => ({}) }),
-        update: jest.fn(),
+        update: mockTxUpdate,
       };
       await _fn(tx);
     });
@@ -165,6 +168,20 @@ describe('POST /api/attempt/verify-truth (Phase 15)', () => {
     expect(body.isCorrect).toBe(true);
     expect(body.advice).toBeNull();
     expect(mockRunTransaction).toHaveBeenCalled();
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        questionAnswerDetails: [
+          expect.objectContaining({
+            questionId: 'q-1',
+            questionType: 'lateral-thinking',
+            isCorrect: true,
+            lateralPlayEndedStatus: 'passed',
+            truthSummary: '真相の要約',
+          })
+        ]
+      })
+    );
   });
 
   it('Gemini 例外時は 503 を返し代替合格しない', async () => {
