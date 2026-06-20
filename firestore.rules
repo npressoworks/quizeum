@@ -494,6 +494,14 @@ service cloud.firestore {
     }
 
     // -----------------------------------------------------------------
+    // announcements (運営からのお知らせ) コレクションルール
+    // -----------------------------------------------------------------
+    match /announcements/{announcementId} {
+      allow read: if resource == null || resource.data.status == 'published' || isSystemAdmin();
+      allow write: if isSystemAdmin();
+    }
+
+    // -----------------------------------------------------------------
     // adminLogs (管理者ログ) コレクションルール
     // -----------------------------------------------------------------
     match /adminLogs/{logId} {

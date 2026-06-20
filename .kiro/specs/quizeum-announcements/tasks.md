@@ -9,7 +9,7 @@
   - _Requirements: 1.2, 1.3, 1.5, 2.2_
   - _Boundary: Core Model & Service_
 
-- [ ] 1.2 Firestore セキュリティルールの更新
+- [x] 1.2 Firestore セキュリティルールの更新
   - `firestore.rules` に `announcements` コレクションのアクセスルール（管理者は全操作許可、一般ユーザーは `status == 'published'` の読み取りのみ許可、一般ユーザーの書き込みは拒否）を追加する。
   - **Observable completion**: `firestore.rules` が有効化され、管理者以外からの書き込みがルールで遮断されること。
   - _Requirements: 3.2, 3.3_
