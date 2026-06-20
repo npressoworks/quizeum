@@ -25,7 +25,7 @@
   - _Requirements: 1.2, 1.3, 1.4, 1.5_
   - _Boundary: Admin Announcements UI_
 
-- [ ] 2.2 (P) 通知画面ガードの緩和とタブ化対応
+- [x] 2.2 (P) 通知画面ガードの緩和とタブ化対応
   - `src/middleware.ts` を修正し、`authRequiredPaths` から `/notifications` を除外して未ログインでもアクセスできるようにする。
   - `src/app/notifications/page.tsx` を修正し、Shadcn `Tabs` コンポーネントを配置して「通知」と「運営からのお知らせ」を切り替えられるようにする。
   - 未ログインユーザーがアクセスした際、「通知」タブではログイン誘導UI（ログインボタン等）を表示し、「運営からのお知らせ」タブは制限なしで表示されるようにする。

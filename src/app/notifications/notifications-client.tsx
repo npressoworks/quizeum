@@ -11,11 +11,14 @@ import {
   Heart,
   Bell,
   Check,
+  LogIn,
 } from 'lucide-react';
 import { NotificationsSkeleton } from '@/components/ui/notifications-skeleton';
 import { Button } from '@/components/ui/button';
-import { CardContent } from '@/components/ui/card';
+import { CardContent, Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AnnouncementsTab } from './announcements-tab';
 
 export function NotificationsClient() {
   const { user: currentUser, loading: authLoading } = useAuth();
@@ -27,7 +30,7 @@ export function NotificationsClient() {
   useEffect(() => {
     if (authLoading) return;
     if (!currentUser) {
-      router.push('/login?redirect=/notifications');
+      setLoading(false);
       return;
     }
 
@@ -45,7 +48,7 @@ export function NotificationsClient() {
     }
 
     loadNotifications();
-  }, [currentUser, authLoading, router]);
+  }, [currentUser, authLoading]);
 
   const handleNotificationClick = async (notif: Notification) => {
     try {
@@ -84,10 +87,6 @@ export function NotificationsClient() {
     return <NotificationsSkeleton data-testid="notifications-skeleton" />;
   }
 
-  if (!currentUser) {
-    return null;
-  }
-
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'follow':
@@ -124,66 +123,100 @@ export function NotificationsClient() {
   const hasUnread = notifications.some(n => !n.isRead);
 
   return (
-    <CardContent data-testid="notifications-page-container">
-      {hasUnread && (
-        <div className="mb-4 flex justify-end">
-          <Button type="button" variant="outline" size="sm" onClick={handleAllRead}>
-            <Check size={16} />
-            <span>すべて既読にする</span>
-          </Button>
-        </div>
-      )}
+    <CardContent data-testid="notifications-page-container" className="pt-2">
+      <Tabs defaultValue="announcements">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="announcements">運営からのお知らせ</TabsTrigger>
+          <TabsTrigger value="personal">通知</TabsTrigger>
+        </TabsList>
 
-      {notifications.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-center text-muted-foreground">
-          <Bell size={40} />
-          <p>届いている通知はありません。</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {notifications.map((notif) => (
-            <div
-              key={notif.id}
-              onClick={() => handleNotificationClick(notif)}
-              className={cn(
-                'relative flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50',
-                !notif.isRead && 'border-primary/30 bg-primary/5'
+        <TabsContent value="announcements">
+          <AnnouncementsTab />
+        </TabsContent>
+
+        <TabsContent value="personal">
+          {!currentUser ? (
+            <Card className="border-dashed bg-muted/20">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <Bell size={48} className="text-muted-foreground mb-4 opacity-50" />
+                <h3 className="text-lg font-bold mb-2">通知機能を利用するにはログインが必要です</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                  ログインすると、あなたのクイズへのブックマーク、フォロー、間違い指摘の解決などの通知を受け取ることができます。
+                </p>
+                <Button 
+                  onClick={() => router.push('/login?redirect=/notifications')}
+                  data-testid="login-redirect-btn"
+                >
+                  <LogIn className="size-4 mr-2" />
+                  ログイン画面へ
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {hasUnread && (
+                <div className="mb-4 flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={handleAllRead}>
+                    <Check size={16} />
+                    <span>すべて既読にする</span>
+                  </Button>
+                </div>
               )}
-            >
-              <div className="shrink-0">
-                {notif.senderAvatar ? (
-                  <img
-                    src={notif.senderAvatar}
-                    alt={notif.senderName || 'Sender'}
-                    className="size-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex size-10 items-center justify-center rounded-full bg-muted">
-                    {getNotificationIcon(notif.type)}
-                  </div>
-                )}
-              </div>
 
-              <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug">{getNotificationMessage(notif)}</p>
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  {new Date(notif.createdAt).toLocaleDateString('ja-JP', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-              </div>
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-16 text-center text-muted-foreground">
+                  <Bell size={40} />
+                  <p>届いている通知はありません。</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      onClick={() => handleNotificationClick(notif)}
+                      className={cn(
+                        'relative flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50',
+                        !notif.isRead && 'border-primary/30 bg-primary/5'
+                      )}
+                    >
+                      <div className="shrink-0">
+                        {notif.senderAvatar ? (
+                          <img
+                            src={notif.senderAvatar}
+                            alt={notif.senderName || 'Sender'}
+                            className="size-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                            {getNotificationIcon(notif.type)}
+                          </div>
+                        )}
+                      </div>
 
-              {!notif.isRead && (
-                <span className="absolute top-4 right-4 size-2 rounded-full bg-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm leading-snug">{getNotificationMessage(notif)}</p>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {new Date(notif.createdAt).toLocaleDateString('ja-JP', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+
+                      {!notif.isRead && (
+                        <span className="absolute top-4 right-4 size-2 rounded-full bg-primary" />
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-          ))}
-        </div>
-      )}
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
     </CardContent>
   );
 }
