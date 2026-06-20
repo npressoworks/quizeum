@@ -940,7 +940,8 @@ export function QuizResultClient({
                 {q.explanation && (
                   <div className={styles.explanationBox}>
                     <div className={styles.explanationTitle}>💡 解説</div>
-                    <p
+                    <div
+                      className="prose max-w-none dark:prose-invert"
                       style={{ fontSize: '0.95rem', color: 'var(--text-muted)', lineHeight: '1.6' }}
                       dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(q.explanation) }}
                     />

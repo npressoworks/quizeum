@@ -185,8 +185,8 @@ function TestPlayResultContent() {
                   {q.explanation && (
                     <div className={styles.explanationBox}>
                       <div className={styles.explanationTitle}>💡 解説</div>
-                      <p
-                        className={styles.explanationText}
+                      <div
+                        className={`${styles.explanationText} prose max-w-none dark:prose-invert`}
                         dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(q.explanation) }}
                       />
                     </div>

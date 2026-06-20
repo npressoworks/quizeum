@@ -586,7 +586,7 @@ function TestPlayClient() {
             }}
           >
             <strong style={{ display: 'block', marginBottom: '8px' }}>💡 解説:</strong>
-            <div dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.explanation) }} />
+            <div className="prose max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.explanation) }} />
           </div>
         )}
 

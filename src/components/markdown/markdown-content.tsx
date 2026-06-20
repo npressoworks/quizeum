@@ -20,7 +20,7 @@ export function MarkdownContent({
   return (
     <Tag
       className={cn(
-        '[&_a]:text-primary [&_a]:underline [&_strong]:font-bold',
+        'prose max-w-none dark:prose-invert [&_a]:text-primary [&_a]:underline [&_strong]:font-bold',
         className
       )}
       dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(markdown) }}

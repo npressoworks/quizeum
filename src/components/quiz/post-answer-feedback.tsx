@@ -69,7 +69,7 @@ export function PostAnswerFeedback({
       {isCorrect && explanation && (
         <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed">
           <strong className="mb-2 block text-foreground">💡 解説:</strong>
-          <div dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(explanation) }} />
+          <div className="prose max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(explanation) }} />
         </div>
       )}
 

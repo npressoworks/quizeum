@@ -1200,7 +1200,7 @@ function QuizPlayClient({ quizId, initialQuiz }: QuizPlayClientProps) {
                 <div className={styles.correctAnswer}>
                   正解: {formatCorrectAnswer(currentQuestion) || currentQuestion.correctTextAnswerList?.[0] || '正解'}
                 </div>
-                <p className={styles.explanation} dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.explanation) }} />
+                <div className={`${styles.explanation} prose max-w-none dark:prose-invert`} dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(currentQuestion.explanation) }} />
 
                 <div className={styles.flashcardActionGrid} style={{ marginTop: '20px' }}>
                   <button
