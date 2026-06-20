@@ -34,7 +34,7 @@
   - _Boundary: RouteGuard & Notifications Page_
   - _Depends: 1.2_
 
-- [ ] 2.3 (P) 一般ユーザー向けお知らせ一覧タブの構築
+- [x] 2.3 (P) 一般ユーザー向けお知らせ一覧タブの構築
   - `src/app/notifications/announcements-tab.tsx` を新規作成する。
   - 公開状態のお知らせを公開日時の降順で一覧表示し、本文を `parseMarkdownToHtml` を用いてマークダウン表示する。
   - **Observable completion**: お知らせ一覧に投稿されたお知らせがマークダウン形式で正しくレンダリングされて表示されること。
