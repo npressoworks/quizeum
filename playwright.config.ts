@@ -75,7 +75,6 @@ export default defineConfig({
     },
   ],
 
-  /* テスト開始前にローカルのWebサーバー（Next.js）を起動する設定 */
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
