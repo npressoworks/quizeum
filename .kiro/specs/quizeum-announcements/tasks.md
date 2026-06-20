@@ -52,7 +52,7 @@
   - _Boundary: Admin Portal & Routing_
   - _Depends: 2.1, 2.2_
 
-- [ ] 3.2 E2Eテストの実装
+- [x] 3.2 E2Eテストの実装
   - 管理者お知らせ作成・編集・削除、未ログインユーザーでのお知らせタブ表示・ログイン誘導の Playwright E2Eテストを `e2e/announcements.spec.ts` などの新規ファイルで追加する。
   - **Observable completion**: `npm run test:e2e` を実行し、追加したお知らせ関連のE2Eテストがすべてパスすること。
   - _Requirements: 1.2, 1.3, 1.5, 2.2, 2.3, 2.4, 3.2, 3.3_
