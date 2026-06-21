@@ -147,7 +147,7 @@ export default function AdminAnnouncementsClient() {
       ) : (
         <div className="grid gap-4">
           {announcements.map((ann) => (
-            <Card key={ann.id} className="relative">
+            <Card key={ann.id} className="relative" data-testid="admin-announcement-card">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Badge variant={ann.status === 'published' ? 'default' : 'secondary'}>
