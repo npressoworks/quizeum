@@ -1433,7 +1433,7 @@
   - _Depends: 26.1_
   - _Boundary: UserService_
 
-- [ ] 26.4 Phase 30 統合検証
+- [x] 26.4 Phase 30 統合検証
   - SNSリンク機能の追加に伴う `UserService` と `StorageService` の連動テスト、および既存のプロフィール更新機能への回帰がないことを Jest テストで検証する
   - **完了状態**: Phase 30 関連の Jest テストがすべてグリーンになり、ビルドが通ること
   - _Requirements: 1.7, 1.8, 1.9, 1.10_
