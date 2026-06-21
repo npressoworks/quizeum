@@ -676,3 +676,156 @@ if (user) {
 **Effort**: **S**（0.5日未満）
 
 **Document Status（Phase 26 設計）**: 本節に反映。
+
+---
+
+## Phase 27: 管理者メニューへのナビ導線追加
+
+### 1. Overview
+
+システム管理者（Super Admin）向けに、PC用 Sidebar 主要ナビゲーション、Sidebar プロフィールポップアップ、モバイル用 Header プロフィールポップアップに「管理者メニュー」への遷移リンクを追加します。管理者判定は `quizeum-core` ですでに実装済みの `isAdminUser(user)` を使用します。
+
+### 2. Boundary Commitments（Phase 27）
+
+| Owns | Out |
+|------|-----|
+| Sidebar / Header における「管理者メニュー」リンク追加 | `/admin` 画面の実装（`quizeum-admin-users-ui` 等が担当） |
+| `nav-admin`, `sidebar-admin-link`, `header-admin-link` testid | `isAdminUser` 判定ロジック（`quizeum-core` の既存ロジックを再利用） |
+| `/admin` へのアクティブ状態の判定 | |
+
+### 3. Navigation Items（Phase 27 差分）
+
+#### Sidebar 主要ナビゲーション（`sidebar.tsx`）
+`user` が存在し、かつ `isAdminUser(user)` が真の場合に、「ダッシュボード」リンクの下、「作問する」ボタンの上に「管理者メニュー」へのリンクを表示します。
+
+```tsx
+{user && isAdminUser(user) && (
+  <Link
+    href="/admin"
+    className={cn(
+      navLinkBase,
+      (pathname === '/admin' || pathname?.startsWith('/admin/')) && navLinkActive
+    )}
+    data-testid="nav-admin"
+  >
+    <span className="flex size-6 shrink-0 items-center justify-center">
+      <Shield size={22} />
+    </span>
+    <span className="nav-label max-lg:hidden">管理者メニュー</span>
+  </Link>
+)}
+```
+
+- **管理者メニュー** アイコン: `lucide-react` の `Shield`
+- 配置位置: ダッシュボード（`/creator/dashboard`）リンクの下、作問する（`/quiz/create`）リンクの上。
+
+#### Sidebar アカウントポップアップ（`sidebar.tsx`）
+ドロップダウンメニューの先頭（マイページの上）に「管理者メニュー」を表示します。
+
+```tsx
+<DropdownMenuContent
+  side="right"
+  align="end"
+  sideOffset={12}
+  className="z-[100] w-[220px]"
+>
+  {isAdminUser(user) && (
+    <DropdownMenuItem
+      render={
+        <Link
+          href="/admin"
+          onClick={() => setPopupOpen(false)}
+          data-testid="sidebar-admin-link"
+        />
+      }
+    >
+      <Shield size={18} />
+      <span>管理者メニュー</span>
+    </DropdownMenuItem>
+  )}
+  <DropdownMenuItem
+    render={
+      <Link href={`/profile/${user.id}`} onClick={() => setPopupOpen(false)} />
+    }
+  >
+    <UserIcon size={18} />
+    <span>マイページ</span>
+  </DropdownMenuItem>
+...
+```
+
+#### Header プロフィールポップアップ（`header.tsx`）
+ドロップダウンメニューの先頭（マイクイズの上）に「管理者メニュー」を表示します。
+
+```tsx
+<DropdownMenuContent
+  align="end"
+  sideOffset={12}
+  className="w-[200px]"
+  data-testid="header-profile-popup"
+>
+  {isAdminUser(user) && (
+    <DropdownMenuItem
+      render={
+        <Link
+          href="/admin"
+          onClick={() => setPopupOpen(false)}
+          data-testid="header-admin-link"
+        />
+      }
+    >
+      <Shield size={18} />
+      <span>管理者メニュー</span>
+    </DropdownMenuItem>
+  )}
+  <DropdownMenuItem
+    render={
+      <Link
+        href="/my-quiz"
+        onClick={() => setPopupOpen(false)}
+        data-testid="header-nav-my-quiz"
+      />
+    }
+  >
+    <ClipboardList size={18} />
+    <span>マイクイズ</span>
+  </DropdownMenuItem>
+...
+```
+
+### 4. File Structure Plan（Phase 27）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/components/layout/sidebar.tsx` | **Modify** | 主要ナビに「管理者メニュー」リンク追加、プロフィールドロップダウンに「管理者メニュー」追加、`isAdminUser` と `Shield` のインポートおよび使用 |
+| `src/components/layout/header.tsx` | **Modify** | プロフィールドロップダウンに「管理者メニュー」追加、`isAdminUser` と `Shield` のインポートおよび使用 |
+| `tests/components/sidebar.test.tsx` | **Modify** | 管理者ログイン時の `nav-admin`・`sidebar-admin-link` の存在検証、一般ユーザー時の非表示検証 |
+| `tests/components/header.test.tsx` | **Modify** | 管理者ログイン時の `header-admin-link` の存在検証、一般ユーザー時の非表示検証 |
+
+### 5. Requirements Traceability（Phase 27）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 8.1 | 管理者ログイン時の Sidebar 「管理者メニュー」主要ナビ表示 | `sidebar.tsx` |
+| 8.2 | 未ログイン・非管理者時の「管理者メニュー」非表示 | `sidebar.tsx`, `header.tsx` |
+| 8.3 | 「管理者メニュー」クリックで `/admin` への遷移 | `sidebar.tsx`, `header.tsx` |
+| 8.4 | 現在のパスが `/admin` / `/admin/` のときのアクティブ表示 | `sidebar.tsx` |
+| 8.5 | testid `nav-admin` の付与 | `sidebar.tsx` |
+| 8.6 | 管理者ログイン時の Sidebar ポップアップ内表示 | `sidebar.tsx` |
+| 8.7 | 管理者ログイン時の Header ポップアップ内表示 | `header.tsx` |
+| 8.8 | testid `sidebar-admin-link` の付与 | `sidebar.tsx` |
+| 8.9 | testid `header-admin-link` の付与 | `header.tsx` |
+
+### 6. Testing Strategy（Phase 27）
+
+| 種別 | 検証 |
+|------|------|
+| **Component** | 非管理者ユーザー（一般ユーザー、または未ログイン）: `nav-admin` / `sidebar-admin-link` / `header-admin-link` が表示されないこと。 |
+| **Component** | 管理者ユーザー: `nav-admin` が主要ナビに表示され、`data-testid="nav-admin"` が付与されること。 |
+| **Component** | 管理者ユーザー: PC用 Sidebar / モバイル用 Header のドロップダウンを開いた際、`sidebar-admin-link` / `header-admin-link` が表示されること。 |
+| **Component** | パスが `/admin` の際、Sidebar の「管理者メニュー」がアクティブ（ハイライト）になること。 |
+
+**Effort**: **S**（0.5日未満）
+
+**Document Status（Phase 27 設計）**: 本節に反映。
+

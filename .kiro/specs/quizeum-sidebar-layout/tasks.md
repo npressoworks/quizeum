@@ -222,3 +222,49 @@
 - **実装順**: 7.1 完了後に 7.2・7.3 を並行可。7.4 は 7.1–7.3 完了後。
 - **隣接スペック**: `/lists` ルート・ブックマークリストタブ・プロフィールリストタブは他スペックが除去済み。本フェーズはナビシェルのみ。
 - **回帰注意**: Phase 23 のマイクイズ・設定 E2E（`header-nav-my-quiz`、 `sidebar-settings-link`）は維持する。
+
+---
+
+## 8. Phase 27: 管理者メニューへのナビ導線追加（2026-06-21）
+
+- [ ] 8.1 (P) Sidebar への管理者メニュー主要ナビ導線追加
+  - `sidebar.tsx` に `isAdminUser` と `Shield` アイコン (from `lucide-react`) をインポートする。
+  - `user` が存在し、かつ `isAdminUser(user)` が真の場合に、「ダッシュボード」の下、「作問する」ボタンの上に「管理者メニュー」リンク（遷移先: `/admin`）を追加する。
+  - `data-testid="nav-admin"` を付与する。
+  - パスが `/admin` または `/admin/` で始まるとき、管理者メニュー項目を active とし、他の項目が active にならないよう排他制御する。
+  - *検証結果*: 管理者ユーザーでログインした際、PC用 Sidebar の「ダッシュボード」の下に「管理者メニュー」が表示され、クリックで `/admin` へ遷移し、ハイライト表示されること。非管理者ユーザーや未ログイン時には表示されないこと。
+  - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+  - _Boundary: Sidebar_
+
+- [ ] 8.2 (P) Sidebar アカウントポップアップおよび Header プロフィールポップアップへの管理者メニューリンク追加
+  - `sidebar.tsx` のアカウントドロップダウンメニューの先頭（マイページの上）に「管理者メニュー」リンク（遷移先: `/admin`）を追加する（`data-testid="sidebar-admin-link"`）。
+  - `header.tsx` のプロフィールドロップダウンメニューの先頭（マイクイズの上）に「管理者メニュー」リンク（遷移先: `/admin`）を追加する（`data-testid="header-admin-link"`）。
+  - どちらも `isAdminUser(user)` 判定に基づいて表示を制御する。
+  - *検証結果*: 管理者ユーザーでログインした際、PC用 Sidebar のアバターポップアップおよびモバイル用 Header のアバターポップアップの先頭に「管理者メニュー」リンクが表示され、クリックで `/admin` に遷移すること。非管理者ユーザーや未ログイン時には表示されないこと。
+  - _Requirements: 8.2, 8.3, 8.6, 8.7, 8.8, 8.9_
+  - _Boundary: Sidebar, Header_
+
+- [ ] 8.3 (P) Phase 27 ナビ追加の単体テスト更新
+  - `tests/components/sidebar.test.tsx` (またはそれに類する Sidebar テスト) に、管理者ログイン時に `nav-admin` および `sidebar-admin-link` が表示されること、非管理者・未ログイン時に表示されないことのテストアサーションを追加する。
+  - `tests/components/header.test.tsx` (またはそれに類する Header テスト) に、管理者ログイン時に `header-admin-link` が表示されること、非管理者・未ログイン時に表示されないことのテストアサーションを追加する。
+  - *検証結果*: 関連する Jest コンポーネントテストがすべてグリーン（100%パス）になること。
+  - _Requirements: 8.1, 8.2, 8.6, 8.7_
+  - _Depends: 8.1, 8.2_
+  - _Boundary: Testing_
+
+- [ ] 8.4 Phase 27 E2Eテストの追加と統合検証
+  - Playwright E2E テスト（`e2e/layout.spec.ts` など）に管理者ユーザーでのテストケースを追加する。
+  - 管理者ユーザーでログインした状態で、Sidebar の「管理者メニュー」をクリックして `/admin` への遷移とアクティブハイライトを検証する。
+  - アカウントポップアップ内の「管理者メニュー」をクリックして `/admin` への遷移を検証する。
+  - モバイルビュー（375px）で Header のアバターポップアップから「管理者メニュー」をクリックして `/admin` への遷移を検証する。
+  - *検証結果*: E2Eレイアウトテストがローカル環境で正常にパスし、意図したナビゲーションと遷移が確認できること。
+  - _Requirements: 8.3, 8.4, 8.8, 8.9_
+  - _Depends: 8.1, 8.2_
+  - _Boundary: Testing_
+
+## Implementation Notes (Phase 27)
+
+- **実装順**: 8.1 と 8.2 は並行可能。8.3 と 8.4 は 8.1 と 8.2 の完了後に実行。
+- **管理者判定メソッド**: `src/lib/middleware-auth-cookies.ts` の `isAdminUser` をそのまま使用し、再実装しないこと。
+- **アイコン**: インポートするアイコンは `Shield` (from `lucide-react`)。
+

@@ -10,6 +10,8 @@
 
 **Phase 26（2026-06-10）**: クイズリスト機能の完全廃止に伴い、Phase 23 で追加した「リスト」（`/lists`）ナビ導線を Sidebar および Header プロフィールポップアップから除去します。マイクイズ（`/my-quiz`）および設定（`/settings`）への導線は維持します（`quizeum-core`・`quizeum-play-flow-ui`・`quizeum-creator-dash-ui`・`quizeum-my-quiz-ui` が Phase 26 でリスト機能を除去済み）。
 
+**Phase 27（2026-06-21）**: システム管理者（Super Admin）ロールを持つユーザーに対して、PC用 Sidebar およびモバイル用 Header のプロフィールポップアップから管理者ポータル画面（`/admin`）へ遷移できるナビゲーション項目を追加します。
+
 ## Boundary Context
 - **In scope**:
   - デスクトップ・タブレットサイズ用の縦型左サイドバー（Sidebar）の表示とメニュー統合。
@@ -21,6 +23,7 @@
   - **Phase 22**: Sidebar および BottomNav への「検索」（`/search`）導線追加、ホーム（`/`）と検索（`/search`）のアクティブハイライト区別。
   - **Phase 23（マイクイズ・設定は維持）**: Sidebar への「マイクイズ」（`/my-quiz`）導線追加（ログイン時のみ）。アカウントポップアップへの「設定」（`/settings`）導線追加。`/my-quiz`・`/settings` のアクティブハイライト。モバイル向けマイクイズ到達手段（BottomNav 以外のパターンを含む）。
   - **Phase 26**: Sidebar および Header プロフィールポップアップから「リスト」（`/lists`）ナビ項目の除去。`nav-lists`・`header-nav-lists` の `data-testid` 削除。`/lists` 向け active 判定・関連テスト／E2E の更新。
+  - **Phase 27**: `isAdminUser(user)` 判定に基づき、システム管理者である場合に Sidebar の主要ナビゲーションに「管理者メニュー」項目を追加。システム管理者である場合に、PC用 Sidebar およびモバイル用 Header のプロフィールポップアップに「管理者メニュー」へのリンクを追加。主要ナビゲーション項目への `data-testid`追加（`nav-admin`）、およびドロップダウン項目への `data-testid` 追加（`sidebar-admin-link` / `header-admin-link`）。
 - **Out of scope**:
   - クイズプレイ画面（`/play`）におけるナビゲーションレイアウトの表示（非表示のまま維持）。
   - サイドバーまたはボトムナビ上の未読通知バッジ等のリアルタイム更新システム（静的なプレースホルダー表示枠のみをスコープとする）。
@@ -30,6 +33,7 @@
   - **Phase 22**: ディスカバリーホームおよび検索画面のカルーセル・フィルタ UI は `quizeum-play-flow-ui` が提供すること。検索 URL クエリ契約は `quizeum-core` が提供すること。
   - **Phase 23**: マイクイズページ（`/my-quiz`）は `quizeum-my-quiz-ui`、設定ページおよびテーマ切替は `quizeum-user-settings-ui` が提供すること。`layout.tsx` への ThemeProvider 統合は `quizeum-user-settings-ui` が担当し、本スペックはシェル構造の整合に協調すること。
   - **Phase 26**: `/lists` ルートは廃止済み（404）。リスト探索・作成・編集 UI の除去は `quizeum-play-flow-ui`・`quizeum-creator-dash-ui` が担当済み。プロフィール「作成したリスト」タブ除去は `quizeum-auth-profile-ui` が担当。
+  - **Phase 27**: 管理者ユーザーの権限判定（`isAdminUser`）は `quizeum-core` の判定メソッド (`src/lib/middleware-auth-cookies.ts`) および `User` 型定義 (`src/types/index.ts`) を再利用すること。管理者ポータル画面（`/admin`）自体の実装や認可制御は `quizeum-admin-users-ui` 等が担当すること。
 
 ## Requirements
 
@@ -146,3 +150,17 @@
 14. The Sidebar Component shall [プロフィール画面の「作成したリスト」タブ除去を本要件の範囲に含めない（`quizeum-auth-profile-ui` が担当）]。
 15. The Sidebar Component shall [ブックマーク画面の「リスト」タブ除去を本要件の範囲に含めない（`quizeum-play-flow-ui` が担当済み）]。
 16. The Sidebar Component shall [マイクイズのブックマークリストソース除去を本要件の範囲に含めない（`quizeum-my-quiz-ui` が担当済み）]。
+
+### Requirement 8: 管理者メニューへのナビ導線追加（Phase 27）
+**Objective:** As a システム管理者, I want 各メニューから管理者ページ（`/admin`）へ1タップで遷移できること, so that ユーザー管理やモデレーション作業を迅速に開始できる。
+
+#### Acceptance Criteria
+1. While ユーザーがログイン状態かつ管理者権限（`isAdminUser(user)` が true）であるとき, the Sidebar Component shall 「管理者メニュー」（`/admin`）を主要ナビゲーション項目（「ダッシュボード」等の下部、「作問する」ボタンの上）に含めること。
+2. While ユーザーが未ログイン状態または管理者権限がないとき, the Sidebar Component shall 主要ナビゲーションおよびプロフィールポップアップに「管理者メニュー」を非表示にすること。
+3. When ユーザーが Sidebar の「管理者メニュー」項目をクリックしたとき, the Sidebar Component shall 管理者ポータル画面（`/admin`）へ遷移すること。
+4. While 現在のパスが `/admin` または `/admin/` で始まるとき, the Sidebar Component shall 「管理者メニュー」項目をアクティブ状態としてハイライト表示すること。
+5. The Sidebar Component shall 主要ナビゲーションの「管理者メニュー」項目に `data-testid="nav-admin"` を付与すること。
+6. When ログインユーザーが管理者権限を持ち、かつ PC 用 Sidebar のフッター領域でプロフィールポップアップを開いたとき, the Sidebar Component shall ポップアップ内に「管理者メニュー」（`/admin`）へのリンクを表示すること。
+7. When ログインユーザーが管理者権限を持ち、かつモバイル用 Header のプロフィールポップアップを開いたとき, the Header Component shall ポップアップ内に「管理者メニュー」（`/admin`）へのリンクを表示すること。
+8. The Sidebar Component shall PC 用プロフィールドロップダウン内の「管理者メニュー」リンクに `data-testid="sidebar-admin-link"` を付与すること。
+9. The Header Component shall モバイル用プロフィールドロップダウン内の「管理者メニュー」リンクに `data-testid="header-admin-link"` を付与すること。
