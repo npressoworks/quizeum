@@ -28,36 +28,46 @@ describe('bookmark service', () => {
   });
 
   it('getBookmarkedQuizzes はドキュメント ID でクイズを解決する（id フィールド in クエリに依存しない）', async () => {
-    (getDocs as jest.Mock).mockResolvedValue({
-      docs: [
-        {
-          data: () => ({
-            userId,
-            targetId: 'quiz-a',
-            targetType: 'quiz',
-            createdAt: new Date('2026-06-01'),
-          }),
-        },
-      ],
-    });
-
-    (getDoc as jest.Mock).mockImplementation(async (ref: { id: string }) => {
-      if (ref.id === 'quiz-a') {
+    (getDocs as jest.Mock).mockImplementation(async () => {
+      const callCount = (getDocs as jest.Mock).mock.calls.length;
+      if (callCount === 1) {
         return {
-          exists: () => true,
-          data: () => ({
-            id: 'quiz-a',
-            title: 'テストクイズ',
-            status: 'published',
-          }),
+          docs: [
+            {
+              data: () => ({
+                userId,
+                targetId: 'quiz-a',
+                targetType: 'quiz',
+                createdAt: new Date('2026-06-01'),
+              }),
+            },
+          ],
+          forEach(callback: any) {
+            this.docs.forEach(callback);
+          }
+        };
+      } else {
+        return {
+          docs: [
+            {
+              id: 'quiz-a',
+              data: () => ({
+                id: 'quiz-a',
+                title: 'テストクイズ',
+                status: 'published',
+              }),
+            },
+          ],
+          forEach(callback: any) {
+            this.docs.forEach(callback);
+          }
         };
       }
-      return { exists: () => false, data: () => null };
     });
 
     const quizzes = await getBookmarkedQuizzes(userId);
 
-    expect(getDoc).toHaveBeenCalled();
+    expect(getDocs).toHaveBeenCalledTimes(2);
     expect(quizzes).toHaveLength(1);
     expect(quizzes[0].id).toBe('quiz-a');
     expect(quizzes[0].title).toBe('テストクイズ');

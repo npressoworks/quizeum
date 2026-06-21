@@ -40,12 +40,15 @@ export async function getQuestionsByQuiz(quizId: string): Promise<Question[]> {
   }
 
   const questions: Question[] = [];
+  const chunkSize = 30; // Firestore `in` クエリの上限サイズ
 
-  for (const questionId of questionIds) {
-    const snap = await getDoc(doc(questionsRef, questionId));
-    if (snap.exists()) {
-      questions.push(snap.data());
-    }
+  for (let i = 0; i < questionIds.length; i += chunkSize) {
+    const chunk = questionIds.slice(i, i + chunkSize);
+    const questionQuery = query(questionsRef, where('id', 'in', chunk));
+    const questionSnap = await getDocs(questionQuery);
+    questionSnap.forEach((docSnap) => {
+      questions.push(docSnap.data());
+    });
   }
 
   // クイズが保持する本来の順序（questionIds配列のインデックス）通りにソートして返す

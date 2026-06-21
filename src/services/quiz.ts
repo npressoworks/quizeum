@@ -173,6 +173,7 @@ async function queryPublishedByCanonicalGenre(
   const q = query(
     quizzesRef,
     where('status', '==', 'published'),
+    where('visibility', '==', 'public'),
     where('canonicalGenreId', '==', canonicalGenreId),
     orderBy(orderField, 'desc'),
     limit(limitCount)
@@ -186,6 +187,7 @@ async function queryPublishedByGenreIn(genreIds: string[], limitCount: number): 
   const q = query(
     quizzesRef,
     where('status', '==', 'published'),
+    where('visibility', '==', 'public'),
     where('genre', 'in', genreIds),
     limit(limitCount)
   );
@@ -203,6 +205,7 @@ async function queryPublishedByCanonicalTag(
   const q = query(
     quizzesRef,
     where('status', '==', 'published'),
+    where('visibility', '==', 'public'),
     where('canonicalTagIds', 'array-contains', tagId),
     orderBy(orderField, 'desc'),
     limit(limitCount)
@@ -215,6 +218,7 @@ async function queryPublishedByLegacyTag(tag: string, limitCount: number): Promi
   const q = query(
     quizzesRef,
     where('status', '==', 'published'),
+    where('visibility', '==', 'public'),
     where('tags', 'array-contains', tag),
     limit(limitCount)
   );
@@ -760,6 +764,7 @@ async function fetchPublishedTabPage(
   const orderField = orderFieldForTabKind(kind);
   const baseConstraints = [
     where('status', '==', 'published'),
+    where('visibility', '==', 'public'),
     orderBy(orderField, 'desc'),
   ] as const;
 
@@ -924,13 +929,15 @@ export async function materializeSearchQuizzes(
     const tagQuery = query(
       quizzesRef,
       where('status', '==', 'published'),
-      where('tags', 'array-contains', normalizedQuery)
+      where('tags', 'array-contains', normalizedQuery),
+      limit(SEARCH_POOL_SIZE)
     );
 
     const authorQuery = query(
       quizzesRef,
       where('status', '==', 'published'),
-      where('authorName', '==', queryText)
+      where('authorName', '==', queryText),
+      limit(SEARCH_POOL_SIZE)
     );
 
     const [tagSnap, authorSnap, genreQuizzes, latestQuizzes] = await Promise.all([

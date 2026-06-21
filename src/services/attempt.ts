@@ -15,6 +15,7 @@ import {
   arrayUnion,
   arrayRemove,
   Timestamp,
+  documentId,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase/config';
 import { expandGenreIdsForQuery, quizMatchesGenreFilter } from '../lib/metadata-resolution';
@@ -45,7 +46,8 @@ async function countPriorCompletedAttempts(
     query(
       attemptsCollection,
       where('userId', '==', userId),
-      where('quizId', '==', quizId)
+      where('quizId', '==', quizId),
+      limit(excludeAttemptId ? 2 : 1)
     )
   );
 
@@ -55,6 +57,7 @@ async function countPriorCompletedAttempts(
     return data.completedAt != null;
   }).length;
 }
+
 import {
   getPendingSyncAttempts,
   clearPendingSyncAttempt,
@@ -301,13 +304,27 @@ export async function getFailedQuestions(
 
   // 2. 対象となるクイズデータをまとめてフェッチし、問題オブジェクトを抽出する
   const failedQuestions: Question[] = [];
+  const targetQuizIds = Object.keys(quizIdToFailedIds);
+  const quizMap = new Map<string, Quiz>();
 
-  for (const qId of Object.keys(quizIdToFailedIds)) {
-    const quizDocRef = doc(quizzesRef, qId);
-    const quizSnap = await getDoc(quizDocRef);
+  if (targetQuizIds.length > 0) {
+    const chunks = [];
+    for (let i = 0; i < targetQuizIds.length; i += 30) {
+      chunks.push(targetQuizIds.slice(i, i + 30));
+    }
+    const snaps = await Promise.all(
+      chunks.map((chunk) => getDocs(query(quizzesRef, where(documentId(), 'in', chunk))))
+    );
+    snaps.forEach((snap) => {
+      snap.forEach((d) => {
+        quizMap.set(d.id, d.data() as Quiz);
+      });
+    });
+  }
 
-    if (quizSnap.exists()) {
-      const quiz = quizSnap.data() as Quiz;
+  for (const qId of targetQuizIds) {
+    const quiz = quizMap.get(qId);
+    if (quiz) {
       if (genreIdSet && !quizMatchesGenreFilter(quiz, genreIdSet)) {
         continue;
       }
@@ -449,21 +466,25 @@ export async function listUserPlayHistory(params: {
   const hasMore = docs.length > pageSize;
   const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
 
+  // クイズIDをユニーク化して一括取得する
+  const quizIds = [...new Set(pageDocs.map((d) => (d.data() as Attempt).quizId).filter(Boolean))];
   const quizTitleCache = new Map<string, string>();
+
+  if (quizIds.length > 0) {
+    // pageSize はデフォルト 20 なので、quizIds も最大 21 件となり、単一の in クエリ（上限30）で取得可能
+    const quizSnaps = await getDocs(query(quizzesRef, where(documentId(), 'in', quizIds)));
+    quizSnaps.forEach((d) => {
+      quizTitleCache.set(d.id, (d.data() as Quiz).title);
+    });
+  }
+
   const items: PlayHistoryEntry[] = [];
 
   for (const docSnap of pageDocs) {
     const data = docSnap.data() as Attempt;
     if (!data.completedAt) continue;
 
-    let quizTitle = quizTitleCache.get(data.quizId);
-    if (!quizTitle) {
-      const quizSnap = await getDoc(doc(quizzesRef, data.quizId));
-      quizTitle = quizSnap.exists()
-        ? (quizSnap.data() as Quiz).title
-        : '（削除されたクイズ）';
-      quizTitleCache.set(data.quizId, quizTitle);
-    }
+    const quizTitle = quizTitleCache.get(data.quizId) ?? '（削除されたクイズ）';
 
     items.push({
       attemptId: docSnap.id,
@@ -493,7 +514,12 @@ export async function listUserPlayHistory(params: {
  * 本人が完了済みプレイしたクイズ ID の一覧（重複除去）。ホームのプレイ状況フィルタ用。
  */
 export async function listUserPlayedQuizIds(uid: string): Promise<string[]> {
-  const attemptsQuery = query(attemptsCollection, where('userId', '==', uid));
+  const attemptsQuery = query(
+    attemptsCollection,
+    where('userId', '==', uid),
+    orderBy('completedAt', 'desc'),
+    limit(500)
+  );
   const snap = await getDocs(attemptsQuery);
   const ids = new Set<string>();
 

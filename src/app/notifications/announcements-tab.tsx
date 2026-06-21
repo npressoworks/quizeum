@@ -14,7 +14,7 @@ export function AnnouncementsTab() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await getAnnouncements();
+        const data = await getAnnouncements(20);
         setAnnouncements(data);
       } catch (err) {
         console.error('[AnnouncementsTab] Failed to load announcements:', err);

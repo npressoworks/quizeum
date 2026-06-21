@@ -8,6 +8,7 @@ import {
   setDoc,
   type DocumentData,
   type DocumentReference,
+  documentId,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase/config';
 import { bookmarksRef, quizzesRef, questionsRef, usersRef } from '../lib/firebase/firestore';
@@ -70,15 +71,24 @@ function sortBookmarksByCreatedAtDesc(bookmarkDocs: Bookmark[]): Bookmark[] {
 
 /** createConverter が本文から id を除去するため、ドキュメント ID で直接取得する */
 async function fetchPublishedQuizzesByDocIds(quizIds: string[]): Promise<Quiz[]> {
-  const snaps = await Promise.all(quizIds.map((id) => getDoc(doc(quizzesRef, id))));
-  const quizzes: Quiz[] = [];
-  for (const snap of snaps) {
-    if (!snap.exists()) continue;
-    const quiz = snap.data();
-    if (quiz.status === 'published') {
-      quizzes.push(quiz);
-    }
+  if (quizIds.length === 0) return [];
+  const uniqueIds = [...new Set(quizIds)];
+  const chunks = [];
+  for (let i = 0; i < uniqueIds.length; i += 30) {
+    chunks.push(uniqueIds.slice(i, i + 30));
   }
+  const snaps = await Promise.all(
+    chunks.map((chunk) => getDocs(query(quizzesRef, where(documentId(), 'in', chunk))))
+  );
+  const quizzes: Quiz[] = [];
+  snaps.forEach((snap) => {
+    snap.forEach((d) => {
+      const quiz = d.data() as Quiz;
+      if (quiz.status === 'published') {
+        quizzes.push(quiz);
+      }
+    });
+  });
   return quizzes;
 }
 
@@ -349,16 +359,58 @@ export async function enrichBookmarkedQuestions(
     snap.docs.map((d) => d.data() as Bookmark)
   );
 
+  if (bookmarkDocs.length === 0) return [];
+
+  // 1. 問題IDを一括取得
+  const questionIds = [...new Set(bookmarkDocs.map((bm) => bm.targetId))];
+  const questionMap = new Map<string, Question>();
+  if (questionIds.length > 0) {
+    const chunks = [];
+    for (let i = 0; i < questionIds.length; i += 30) {
+      chunks.push(questionIds.slice(i, i + 30));
+    }
+    const snaps = await Promise.all(
+      chunks.map((chunk) => getDocs(query(questionsRef, where(documentId(), 'in', chunk))))
+    );
+    snaps.forEach((s) => {
+      s.forEach((d) => {
+        questionMap.set(d.id, d.data() as Question);
+      });
+    });
+  }
+
+  // 2. クイズIDを一括取得
+  const quizIds = [
+    ...new Set(
+      Array.from(questionMap.values())
+        .map((q) => q.quizId)
+        .filter(Boolean)
+    ),
+  ];
+  const quizMap = new Map<string, Quiz>();
+  if (quizIds.length > 0) {
+    const chunks = [];
+    for (let i = 0; i < quizIds.length; i += 30) {
+      chunks.push(quizIds.slice(i, i + 30));
+    }
+    const snaps = await Promise.all(
+      chunks.map((chunk) => getDocs(query(quizzesRef, where(documentId(), 'in', chunk))))
+    );
+    snaps.forEach((s) => {
+      s.forEach((d) => {
+        quizMap.set(d.id, d.data() as Quiz);
+      });
+    });
+  }
+
+  // 3. エントリの構築
   const entries: BookmarkedQuestionEntry[] = [];
   for (const bm of bookmarkDocs) {
-    const questionSnap = await getDoc(doc(questionsRef, bm.targetId));
-    if (!questionSnap.exists()) continue;
-    const question = questionSnap.data() as Question;
-    if (!question.quizId) continue;
-    const quizSnap = await getDoc(doc(quizzesRef, question.quizId));
-    if (!quizSnap.exists()) continue;
-    const quiz = quizSnap.data() as Quiz;
-    if (quiz.status !== 'published') continue;
+    const question = questionMap.get(bm.targetId);
+    if (!question || !question.quizId) continue;
+    const quiz = quizMap.get(question.quizId);
+    if (!quiz || quiz.status !== 'published') continue;
+
     entries.push({
       question,
       parentQuizId: quiz.id,
