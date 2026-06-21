@@ -85,16 +85,20 @@ test.describe('運営からのお知らせ機能 E2Eテスト', () => {
     await page.waitForTimeout(2000);
 
     // デフォルトで「通知」タブが選択されているか確認
-    const personalTabTrigger = page.locator('button', { hasText: '通知' });
+    const personalTabTrigger = page.locator('[data-testid="personal-tab-trigger"]');
     await expect(personalTabTrigger).toHaveAttribute('aria-selected', 'true');
-
-    // 「運営からのお知らせ」タブを選択
-    const announcementTabTrigger = page.locator('button', { hasText: '運営からのお知らせ' });
-    await announcementTabTrigger.click();
 
     // ログイン誘導UIが表示されることを確認
     await expect(page.locator('text=通知機能を利用するにはログインが必要です')).toBeVisible();
     await expect(page.locator('[data-testid="login-redirect-btn"]')).toBeVisible();
+
+    // 「運営からのお知らせ」タブを選択
+    const announcementTabTrigger = page.locator('[data-testid="announcements-tab-trigger"]');
+    await announcementTabTrigger.click();
+    await page.waitForTimeout(1000);
+
+    // ログイン誘導UIが非表示になり、お知らせタブの内容が正しく表示されること
+    await expect(page.locator('text=通知機能を利用するにはログインが必要です')).not.toBeVisible();
 
     await context.close();
   });
@@ -155,8 +159,8 @@ test.describe('運営からのお知らせ機能 E2Eテスト', () => {
 
     // 4. お知らせの編集
     // 編集ボタンをクリック（新しく作ったカード内の編集ボタン）
-    const card = page.locator('div.relative', { hasText: testTitle });
-    await card.locator('button:has-text("編集")').click();
+    const card = page.locator('[data-testid="admin-announcement-card"]', { hasText: testTitle });
+    await card.locator('button:has-text("編集")').first().click();
 
     // 編集ダイアログでタイトルを変更
     const updatedTitle = testTitle + '-編集済';
@@ -174,7 +178,7 @@ test.describe('運営からのお知らせ機能 E2Eテスト', () => {
     await page.waitForTimeout(2000);
     
     // 「運営からのお知らせ」タブを選択
-    const announcementTabTrigger = page.locator('button', { hasText: '運営からのお知らせ' });
+    const announcementTabTrigger = page.locator('[data-testid="announcements-tab-trigger"]');
     await announcementTabTrigger.click();
     await page.waitForTimeout(1000);
 
@@ -201,8 +205,8 @@ test.describe('運営からのお知らせ機能 E2Eテスト', () => {
     });
 
     // 削除ボタンをクリック
-    const updatedCard = page.locator('div.relative', { hasText: updatedTitle });
-    await updatedCard.locator('button:has-text("削除")').click();
+    const updatedCard = page.locator('[data-testid="admin-announcement-card"]', { hasText: updatedTitle });
+    await updatedCard.locator('button:has-text("削除")').first().click();
     await page.waitForTimeout(2000);
 
     // 一覧から削除されたことを確認
@@ -212,7 +216,7 @@ test.describe('運営からのお知らせ機能 E2Eテスト', () => {
     await page.goto('/notifications');
     await page.waitForTimeout(2000);
     // 「運営からのお知らせ」タブを選択
-    const announcementTabTriggerAfterDel = page.locator('button', { hasText: '運営からのお知らせ' });
+    const announcementTabTriggerAfterDel = page.locator('[data-testid="announcements-tab-trigger"]');
     await announcementTabTriggerAfterDel.click();
     await page.waitForTimeout(1000);
     await expect(page.locator(`text=${updatedTitle}`).first()).not.toBeVisible();
@@ -279,8 +283,8 @@ test.describe('運営からのお知らせ機能 E2Eテスト', () => {
     page.on('dialog', async (dialog) => {
       await dialog.accept();
     });
-    const updatedCard = page.locator('div.relative', { hasText: testTitle });
-    await updatedCard.locator('button:has-text("削除")').click();
+    const updatedCard = page.locator('[data-testid="admin-announcement-card"]', { hasText: testTitle });
+    await updatedCard.locator('button:has-text("削除")').first().click();
     await page.waitForTimeout(2000);
 
     await context.close();
