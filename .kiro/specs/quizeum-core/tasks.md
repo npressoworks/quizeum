@@ -1406,3 +1406,43 @@
 
 - 実装順: 25.1 → 25.2 → 25.3 → 25.4 → 25.5。
 - UI プレイ画面（`quizeum-ui-quiz-lifecycle`）側でのフックトラッキング実装が先行または同時に完了している必要があります。
+
+---
+
+### 26. Phase 30: プロフィールSNSリンク登録・表示機能（2026-06-21）
+
+- [x] 26.1 (P) プロフィール型定義とSNSリンク検証機能の追加
+  - `src/types/index.ts` の `User` 型と `UpdateProfileData` 型に `snsLinks` フィールドを追加する
+  - `src/services/user.ts` にドメイン検証用正規表現パターンを追加し、`validateProfileData` で各URLが URL 形式であり、指定ドメイン（youtube.com/youtu.be, x.com/twitter.com, instagram.com, tiktok.com）に合致することを検証するロジックを実装する
+  - 不正な形式や未許可のドメインの場合は適切な `ProfileValidationError` を返すことを保証する
+  - **完了状態**: 型チェックがすべて通り、`validateProfileData` の単体テストで正しいドメインがパスし、不正なドメインが弾かれること
+  - _Requirements: 1.7, 1.8_
+  - _Boundary: UserService_
+
+- [ ] 26.2 (P) StorageロゴダウンロードURL取得ヘルパーの実装
+  - `src/services/storage.ts` にインメモリキャッシュオブジェクト（`snsLogoCache: Record<string, string>`）を定義する
+  - `getSnsLogoUrl(snsName: string): Promise<string>` ヘルパーを実装し、キャッシュに存在すれば即時返し、存在しなければ Firebase Storage 上の `assets/logos/{snsName}.png` の `getDownloadURL` を呼び出してキャッシュに格納したのち返却する
+  - **完了状態**: 指定されたSNS名に対する Storage のダウンロードURLが取得でき、2回目以降の呼び出しでは Storage への問い合わせ（API呼び出し）をせずにキャッシュから即座にURLが返されること
+  - _Requirements: 1.10_
+  - _Boundary: StorageService_
+
+- [ ] 26.3 `updateProfile` へのSNSリンク保存の統合
+  - `src/services/user.ts` の `updateProfile` サービスにおいて、バリデーションに合格した `snsLinks` オブジェクトを Firestore の `users/{userId}` ドキュメントに保存する処理を実装する
+  - **完了状態**: 認証ユーザーが正しいSNSリンク情報を送信した際、データベース上の `users/{userId}` ドキュメント内の `snsLinks` フィールドにオブジェクトが正常に保存されること
+  - _Requirements: 1.9_
+  - _Depends: 26.1_
+  - _Boundary: UserService_
+
+- [ ] 26.4 Phase 30 統合検証
+  - SNSリンク機能の追加に伴う `UserService` と `StorageService` の連動テスト、および既存のプロフィール更新機能への回帰がないことを Jest テストで検証する
+  - **完了状態**: Phase 30 関連の Jest テストがすべてグリーンになり、ビルドが通ること
+  - _Requirements: 1.7, 1.8, 1.9, 1.10_
+  - _Depends: 26.2, 26.3_
+  - _Boundary: Integration_
+
+## Implementation Notes (Phase 30)
+
+- 実装順: 26.1 → 26.2/26.3（26.1 後並行可）→ 26.4。
+- `User.snsLinks` は任意項目（オプショナル）であり、YouTube, X, Instagram, TikTok のうち設定されたもののみ保存される。
+- SNSロゴ画像は SVG 形式ではなく PNG 形式（`assets/logos/{snsName}.png`）として Storage に保存・取得される。
+- インメモリキャッシュ (`snsLogoCache`) を `src/services/storage.ts` に配置し、表示パフォーマンスを担保する。

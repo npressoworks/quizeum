@@ -29,13 +29,19 @@ export interface UpdateProfileData {
   displayName: string;
   bio: string;
   followedGenres?: string[];
+  snsLinks?: {
+    youtube?: string;
+    x?: string;
+    instagram?: string;
+    tiktok?: string;
+  };
 }
 
 /**
  * プロフィール更新のバリデーションエラー型
  */
 export interface ProfileValidationError {
-  field: 'displayName' | 'bio';
+  field: 'displayName' | 'bio' | 'snsLinks.youtube' | 'snsLinks.x' | 'snsLinks.instagram' | 'snsLinks.tiktok';
   message: string;
 }
 
@@ -197,6 +203,45 @@ export function validateProfileData(data: UpdateProfileData): ProfileValidationE
 
   if (data.bio.length > 200) {
     errors.push({ field: 'bio', message: '自己紹介は200文字以内で入力してください' });
+  }
+
+  if (data.snsLinks) {
+    const snsDomains: Record<string, string[]> = {
+      youtube: ['youtube.com', 'youtu.be'],
+      x: ['x.com', 'twitter.com'],
+      instagram: ['instagram.com'],
+      tiktok: ['tiktok.com'],
+    };
+
+    for (const [key, value] of Object.entries(data.snsLinks)) {
+      const fieldKey = `snsLinks.${key}` as 'snsLinks.youtube' | 'snsLinks.x' | 'snsLinks.instagram' | 'snsLinks.tiktok';
+      
+      if (!value || value.trim() === '') {
+        continue;
+      }
+
+      let url: URL;
+      try {
+        url = new URL(value.trim());
+      } catch (e) {
+        errors.push({ field: fieldKey, message: '正しいURL形式で入力してください' });
+        continue;
+      }
+
+      const hostname = url.hostname.toLowerCase();
+      const allowedDomains = snsDomains[key];
+      if (allowedDomains) {
+        const isMatch = allowedDomains.some((domain) => {
+          return hostname === domain || hostname.endsWith('.' + domain);
+        });
+        if (!isMatch) {
+          errors.push({
+            field: fieldKey,
+            message: `${key}のリンクには許可されていないドメインです。`,
+          });
+        }
+      }
+    }
   }
 
   return errors;

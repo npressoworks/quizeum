@@ -36,6 +36,12 @@ export interface User {
   subscriptionStatus?: SubscriptionStatus;
   currentPeriodEnd?: Date;
   isPremium?: boolean;
+  snsLinks?: {
+    youtube?: string;
+    x?: string;
+    instagram?: string;
+    tiktok?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
