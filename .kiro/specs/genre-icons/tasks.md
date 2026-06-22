@@ -24,7 +24,7 @@
   - _Requirements: 2.1, 2.2_
   - _Boundary: migrate-icon API_
 
-- [ ] 2.3 (P) 管理者ジャンル登録 API の Storage 移行
+- [x] 2.3 (P) 管理者ジャンル登録 API の Storage 移行
   - `/api/admin/genres` の POST 処理内のアセット移行ロジックを、Storage 間でのコピー・削除に変更する
   - 管理者ユーザーからのリクエスト受信時に、`tempUrl` を検証した上で Storage の正式パスにコピーし、一時ファイルを削除する
   - ジャンル登録後に、`metadata_genres` コレクションの該当ジャンルドキュメントに Storage 公開 URL が正しく保存されることを確認する

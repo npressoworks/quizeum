@@ -1,3 +1,5 @@
+process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = 'gs://quizeum-test-bucket';
+
 import { NextRequest } from 'next/server';
 import { extractBearerToken, verifyFirebaseIdToken } from '@/lib/firebase/auth-verify';
 import { getDoc } from 'firebase/firestore';
@@ -28,6 +30,7 @@ const mockBucket = {
     copy: jest.fn().mockResolvedValue(undefined),
     makePublic: jest.fn().mockResolvedValue(undefined),
     delete: jest.fn().mockResolvedValue(undefined),
+    exists: jest.fn().mockResolvedValue([true]),
   })),
 };
 
@@ -251,19 +254,6 @@ describe('Admin Genres API', () => {
     });
 
     test('一時アイコン画像（AI生成/アップロード）のパスを正式なパスに移行して保存すること', async () => {
-      const fs = require('fs');
-      const path = require('path');
-      const tempDir = path.join(process.cwd(), 'assets', 'genre', 'temp');
-      const destDir = path.join(process.cwd(), 'assets', 'genre', 'new-genre');
-
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-
-      const tempFileName = 'temp_icon_admin_12345.png';
-      const tempFilePath = path.join(tempDir, tempFileName);
-      fs.writeFileSync(tempFilePath, 'dummy data');
-
       mockVerifyFirebaseIdToken.mockResolvedValue('admin-1');
       mockGetDoc.mockResolvedValue({
         exists: () => true,
@@ -278,41 +268,22 @@ describe('Admin Genres API', () => {
 
       const tempPayload = {
         ...validPayload,
-        iconImageUrl: `/api/assets/genre/temp/${tempFileName}`,
+        iconImageUrl: 'https://storage.googleapis.com/quizeum-test-bucket/genres/temp/temp_icon_admin_12345.png',
       };
 
-      try {
-        const res = await POST(buildRequest('POST', tempPayload));
-        const body = await res.json();
+      const res = await POST(buildRequest('POST', tempPayload));
+      const body = await res.json();
 
-        expect(res.status).toBe(200);
-        expect(body.success).toBe(true);
-        expect(mockDoc.set).toHaveBeenCalledTimes(1);
-        
-        const setArg = mockDoc.set.mock.calls[0][0];
-        expect(setArg.iconImageUrl).toContain('/api/assets/genre/new-genre/icon_');
+      expect(res.status).toBe(200);
+      expect(body.success).toBe(true);
+      expect(mockDoc.set).toHaveBeenCalledTimes(1);
+      
+      const setArg = mockDoc.set.mock.calls[0][0];
+      expect(setArg.iconImageUrl).toContain('https://storage.googleapis.com/quizeum-test-bucket/genres/new-genre/icon_');
 
-        // コピー先ファイルの存在確認
-        const destFileName = setArg.iconImageUrl.split('/').pop();
-        const savedFilePath = path.join(destDir, destFileName);
-        expect(fs.existsSync(savedFilePath)).toBe(true);
-        expect(fs.readFileSync(savedFilePath, 'utf-8')).toBe('dummy data');
-
-        // 一時ファイルの削除確認
-        expect(fs.existsSync(tempFilePath)).toBe(false);
-      } finally {
-        // クリーンアップ
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
-        }
-        if (fs.existsSync(destDir)) {
-          const files = fs.readdirSync(destDir);
-          for (const file of files) {
-            fs.unlinkSync(path.join(destDir, file));
-          }
-          fs.rmdirSync(destDir);
-        }
-      }
+      // Storage操作のアサーション
+      expect(mockBucket.file).toHaveBeenCalledWith('genres/temp/temp_icon_admin_12345.png');
+      expect(mockBucket.file).toHaveBeenCalledWith(expect.stringMatching(/^genres\/new-genre\/icon_\d+\.png$/));
     });
   });
 });

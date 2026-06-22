@@ -3,8 +3,23 @@ import { doc, getDoc } from 'firebase/firestore';
 import { extractBearerToken, verifyFirebaseIdToken } from '@/lib/firebase/auth-verify';
 import { usersRef } from '@/lib/firebase/firestore';
 import { isAdminUser } from '@/lib/middleware-auth-cookies';
-import { getAdminFirestore } from '@/lib/firebase/admin';
+import { getAdminFirestore, getAdminStorage } from '@/lib/firebase/admin';
 import { User } from '@/types';
+
+const DEFAULT_BUCKET =
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ??
+  process.env.FIREBASE_STORAGE_BUCKET;
+
+function resolveBucketName(): string {
+  if (DEFAULT_BUCKET) {
+    return DEFAULT_BUCKET.replace(/^gs:\/\//, '');
+  }
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  if (projectId) {
+    return `${projectId}.appspot.com`;
+  }
+  throw new Error('Firebase Storage バケット名が設定されていません');
+}
 
 /**
  * 管理者チェック用の共通ヘルパー
@@ -148,40 +163,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let finalIconImageUrl = iconImageUrl || null;
 
     // 一時保存されたアイコン画像（AI生成/手動アップロード）を正式なパスに移行する
-    if (finalIconImageUrl && finalIconImageUrl.includes('/api/assets/genre/temp/')) {
+    if (finalIconImageUrl && finalIconImageUrl.includes('/genres/temp/')) {
       try {
-        const fs = await import('fs');
         const path = await import('path');
+        const bucketName = resolveBucketName();
 
         // URLからファイル名を抽出
         const urlParts = finalIconImageUrl.split('/');
         const tempFilename = urlParts[urlParts.length - 1];
 
-        // 一時ファイルの絶対パス
-        const tempFilePath = path.join(process.cwd(), 'assets', 'genre', 'temp', tempFilename);
+        const bucket = getAdminStorage().bucket(bucketName);
+        const tempFile = bucket.file(`genres/temp/${tempFilename}`);
 
-        if (fs.existsSync(tempFilePath)) {
-          // コピー先の準備
-          const destDir = path.join(process.cwd(), 'assets', 'genre', id);
-          if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-          }
-
-          // コピー先ファイル名の決定
+        const [exists] = await tempFile.exists().catch(() => [false]);
+        if (exists) {
           const timestamp = Date.now();
           const ext = path.extname(tempFilename).toLowerCase() || '.png';
           const destFilename = `icon_${timestamp}${ext}`;
-          const destFilePath = path.join(destDir, destFilename);
+          const destFile = bucket.file(`genres/${id}/${destFilename}`);
 
-          // ファイルコピーの実行
-          fs.copyFileSync(tempFilePath, destFilePath);
+          // コピーの実行
+          await tempFile.copy(destFile);
+          await destFile.makePublic();
 
-          // 新しいローカルアセット配信URL
-          finalIconImageUrl = `/api/assets/genre/${id}/${destFilename}`;
+          finalIconImageUrl = `https://storage.googleapis.com/${bucketName}/genres/${id}/${destFilename}`;
 
-          // 一時ファイルの削除
+          // 元のファイルを削除
           try {
-            fs.unlinkSync(tempFilePath);
+            await tempFile.delete();
           } catch (unlinkErr) {
             console.error('[API/admin/genres] 一時ファイルの削除に失敗しました:', unlinkErr);
           }
