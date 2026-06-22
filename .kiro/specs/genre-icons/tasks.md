@@ -32,7 +32,7 @@
   - _Boundary: admin-genres API_
 
 - [ ] 3. Integration & Cleanup: 不要コンポーネントの削除
-- [ ] 3.1 ローカルアセット配信 API の削除
+- [x] 3.1 ローカルアセット配信 API の削除
   - 不要となったローカル配信 API `/api/assets/genre/[...path]` (ファイル: `src/app/api/assets/genre/[...path]/route.ts`) を削除する
   - プロジェクト全体のビルドを実行し、該当 API の参照削除に伴う型エラーやリンク切れがないことを確認する
   - _Requirements: 3.1_
