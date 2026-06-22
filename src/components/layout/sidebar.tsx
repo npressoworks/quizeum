@@ -41,7 +41,12 @@ const navLinkBase =
 const navLinkActive =
   'active border-l-2 border-primary bg-accent/10 font-semibold text-accent-foreground md:max-lg:rounded-lg md:max-lg:border-l-0 md:max-lg:border-primary';
 
-export const Sidebar: React.FC = () => {
+export interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggle }) => {
   const { user, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -83,13 +88,16 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={cn(
-        'fixed top-0 left-0 z-[90] box-border hidden h-screen flex-col border-r border-border bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:flex md:w-[70px] md:px-2 lg:w-[275px] lg:p-6 lg:px-4 max-md:hidden',
+        'fixed top-0 left-0 z-[90] box-border hidden h-screen flex-col border-r border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:flex max-md:hidden transition-all duration-200',
+        isCollapsed
+          ? 'md:w-[70px] md:px-2 lg:w-[70px] lg:p-4 lg:px-2'
+          : 'md:w-[70px] md:px-2 lg:w-[275px] lg:p-6 lg:px-4'
       )}
     >
       <div className="mb-8 px-2 md:max-lg:px-0">
         <Link href="/" className="flex items-center text-2xl font-extrabold tracking-tight lg:text-3xl">
           <span>Quiz</span>
-          <span className="lg:inline md:max-lg:hidden">eum</span>
+          <span className={cn("lg:inline md:max-lg:hidden", isCollapsed && "lg:hidden")}>eum</span>
         </Link>
       </div>
 
@@ -104,7 +112,7 @@ export const Sidebar: React.FC = () => {
               {...(item.testId ? { 'data-testid': item.testId } : {})}
             >
               <span className="flex size-6 shrink-0 items-center justify-center">{item.icon}</span>
-              <span className="nav-label max-lg:hidden">{item.label}</span>
+              <span className={cn("nav-label max-lg:hidden", isCollapsed && "lg:hidden")}>{item.label}</span>
             </Link>
           );
         })}
@@ -120,7 +128,7 @@ export const Sidebar: React.FC = () => {
             <span className="flex size-6 shrink-0 items-center justify-center">
               <BookOpen size={22} />
             </span>
-            <span className="nav-label max-lg:hidden">ダッシュボード</span>
+            <span className={cn("nav-label max-lg:hidden", isCollapsed && "lg:hidden")}>ダッシュボード</span>
           </Link>
         )}
 
@@ -136,7 +144,7 @@ export const Sidebar: React.FC = () => {
             <span className="flex size-6 shrink-0 items-center justify-center">
               <Shield size={22} />
             </span>
-            <span className="nav-label max-lg:hidden">管理者メニュー</span>
+            <span className={cn("nav-label max-lg:hidden", isCollapsed && "lg:hidden")}>管理者メニュー</span>
           </Link>
         )}
 
@@ -144,12 +152,15 @@ export const Sidebar: React.FC = () => {
           <Link
             href="/quiz/create"
             className={cn(
-              'mt-4 inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 md:max-lg:mx-auto md:max-lg:size-11 md:max-lg:rounded-full md:max-lg:p-0',
+              'mt-4 inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 md:max-lg:mx-auto md:max-lg:size-11 md:max-lg:rounded-full md:max-lg:p-0',
+              isCollapsed
+                ? 'lg:mx-auto lg:size-11 lg:rounded-full lg:p-0'
+                : 'lg:px-6 lg:py-3 lg:w-full',
             )}
             data-analytics="nav-create-quiz"
           >
             <PlusCircle size={22} />
-            <span className="nav-label max-lg:hidden">作問する</span>
+            <span className={cn("nav-label max-lg:hidden", isCollapsed && "lg:hidden")}>作問する</span>
           </Link>
         )}
       </nav>
@@ -163,7 +174,10 @@ export const Sidebar: React.FC = () => {
               render={
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 rounded-full p-2 text-left transition-colors hover:bg-muted/50 md:max-lg:mx-auto md:max-lg:size-11 md:max-lg:justify-center md:max-lg:p-0"
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-full p-2 text-left transition-colors hover:bg-muted/50 md:max-lg:mx-auto md:max-lg:size-11 md:max-lg:justify-center md:max-lg:p-0",
+                    isCollapsed && "lg:mx-auto lg:size-11 lg:justify-center lg:p-0"
+                  )}
                   data-testid="sidebar-profile-btn"
                 />
               }
@@ -172,10 +186,10 @@ export const Sidebar: React.FC = () => {
                 <AvatarImage src={user.avatarUrl} alt={user.displayName} />
                 <AvatarFallback>{user.displayName.slice(0, 1)}</AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1 max-lg:hidden">
+              <div className={cn("min-w-0 flex-1 max-lg:hidden", isCollapsed && "lg:hidden")}>
                 <span className="block truncate text-sm font-semibold">{user.displayName}</span>
               </div>
-              <ChevronUp size={16} className="text-muted-foreground max-lg:hidden" />
+              <ChevronUp size={16} className={cn("text-muted-foreground max-lg:hidden", isCollapsed && "lg:hidden")} />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               side="right"

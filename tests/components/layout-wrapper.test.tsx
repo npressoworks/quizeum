@@ -23,7 +23,12 @@ jest.mock('@/context/auth-context', () => ({
 
 // Mock child components to verify layout wrapper structure
 jest.mock('@/components/layout/sidebar', () => ({
-  Sidebar: () => <div data-testid="sidebar">Sidebar</div>,
+  Sidebar: (props: any) => (
+    <div data-testid="sidebar" data-collapsed={props.isCollapsed ? 'true' : 'false'}>
+      Sidebar
+      <button data-testid="mock-toggle-btn" onClick={props.onToggle}>Toggle</button>
+    </div>
+  ),
 }));
 jest.mock('@/components/layout/header', () => ({
   Header: () => <div data-testid="header">Header</div>,
@@ -69,5 +74,32 @@ describe('LayoutWrapper Component', () => {
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
     expect(screen.queryByTestId('header')).not.toBeInTheDocument();
     expect(screen.queryByTestId('bottom-nav')).not.toBeInTheDocument();
+  });
+
+  it('toggles sidebar collapse state and updates padding class', () => {
+    const { container } = render(
+      <LayoutWrapper>
+        <div>Content</div>
+      </LayoutWrapper>
+    );
+
+    const sidebar = screen.getByTestId('sidebar');
+    
+    // 初期状態は非 collapsed
+    expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+    
+    const rootDiv = container.firstChild as HTMLElement;
+    expect(rootDiv).toHaveClass('lg:pl-[275px]');
+    expect(rootDiv).not.toHaveClass('lg:pl-[70px]');
+
+    // トグルボタン（モック）をクリック
+    const toggleBtn = screen.getByTestId('mock-toggle-btn');
+    const { fireEvent } = require('@testing-library/react');
+    fireEvent.click(toggleBtn);
+
+    // collapsed 状態になること
+    expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+    expect(rootDiv).toHaveClass('lg:pl-[70px]');
+    expect(rootDiv).not.toHaveClass('lg:pl-[275px]');
   });
 });

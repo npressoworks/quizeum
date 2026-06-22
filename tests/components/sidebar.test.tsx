@@ -176,4 +176,40 @@ describe('Sidebar Component', () => {
     fireEvent.click(screen.getByTestId('sidebar-profile-btn'));
     expect(screen.queryByTestId('sidebar-admin-link')).not.toBeInTheDocument();
   });
+
+  it('isCollapsed が true のときはミニ幅になり、ラベルを非表示にする', () => {
+    mockUser = null;
+    const { container } = render(<Sidebar isCollapsed={true} onToggle={jest.fn()} />);
+    
+    const aside = container.querySelector('aside');
+    expect(aside).toHaveClass('lg:w-[70px]');
+    expect(aside).not.toHaveClass('lg:w-[275px]');
+
+    // ロゴの "eum" 部分が非表示クラスを持つこと
+    const logoSuffix = screen.getByText('eum');
+    expect(logoSuffix).toHaveClass('lg:hidden');
+
+    // ナビゲーションラベルが非表示クラスを持つこと
+    const labels = container.querySelectorAll('.nav-label');
+    labels.forEach((label) => {
+      expect(label).toHaveClass('lg:hidden');
+    });
+  });
+
+  it('isCollapsed が false のときは通常幅になり、ラベルを表示する', () => {
+    mockUser = null;
+    const { container } = render(<Sidebar isCollapsed={false} onToggle={jest.fn()} />);
+    
+    const aside = container.querySelector('aside');
+    expect(aside).toHaveClass('lg:w-[275px]');
+    expect(aside).not.toHaveClass('lg:w-[70px]');
+
+    const logoSuffix = screen.getByText('eum');
+    expect(logoSuffix).not.toHaveClass('lg:hidden');
+
+    const labels = container.querySelectorAll('.nav-label');
+    labels.forEach((label) => {
+      expect(label).not.toHaveClass('lg:hidden');
+    });
+  });
 });
