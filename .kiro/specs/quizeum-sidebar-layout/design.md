@@ -829,3 +829,192 @@ if (user) {
 
 **Document Status（Phase 27 設計）**: 本節に反映。
 
+---
+
+## Phase 28: PC版サイドバー表示切り替えおよびミニ表示時のツールチップ表示
+
+### 1. Overview
+
+PC表示時（1024px以上）における、サイドバーの通常表示（275px）とミニ表示（70px）のトグル切り替え機能（状態は永続化しない）を実装し、メインコンテンツの余白も連動させます。ミニ表示時には、ホバーによるツールチップ形式のメニュー名（プロフィールはユーザー名）を表示します。また、アバタークリック時はドロップダウンを廃止し、直接プロフィールページ（`/profile/[userId]`）へ遷移するように変更します。
+
+### 2. Boundary Commitments（Phase 28）
+
+| Owns | Out |
+|------|-----|
+| `LayoutWrapper` 内での `isCollapsed` 状態の管理とパディング動的調整 | `/profile/[userId]` ページの中身やデータの制御 |
+| `Sidebar` への `isCollapsed` / `onToggle` Props の引き渡し | `/settings`（設定）画面自体の遷移先中身 |
+| `Sidebar` の幅（70px vs 275px）の動的スタイル切り替え | |
+| `Sidebar` への折りたたみトグルボタンの追加 | |
+| 各メニュー項目（プロフィールアバター含む）へのCSSツールチップの組み込み | |
+| プロフィールアイコンをクリックした際の直接遷移（ドロップダウン廃止） | |
+
+### 3. Components & Interfaces（Phase 28 差分）
+
+#### `LayoutWrapper` ([layout-wrapper.tsx](file:///d:/quizeum/src/components/layout/layout-wrapper.tsx))
+サイドバーの切り替え状態を保持し、メインコンテンツの左側パディングを動的に切り替えます。
+
+```tsx
+export const LayoutWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false); // [NEW] 切り替え状態の管理
+
+  const isPlayPage = pathname ? pathname.includes('/play') : false;
+
+  if (isPlayPage) {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
+
+  return (
+    <div
+      className={cn(
+        "relative flex min-h-screen max-w-[100vw] overflow-x-hidden bg-background max-md:pb-[60px]",
+        // isCollapsed に基づいてパディングを動的調整 (PC表示時 lg: のみ)
+        isCollapsed ? "md:pl-[70px] lg:pl-[70px]" : "md:pl-[70px] lg:pl-[275px]"
+      )}
+    >
+      {/* Sidebar に状態とトグル関数を渡す */}
+      <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
+      ...
+    </div>
+  );
+};
+```
+
+#### `Sidebar` ([sidebar.tsx](file:///d:/quizeum/src/components/layout/sidebar.tsx))
+Props を受け取り、サイドバーの幅やテキストラベルの表示・非表示を制御します。また、トグルボタンとツールチップを追加します。
+
+##### Props の定義
+```typescript
+interface SidebarProps {
+  isCollapsed: boolean;
+  onToggle: () => void;
+}
+```
+
+##### 主要コンポーネント構造
+```tsx
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
+  ...
+  return (
+    <aside
+      className={cn(
+        "fixed top-0 left-0 z-[90] box-border hidden h-screen flex-col border-r border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:flex max-md:hidden transition-all duration-200",
+        // isCollapsed に基づいて幅を動的調整
+        isCollapsed ? "md:w-[70px] md:px-2 lg:w-[70px] lg:px-2" : "md:w-[70px] md:px-2 lg:w-[275px] lg:px-4"
+      )}
+    >
+      {/* [NEW] PC表示時のみ表示される折りたたみトグルボタン */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute right-[-14px] top-6 z-[100] hidden lg:flex size-7 items-center justify-center rounded-full border border-border bg-background shadow-md hover:bg-muted text-muted-foreground transition-colors"
+        data-testid="sidebar-toggle-btn"
+        aria-label="Toggle Sidebar"
+      >
+        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
+
+      <div className="mb-8 px-2 md:max-lg:px-0">
+        <Link href="/" className="flex items-center text-2xl font-extrabold tracking-tight lg:text-3xl">
+          <span>Quiz</span>
+          {/* 通常表示かつ非折りたたみ時のみテキストを表示 */}
+          <span className={cn("lg:inline md:max-lg:hidden", isCollapsed && "lg:hidden")}>eum</span>
+        </Link>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-3 ...">
+        {menuItems.map((item) => {
+          const isActive = isNavItemActive(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(navLinkBase, isActive && navLinkActive, "group relative")}
+              {...(item.testId ? { 'data-testid': item.testId } : {})}
+            >
+              <span className="flex size-6 shrink-0 items-center justify-center">{item.icon}</span>
+              {/* 通常表示かつ非折りたたみ時のみラベルを表示 */}
+              <span className={cn("nav-label max-lg:hidden", isCollapsed && "lg:hidden")}>{item.label}</span>
+              {/* [NEW] ミニサイドバー表示時（isCollapsedまたはタブレットサイズ）にホバーで出るツールチップ */}
+              <span className={cn(
+                "absolute left-full ml-3 z-[100] hidden bg-popover text-popover-foreground px-2 py-1 rounded text-xs pointer-events-none whitespace-nowrap border border-border shadow-md group-hover:block",
+                isCollapsed ? "lg:group-hover:block" : "lg:group-hover:hidden"
+              )}>
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* [MODIFY] アカウント領域（DropdownMenuを廃止し、直接リンクとツールチップに変更） */}
+      <div className="mt-auto border-t border-border pt-4">
+        {loading ? (
+          <Skeleton className="size-11 rounded-full" />
+        ) : user ? (
+          <Link
+            href={`/profile/${user.id}`}
+            className="flex w-full items-center gap-3 rounded-full p-2 text-left transition-colors hover:bg-muted/50 md:max-lg:mx-auto md:max-lg:size-11 md:max-lg:justify-center md:max-lg:p-0 group relative"
+            data-testid="sidebar-profile-btn"
+          >
+            <Avatar size="sm" className="size-10">
+              <AvatarImage src={user.avatarUrl} alt={user.displayName} />
+              <AvatarFallback>{user.displayName.slice(0, 1)}</AvatarFallback>
+            </Avatar>
+            <div className={cn("min-w-0 flex-1 max-lg:hidden", isCollapsed && "lg:hidden")}>
+              <span className="block truncate text-sm font-semibold">{user.displayName}</span>
+            </div>
+            {/* [NEW] アバターホバー時のツールチップ */}
+            <span className={cn(
+              "absolute left-full ml-3 z-[100] hidden bg-popover text-popover-foreground px-2 py-1 rounded text-xs pointer-events-none whitespace-nowrap border border-border shadow-md group-hover:block",
+              isCollapsed ? "lg:group-hover:block" : "lg:group-hover:hidden"
+            )}>
+              {user.displayName}
+            </span>
+          </Link>
+        ) : (
+          <Link href="/login" className={cn(buttonVariants(), 'w-full justify-center')} data-analytics="nav-login">
+            ログイン
+          </Link>
+        )}
+      </div>
+    </aside>
+  );
+};
+```
+
+### 4. File Structure Plan（Phase 28）
+
+| ファイル | 操作 | 責務 |
+|----------|------|------|
+| `src/components/layout/layout-wrapper.tsx` | **Modify** | `isCollapsed` 状態の定義、`Sidebar` への props 伝播、左パディング（`pl`）の動的スタイル切り替え |
+| `src/components/layout/sidebar.tsx` | **Modify** | props インタフェース拡張、トグルボタン（`ChevronLeft`, `ChevronRight`）の実装、アバターの直接リンク化（`DropdownMenu` 廃止）、CSS/Tailwindによるツールチップ（`group relative` / `absolute`）の追加 |
+| `tests/components/sidebar.test.tsx` | **Modify** | トグルボタンのクリックテスト、アバター直接遷移テスト、ツールチップ要素の表示確認テスト |
+
+### 5. Requirements Traceability（Phase 28）
+
+| Req | Summary | Component |
+|-----|---------|-----------|
+| 9.1 | PCサイズ（1024px+）での切り替えトグルボタン表示 | `sidebar.tsx` |
+| 9.2 | トグルボタンクリック時の幅および左余白の連動切り替え | `layout-wrapper.tsx`, `sidebar.tsx` |
+| 9.3 | 切り替え状態を永続化せずデフォルト通常表示とすること | `layout-wrapper.tsx` |
+| 9.4 | ミニサイドバー時のナビ項目のツールチップ表示 | `sidebar.tsx` |
+| 9.5 | ミニサイドバー時のプロフィールアバターホバー時のユーザー名表示 | `sidebar.tsx` |
+| 9.6 | プロフィールアイコンクリック時の直接マイページ遷移（ドロップダウン廃止） | `sidebar.tsx` |
+| 9.7 | トグルボタンへの `data-testid="sidebar-toggle-btn"` 付与 | `sidebar.tsx` |
+
+### 6. Testing Strategy（Phase 28）
+
+| 種別 | 検証 |
+|------|------|
+| **Component** | 初期状態でサイドバーが通常表示（275px）であること。 |
+| **Component** | トグルボタン（`sidebar-toggle-btn`）をクリックすると、サイドバーがミニ表示（70px）に縮小されること。 |
+| **Component** | ミニ表示時、ナビゲーションアイテムおよびアバター領域に `group` とツールチップ用の絶対配置要素が存在すること。 |
+| **Component** | アバター（`sidebar-profile-btn`）をクリックした際、ドロップダウンメニューが開かず、直接マイページへ遷移する構造になっていること。 |
+| **E2E** | PC表示（1200px）でトグルボタンをクリックした際、`LayoutWrapper` に対応する縮小余白クラス（`lg:pl-[70px]`）が適用され、レイアウトが崩れないことを確認。 |
+
+**Effort**: **S**（1日）
+
+**Document Status（Phase 28 設計）**: 本節に反映。
+
+

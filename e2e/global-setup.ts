@@ -15,6 +15,8 @@ export default async function globalSetup() {
     process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
   process.env.FIREBASE_AUTH_EMULATOR_HOST =
     process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
+  process.env.FIREBASE_STORAGE_EMULATOR_HOST =
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? '127.0.0.1:9199';
 
   if (getApps().length === 0) {
     initializeApp({ projectId: PROJECT_ID });
@@ -22,6 +24,19 @@ export default async function globalSetup() {
 
   const db = getFirestore();
   const auth = getAuth();
+  
+  // AI生成モック用のテスト画像を Firebase Storage エミュレータに配置しておく
+  try {
+    const { getStorage } = await import('firebase-admin/storage');
+    const bucket = getStorage().bucket(`${PROJECT_ID}.appspot.com`);
+    await bucket.file('genres/temp/e2e-ai-temp.png').save(Buffer.from('dummy image data'), {
+      metadata: { contentType: 'image/png' },
+      resumable: false,
+    });
+  } catch (err) {
+    console.error('Storageモック画像の事前配置に失敗しました:', err);
+  }
+
   const genres = initialGenresData as InitialGenreSeed[];
   const now = new Date();
 

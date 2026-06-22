@@ -1,26 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { initializeApp, getApps } from 'firebase-admin/app';
-import { getStorage } from 'firebase-admin/storage';
-
-const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? 'quizeum-77bc6';
 
 test.describe('ジャンルアイコン Firebase Storage 移行 E2Eテスト', () => {
-
-  test.beforeAll(async () => {
-    // Firebase Storage エミュレータに AI 生成モック用の一時ファイルを保存しておく
-    process.env.FIREBASE_STORAGE_EMULATOR_HOST =
-      process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? '127.0.0.1:9199';
-
-    if (getApps().length === 0) {
-      initializeApp({ projectId: PROJECT_ID });
-    }
-
-    const bucket = getStorage().bucket(`${PROJECT_ID}.appspot.com`);
-    await bucket.file('genres/temp/e2e-ai-temp.png').save(Buffer.from('dummy image data'), {
-      metadata: { contentType: 'image/png' },
-      resumable: false,
-    });
-  });
 
   test('コミュニティジャンル申請での手動アップロード & 申請 & 投票可決フロー', async ({ page }) => {
     // 1. ログイン画面に遷移して、E2Eテストログインボタンでログイン
@@ -77,8 +57,9 @@ test.describe('ジャンルアイコン Firebase Storage 移行 E2Eテスト', (
       // 申請したジャンルが表示されていることを確認
       await expect(page.locator(`text=${genreId}`)).toBeVisible({ timeout: 5000 });
       
-      // ジャンルIDが含まれるカードを特定し、その中の賛成ボタンをクリックする
-      const requestCard = page.locator('div').filter({ hasText: genreId }).filter({ hasText: '賛成' }).last();
+      // ジャンルID (genreId) が含まれる code 要素から、親のカード要素を特定し、その中にある「賛成」ボタンを取得する
+      const codeTag = page.locator('code', { hasText: genreId });
+      const requestCard = page.locator('div').filter({ has: codeTag }).first();
       const approveBtn = requestCard.locator('button:has-text("賛成")');
       
       if (await approveBtn.isVisible()) {

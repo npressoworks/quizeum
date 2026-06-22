@@ -139,4 +139,43 @@ Sidebar / BottomNav に `/search` 導線を追加。BottomNav はログイン時
 2. **Active判定** — パスが `/admin` または `/admin/` で始まるとき、アクティブ（ハイライト）表示します。
 3. **testid** — Sidebar主要ナビ: `data-testid="nav-admin"`、PCドロップダウンリンク: `data-testid="sidebar-admin-link"`、モバイルドロップダウンリンク: `data-testid="header-admin-link"`。
 
+---
 
+## Phase 28: PC版サイドバー表示切り替えおよびミニ表示時のツールチップ表示（2026-06-22）
+
+### Summary
+PC表示時（1024px以上）における、サイドバーの通常表示（275px）とミニ表示（70px）のトグル切り替え機能（状態は永続化しない）を実装し、メインコンテンツの余白も連動させます。ミニ表示時には、ホバーによるツールチップ形式のメニュー名（プロフィールはユーザー名）を表示します。また、アバタークリック時はドロップダウンを廃止し、直接プロフィールページ（`/profile/[userId]`）へ遷移するように変更します。
+
+### Discovery Type
+**Light（既存レイアウトの拡張）** — 新規パッケージ導入なし、既存コンポーネント（[sidebar.tsx](file:///d:/quizeum/src/components/layout/sidebar.tsx), [layout-wrapper.tsx](file:///d:/quizeum/src/components/layout/layout-wrapper.tsx)）の拡張による実現。
+
+### Key Findings
+1. **ツールチップの実現方法**:
+   Radix UI Tooltip パッケージの追加がなくても、Tailwind CSS の `group relative` と `absolute` ポジショニングによって、CSS のみでホバー時にツールチップを表示することが可能です。表示名はメニューの `label` またはログインユーザーの `displayName` を使用します。
+2. **サイドバーのステート共有**:
+   `LayoutWrapper`（メインコンテンツの pl 調整）と `Sidebar`（開閉状態の検知および幅の変更）の両方が `isCollapsed` 状態を参照する必要があります。この状態は `LayoutWrapper` で `useState` として管理し、`Sidebar` に Props として渡すのが最も単純かつ安全です。
+3. **アバターのポップアップ廃止と直接遷移**:
+   現在 [sidebar.tsx](file:///d:/quizeum/src/components/layout/sidebar.tsx) の最下部にあるアバター部分は `DropdownMenu` で囲まれていますが、今回の要件ではポップアップを廃止し、単なる `Link` としてアバターを表示し、クリック時に直接 `/profile/${user.id}` へ遷移させます。これにより、複雑なドロップダウン管理が不要になり、他のナビゲーションアイテムと同じリンクモデルに統一されます。
+
+### Design Decisions
+1. **切り替えトグル**:
+   サイドバー内の適当な位置（例: ロゴの横、あるいはサイドバーの端）にトグルボタン（アイコン: `ChevronLeft` / `ChevronRight` 等）を配置し、`data-testid="sidebar-toggle-btn"` を付与します。
+2. **状態管理**:
+   `LayoutWrapper` に `const [isCollapsed, setIsCollapsed] = useState(false)` を追加し、`Sidebar` に props (`isCollapsed`, `onToggle`) を渡して動的にスタイルを変更します。
+3. **スタイルの調整**:
+   * `Sidebar` の幅を `isCollapsed ? 'lg:w-[70px]' : 'lg:w-[275px]'` で動的切り替え。
+   * `LayoutWrapper` の左パディングを `isCollapsed ? 'lg:pl-[70px]' : 'lg:pl-[275px]'` で動的切り替え。
+   * `nav-label` やプロフィール名などのテキストを、ミニ表示時（`isCollapsed || max-lg`）に非表示（`hidden` または `opacity-0`）にする。
+4. **ツールチップ実装**:
+   ミニ表示時のみホバーでツールチップが表示されるよう、親要素に `group relative`、ツールチップ用の子要素（`span` 等）に `absolute left-full ml-3 hidden group-hover:block bg-popover text-popover-foreground px-2 py-1 rounded text-xs pointer-events-none whitespace-nowrap border border-border shadow-md` などを適用します。
+
+### Risks
+* アカウントドロップダウンが廃止され、直接プロフィールへ遷移するようになるため、これまでドロップダウンから遷移できていた「設定（`/settings`）」および「ログアウト」への導線がPCサイドバーから無くなります。
+  * 設定については、[sidebar.tsx](file:///d:/quizeum/src/components/layout/sidebar.tsx) 内の主要ナビゲーション、あるいは別の手段でアクセス可能か確認する必要があります。
+  * 必要に応じて、設定およびログアウトをサイドバーの主要ナビゲーション項目に追加するか、プロフィールページなど他の箇所に確保されているか確認が必要です（※現時点では要件通りドロップダウンを廃止し直接遷移とします）。
+
+### Effort & Risk Estimate
+* **想定工数**: **S (Small)** (1〜2日)
+  * 既存コンポーネントの拡張のみで対応可能で、ライブラリ追加の必要もないため。
+* **想定リスク**: **Low**
+  * ナビゲーション自体の基本機能に変更はなく、E2Eテストのアバタークリック時の挙動修正（ポップアップ内のリンク検証から直接遷移の検証への修正）を行う必要があります。
