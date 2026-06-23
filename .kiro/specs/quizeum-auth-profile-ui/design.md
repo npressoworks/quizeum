@@ -757,6 +757,32 @@ const handlePageChange = (page: number) => {
 
 #### E2Eテスト
 - `data-testid="profile-quiz-search-input"` を用いて検索語を入力し、一覧が絞り込まれることを検証する。
-- `data-testid="profile-quiz-pagination"` でページ遷移をシミュレートし、表示される `data-testid="profile-quiz-card"` の件数および内容が変化することを検証する。
+- `data-testid="profile-quiz-pagination"` でページ遷移をシミュレートし、表示される `data-testid="quiz-card"` の件数および内容が変化することを検証する。
+
+### 9. 共通クイズカード適用設計（Phase 27 拡張）
+
+#### 概要
+プロフィール画面の「作成したクイズ」タブで使用していた独自のクイズカードを廃止し、ホーム・検索画面で共通して使用されている `QuizCard` コンポーネント（`@/components/quiz/quiz-card`）に統一します。これにより、ブックマーク機能や「挑戦する」ボタンなどの操作性がグローバルで統一されます。
+
+#### 状態管理とデータフロー
+- **ブックマーク状態の管理**: `ProfileClient` 内に `bookmarkedIds`（`Set<string>`）ステートを追加し、ログインユーザーが存在する場合は `getBookmarkedQuizIds(uid)` から初期値を取得します。
+- **トグル処理**: `handleBookmarkToggle(quizId)` を用意し、`toggleBookmark(uid, quizId, 'quiz')` を実行して成功時に `bookmarkedIds` を更新します。未ログイン時は `/login` にリダイレクトします。
+- **遷移処理**: `handleCardClick(quizId)` を定義し、クイズ詳細画面（`/quiz/[id]`）へ `router.push` します。
+
+#### インターフェースとコンポーネントパラメータ
+```typescript
+import { QuizCard } from '@/components/quiz/quiz-card';
+import { toggleBookmark, getBookmarkedQuizIds } from '@/services/bookmark';
+
+// レンダリング時
+<QuizCard
+  key={quiz.id}
+  quiz={quiz}
+  isBookmarked={bookmarkedIds.has(quiz.id)}
+  onBookmarkToggle={handleBookmarkToggle}
+  onPlayClick={handleCardClick}
+/>
+```
+
 
 

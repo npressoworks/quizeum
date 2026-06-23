@@ -273,8 +273,20 @@
   - _Boundary: ProfileClient_
 - [x] 12.5 Phase 27 統合検証とE2Eテストの作成/更新
   - `npm test` および `npm run build` がグリーンであることを確認し、 Playwright E2Eテストにおいて検索ワード入力による絞り込みや、ページ遷移によるクイズ表示の変化、および testid が正しく機能することを検証するテストを追加・実行する。
-  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8_
-  - _Depends: 12.4_
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 13.5_
+  - _Depends: 12.7_
   - _Boundary: Testing_
+- [x] 12.6 (P) 共通QuizCardコンポーネントの適用と状態管理の実装
+  - `profile-client.tsx` において独自のクイズ表示を `@/components/quiz/quiz-card` の `QuizCard` に置き換える。
+  - `bookmarkedIds` ステート、および初期取得のための `getBookmarkedQuizIds` 呼び出し、トグルのための `toggleBookmark` を実装する。未ログイン時のログインリダイレクトを実装する。
+  - _Requirements: 13.1, 13.2, 13.3, 13.4_
+  - _Boundary: ProfileClient_
+- [x] 12.7 (P) テストコードの更新（QuizCardの適用に追従）
+  - `tests/components/profile-client.test.tsx` の要素探索において、`profile-quiz-card` の代わりに `quiz-card` を探すようにアサーションを修正する。
+  - ブックマークトグルおよび詳細遷移のモック呼び出しが正しく行われることをテストに追加・検証する。
+  - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
+  - _Depends: 12.6_
+  - _Boundary: Testing_
+
 
 

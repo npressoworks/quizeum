@@ -26,19 +26,16 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     // 5. ログイン成功後にホームページ（/）へリダイレクトされることを確認
     await expect(page).toHaveURL('/');
     
-    // 6. ヘッダーに「作問する」ボタンが表示されていることを確認（ログイン成功の証拠）
-    const createQuizBtn = page.locator('text=作問する');
-    await expect(createQuizBtn).toBeVisible();
-    
-    // 7. プロフィールドロップダウンを開く
-    const profileBtn = page.getByTestId('sidebar-profile-btn');
-    await expect(profileBtn).toBeVisible();
-    await profileBtn.click();
-    
-    // 8. 「マイページ」リンクをクリック
-    const myPageLink = page.getByRole('menuitem', { name: 'マイページ' });
-    await expect(myPageLink).toBeVisible();
-    await myPageLink.click();
+    // 6. ログイン成功後にサイドバーまたはヘッダーのプロフィールが表示されることを確認
+    const navProfile = page.getByTestId('nav-profile');
+    if (await navProfile.isVisible({ timeout: 10000 })) {
+      await navProfile.click();
+    } else {
+      const headerProfileBtn = page.getByTestId('header-profile-btn');
+      await expect(headerProfileBtn).toBeVisible({ timeout: 10000 });
+      await headerProfileBtn.click();
+      await page.locator('[data-testid="header-profile-popup"] >> text=マイページ').click();
+    }
     
     // 9. プロフィール画面（/profile/[userId]）へ遷移することを確認
     await expect(page).toHaveURL(/\/profile\//);
@@ -73,7 +70,13 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     }
     
     // 11. ログアウト処理の検証
-    await profileBtn.click();
+    const sidebarProfileBtn = page.getByTestId('sidebar-profile-btn');
+    if (await sidebarProfileBtn.isVisible()) {
+      await sidebarProfileBtn.click();
+    } else {
+      const headerProfileBtn = page.getByTestId('header-profile-btn');
+      await headerProfileBtn.click();
+    }
     
     // 「ログアウト」ボタンをクリック
     const logoutBtn = page.locator('text=ログアウト');
@@ -100,10 +103,15 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     await e2eLoginBtn.click();
     await expect(page).toHaveURL('/');
 
-    const profileBtn = page.getByTestId('sidebar-profile-btn');
-    await expect(profileBtn).toBeVisible({ timeout: 10000 });
-    await profileBtn.click();
-    await page.getByRole('menuitem', { name: 'マイページ' }).click();
+    const navProfile = page.getByTestId('nav-profile');
+    if (await navProfile.isVisible({ timeout: 10000 })) {
+      await navProfile.click();
+    } else {
+      const headerProfileBtn = page.getByTestId('header-profile-btn');
+      await expect(headerProfileBtn).toBeVisible({ timeout: 10000 });
+      await headerProfileBtn.click();
+      await page.locator('[data-testid="header-profile-popup"] >> text=マイページ').click();
+    }
     await expect(page).toHaveURL(/\/profile\//);
 
     const historyTab = page.locator('[data-testid="profile-tab-history"]');
@@ -112,6 +120,9 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
 
     const historySection = page.locator('[data-testid="play-history-section"]');
     await expect(historySection).toBeVisible();
+
+    // 読み込み完了を待つ
+    await expect(page.locator('text=プレイ履歴を読み込み中...')).not.toBeVisible({ timeout: 15000 });
 
     const emptyOrEntries =
       (await page.locator('[data-testid="play-history-entry"]').count()) > 0 ||
@@ -124,6 +135,71 @@ test.describe('ユーザー認証・プロフィール管理 E2Eテスト', () =
     const otherUid = uidMatch![1] === 'other-user-e2e' ? 'another-user' : 'other-user-e2e';
     await page.goto(`/profile/${otherUid}`);
     await expect(page.locator('[data-testid="profile-tab-history"]')).toHaveCount(0);
+
+    await context.close();
+  });
+
+  test('作成したクイズの検索とページング、共通QuizCardの表示', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+
+    // 1. ログイン
+    await page.goto('/login');
+    const e2eLoginBtn = page.locator('#e2e-test-login-btn');
+    await expect(e2eLoginBtn).toBeVisible();
+    await e2eLoginBtn.click();
+    await expect(page).toHaveURL('/');
+
+    // 2. マイページへ遷移
+    const navProfile = page.getByTestId('nav-profile');
+    if (await navProfile.isVisible({ timeout: 10000 })) {
+      await navProfile.click();
+    } else {
+      const headerProfileBtn = page.getByTestId('header-profile-btn');
+      await expect(headerProfileBtn).toBeVisible({ timeout: 10000 });
+      await headerProfileBtn.click();
+      await page.locator('[data-testid="header-profile-popup"] >> text=マイページ').click();
+    }
+    await expect(page).toHaveURL(/\/profile\//);
+
+    // 3. 検索入力欄とページングUIが表示されていることを確認
+    const searchInput = page.getByTestId('profile-quiz-search-input');
+    await expect(searchInput).toBeVisible();
+    const pagination = page.getByTestId('profile-quiz-pagination');
+    await expect(pagination).toBeVisible();
+
+    // 4. 共通QuizCard（data-testid="quiz-card"）が1ページ目の上限（9件）表示されていることを確認
+    const cards = page.getByTestId('quiz-card');
+    await expect(cards).toHaveCount(9);
+
+    // 5. 検索の検証: 「クイズ_10」で検索し、該当カードのみ表示されること
+    await searchInput.fill('クイズ_10');
+    // キーワードフィルタ後の件数は1件のはず
+    await expect(cards).toHaveCount(1);
+    await expect(page.locator('text=[AD_TEST] クイズ_10')).toBeVisible();
+    await expect(page.getByText('[AD_TEST] クイズ_1', { exact: true })).not.toBeVisible();
+
+    // ページングUIは1件のみなので非表示になるはず
+    await expect(pagination).toHaveCount(0);
+
+    // 6. 検索キーワードクリア
+    await searchInput.fill('');
+    await expect(cards).toHaveCount(9);
+    await expect(pagination).toBeVisible();
+
+    // 7. ページング遷移の検証: 「次へ」をクリック
+    const firstCard = cards.first();
+    const firstCardTitle = await firstCard.locator('h3').textContent();
+    expect(firstCardTitle).toBeTruthy();
+
+    const nextBtn = pagination.locator('text=次へ');
+    await nextBtn.click();
+
+    // 2ページ目に遷移した後は、1ページ目の最初のクイズが表示されていないことを確認
+    if (firstCardTitle) {
+      await expect(page.getByText(firstCardTitle, { exact: true })).not.toBeVisible();
+    }
+    await expect(cards.first()).toBeVisible();
 
     await context.close();
   });

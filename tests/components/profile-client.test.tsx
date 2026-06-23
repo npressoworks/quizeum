@@ -3,14 +3,17 @@
  */
 import '@testing-library/jest-dom';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ProfileClient } from '@/app/profile/[uid]/profile-client';
 import { getQuizzesByAuthor } from '@/services/quiz';
+import { getBookmarkedQuizIds, toggleBookmark } from '@/services/bookmark';
 
+const mockPush = jest.fn();
 const mockParams = { uid: 'user-1' };
 jest.mock('next/navigation', () => ({
   useParams: () => mockParams,
   notFound: jest.fn(),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 const mockCurrentUser = { id: 'user-1', displayName: '本人' };
@@ -39,6 +42,11 @@ jest.mock('@/services/quiz', () => ({
   getQuizzesByAuthor: jest.fn(),
 }));
 
+jest.mock('@/services/bookmark', () => ({
+  getBookmarkedQuizIds: jest.fn(),
+  toggleBookmark: jest.fn(),
+}));
+
 jest.mock('@/services/storage', () => ({
   getSnsLogoUrl: jest.fn().mockResolvedValue(''),
 }));
@@ -51,7 +59,7 @@ const mockQuizzes = Array.from({ length: 12 }, (_, i) => ({
   description: `クイズ説明 ${i + 1} 特徴ワード`,
   thumbnailUrl: null,
   difficulty: 5,
-  genre: i % 2 === 0 ? 'プログラミング' : '歴史',
+  genre: i % 2 === 0 ? 'programming' : 'history',
   tags: i % 2 === 0 ? ['it', 'web'] : ['history'],
   questionCount: 5,
   status: 'published' as const,
@@ -61,13 +69,15 @@ const mockQuizzes = Array.from({ length: 12 }, (_, i) => ({
   questionIds: [],
 }));
 
-describe('ProfileClient - Created Quizzes Search & Pagination', () => {
+describe('ProfileClient - Created Quizzes Search & Pagination with Common QuizCard', () => {
   beforeAll(() => {
     window.HTMLElement.prototype.scrollIntoView = jest.fn();
   });
 
   beforeEach(() => {
+    jest.clearAllMocks();
     (getQuizzesByAuthor as jest.Mock).mockResolvedValue(mockQuizzes);
+    (getBookmarkedQuizIds as jest.Mock).mockResolvedValue(['quiz-1']);
   });
 
   it('検索入力欄とページングUIが表示されること', async () => {
@@ -96,11 +106,11 @@ describe('ProfileClient - Created Quizzes Search & Pagination', () => {
 
     const searchInput = screen.getByTestId('profile-quiz-search-input');
 
-    // 「歴史」というキーワードで検索
-    fireEvent.change(searchInput, { target: { value: '歴史' } });
+    // 「history」というキーワードで検索（モックデータのジャンルID）
+    fireEvent.change(searchInput, { target: { value: 'history' } });
 
-    // 「歴史」ジャンルのクイズのみ表示されていることを確認
-    // 奇数インデックス（偶数番号）が歴史
+    // 「history」ジャンルのクイズのみ表示されていることを確認
+    // 奇数インデックス（偶数番号）が history
     expect(screen.getByText('クイズタイトル 2')).toBeInTheDocument();
     expect(screen.queryByText('クイズタイトル 1')).not.toBeInTheDocument();
   });
@@ -118,8 +128,8 @@ describe('ProfileClient - Created Quizzes Search & Pagination', () => {
     expect(screen.queryByText('クイズタイトル 10')).not.toBeInTheDocument();
 
     // 「前へ」ボタンが非活性、かつ「次へ」ボタンが活性状態であることを確認
-    const prevButton = screen.getByRole('button', { name: /前へ|前のページ/i });
-    const nextButton = screen.getByRole('button', { name: /次へ|次のページ/i });
+    const prevButton = screen.getByRole('button', { name: /前へ/i });
+    const nextButton = screen.getByRole('button', { name: /次へ/i });
     expect(prevButton).toBeDisabled();
     expect(nextButton).not.toBeDisabled();
 
@@ -134,5 +144,26 @@ describe('ProfileClient - Created Quizzes Search & Pagination', () => {
     // 2ページ目（最終ページ）なので、「次へ」が非活性、「前へ」が活性状態であること
     expect(prevButton).not.toBeDisabled();
     expect(nextButton).toBeDisabled();
+  });
+
+  it('ブックマークの切り替えができること', async () => {
+    (toggleBookmark as jest.Mock).mockResolvedValue(true);
+    render(<ProfileClient />);
+
+    await waitFor(() => {
+      expect(screen.getByText('クイズタイトル 1')).toBeInTheDocument();
+    });
+
+    // 共通QuizCard内のブックマークボタンを取得 (1つ目のクイズ用)
+    const bookmarkButtons = screen.getAllByTestId('quiz-card-bookmark-btn');
+    expect(bookmarkButtons).toHaveLength(9); // 1ページ目に9つのカードがあるため
+
+    await act(async () => {
+      fireEvent.click(bookmarkButtons[0]);
+    });
+
+    await waitFor(() => {
+      expect(toggleBookmark).toHaveBeenCalledWith('user-1', 'quiz-1', 'quiz');
+    });
   });
 });

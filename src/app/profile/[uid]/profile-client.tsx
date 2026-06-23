@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import {
   getUser,
@@ -11,6 +11,8 @@ import {
   isFollowing
 } from '@/services/user';
 import { getQuizzesByAuthor } from '@/services/quiz';
+import { QuizCard } from '@/components/quiz/quiz-card';
+import { toggleBookmark, getBookmarkedQuizIds } from '@/services/bookmark';
 import { getSnsLogoUrl } from '@/services/storage';
 import {
   EmojiEventsOutlined,
@@ -83,6 +85,7 @@ const TIER_BADGE_CLASS: Record<ModerationTierDisplayKey, string> = {
 export function ProfileClient() {
   const { uid } = useParams() as { uid: string };
   const { user: currentUser } = useAuth();
+  const router = useRouter();
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -95,8 +98,48 @@ export function ProfileClient() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
   const ITEMS_PER_PAGE = 9;
+
+  useEffect(() => {
+    async function loadBookmarks() {
+      if (currentUser) {
+        try {
+          const ids = await getBookmarkedQuizIds(currentUser.id);
+          setBookmarkedIds(new Set(ids));
+        } catch (e) {
+          console.error('[ProfileClient] ブックマーク取得エラー:', e);
+        }
+      } else {
+        setBookmarkedIds(new Set());
+      }
+    }
+    loadBookmarks();
+  }, [currentUser]);
+
+  const handleBookmarkToggle = async (quizId: string) => {
+    if (!currentUser) {
+      router.push(`/login?redirect=%2Fprofile%2F${uid}`);
+      return;
+    }
+    try {
+      const isAdded = await toggleBookmark(currentUser.id, quizId, 'quiz');
+      const nextBookmarks = new Set(bookmarkedIds);
+      if (isAdded) {
+        nextBookmarks.add(quizId);
+      } else {
+        nextBookmarks.delete(quizId);
+      }
+      setBookmarkedIds(nextBookmarks);
+    } catch (e) {
+      console.error('[ProfileClient] ブックマークトグル失敗:', e);
+    }
+  };
+
+  const handleCardClick = (quizId: string) => {
+    router.push(`/quiz/${quizId}`);
+  };
 
   const filteredQuizzes = quizzes.filter(quiz => {
     if (!searchQuery.trim()) return true;
@@ -441,32 +484,15 @@ export function ProfileClient() {
                     </div>
                   ) : (
                     <>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                         {paginatedQuizzes.map((quiz) => (
-                          <Link key={quiz.id} href={`/quiz/${quiz.id}`} data-testid="profile-quiz-card">
-                            <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">
-                              {quiz.thumbnailUrl && (
-                                <div className="aspect-video overflow-hidden bg-muted">
-                                  <img src={quiz.thumbnailUrl} alt={quiz.title} className="h-full w-full object-cover" />
-                                </div>
-                              )}
-                              <CardContent className="flex flex-col gap-2 p-4">
-                                <div className="flex gap-2 text-xs text-muted-foreground">
-                                  <span>{quiz.genre}</span>
-                                  <span>難易度 {quiz.difficulty}/10</span>
-                                </div>
-                                <h3 className="line-clamp-2 font-semibold">{quiz.title}</h3>
-                                <p className="line-clamp-2 text-sm text-muted-foreground">{quiz.description}</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {quiz.tags.slice(0, 3).map((tag, idx) => (
-                                    <UiBadge key={idx} variant="secondary" className="text-xs">
-                                      #{tag}
-                                    </UiBadge>
-                                  ))}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </Link>
+                          <QuizCard
+                            key={quiz.id}
+                            quiz={quiz}
+                            isBookmarked={bookmarkedIds.has(quiz.id)}
+                            onBookmarkToggle={handleBookmarkToggle}
+                            onPlayClick={handleCardClick}
+                          />
                         ))}
                       </div>
 

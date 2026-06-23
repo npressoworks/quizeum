@@ -209,6 +209,16 @@
 5. When [ユーザーがページングUIの「次へ」ボタンまたはページ番号をクリックしたとき], the [Auth Profile UI] shall [該当するページのクイズ一覧を表示し、表示エリアの最上部（またはクイズタブのコンテンツ開始位置）へスムーズにスクロールすること]。
 6. When [ユーザーが1ページ目を表示しているとき], the [Auth Profile UI] shall [ページングUIの「前へ」ボタンを非活性化（disabled）すること]。
 7. When [ユーザーが最終ページを表示しているとき], the [Auth Profile UI] shall [ページングUIの「次へ」ボタンを非活性化（disabled）すること]。
-8. The [Auth Profile UI] shall [検索入力欄に `data-testid="profile-quiz-search-input"`、ページングUIに `data-testid="profile-quiz-pagination"`、各クイズカードに `data-testid="profile-quiz-card"` を付与すること]。
+8. The [Auth Profile UI] shall [検索入力欄に `data-testid="profile-quiz-search-input"`、ページングUIに `data-testid="profile-quiz-pagination"` を付与すること]。
+
+### 要件 13: 共通クイズカードの適用（Phase 27 拡張）
+**目的:** プロフィール画面の閲覧ユーザーとして、ホームや検索画面と同一の操作性（ブックマーク切り替えやデザイン）でクイズカードを閲覧・操作したい。
+
+#### 受け入れ基準
+1. The [Auth Profile UI] shall [プロフィール画面の「作成したクイズ」タブ内のクイズカードについて、独自の実装を廃止し、ホーム・検索画面と共通の `QuizCard` コンポーネント（`@/components/quiz/quiz-card`）に置き換えて表示すること]。
+2. The [Auth Profile UI] shall [ログイン中ユーザーのブックマーク情報（`bookmarkedIds`）を解決し、表示する各クイズのブックマーク状態（`isBookmarked`）を `QuizCard` に反映すること]。
+3. When [ユーザーがクイズカード of ブックマークトグルボタンをクリックしたとき], the [Auth Profile UI] shall [ログイン済みの場合は `@/services/bookmark` の `toggleBookmark` を呼び出してブックマーク状態をトグルし、未ログインの場合はログイン画面（`/login`）へリダイレクトすること]。
+4. When [ユーザーがクイズカードの「挑戦する」ボタンまたはカード自体をクリックしたとき], the [Auth Profile UI] shall [クイズ詳細画面（`/quiz/[id]`）へ遷移すること]。
+5. The [Auth Profile UI] shall [共通 `QuizCard` の契約に従い、各クイズカードに `data-testid="quiz-card"` が付与されていることを確認すること（既存の `profile-quiz-card` は廃止または共通 testid に統合）]。
 
 
