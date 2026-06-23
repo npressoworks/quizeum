@@ -3,7 +3,7 @@ export const HOME_FEED_PAGE_SIZE = 20;
 export const DISCOVERY_CAROUSEL_SIZE = 10;
 export const SEARCH_MATERIALIZE_CAP = 200;
 
-export type QuizFeedTabKind = 'latest' | 'popular' | 'trending' | 'timeline';
+export type QuizFeedTabKind = 'latest' | 'popular' | 'trending' | 'timeline' | 'author';
 
 export class QuizFeedCursorError extends Error {
   constructor(message: string) {

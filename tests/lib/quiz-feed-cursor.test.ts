@@ -20,6 +20,18 @@ describe('quiz-feed-cursor', () => {
     expect(decoded.sortKey).toBe(1234567890);
   });
 
+  it('author カーソルを round-trip できる', () => {
+    const cursor = encodeQuizFeedCursor({
+      v: 1,
+      kind: 'author',
+      quizId: 'quiz-author-1',
+      sortKey: 1620000000,
+    });
+    const decoded = decodeQuizFeedCursor(cursor, 'author');
+    expect(decoded.quizId).toBe('quiz-author-1');
+    expect(decoded.sortKey).toBe(1620000000);
+  });
+
   it('種別不一致のカーソルはエラーになる', () => {
     const cursor = encodeQuizFeedCursor({
       v: 1,
