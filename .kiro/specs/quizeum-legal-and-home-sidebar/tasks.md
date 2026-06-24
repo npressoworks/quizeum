@@ -44,7 +44,7 @@
   - _Depends: 2.1_
 
 ## 4. Validation: 検証
-- [ ] 4.1 UI・リンク遷移・レスポンシブ挙動のE2Eテスト
+- [x] 4.1 UI・リンク遷移・レスポンシブ挙動のE2Eテスト
   - `tests/e2e/home-sidebar.spec.ts` を新規作成する（Playwright）
   - PC解像度（1280px以上）でトップページを開いた際、右カラムが存在し並列に表示されていること、およびモバイル解像度（480px以下）で下部に流れるレスポンシブ配置をアサーションする
   - 利用規約・プライバシーポリシーリンクをクリックして `/terms`・`/privacy` に遷移し、本文が正しくレンダリングされているかをテストする
@@ -53,7 +53,7 @@
   - _Requirements: 1.1, 1.2, 2.1, 2.2, 2.3, 3.1_
   - _Depends: 3.1, 2.2_
 
-- [ ] 4.2 お問い合わせURL解決ロジックのユニットテスト
+- [x] 4.2 お問い合わせURL解決ロジックのユニットテスト
   - `tests/components/home-sidebar.test.tsx` (または `home-sidebar.test.ts`) を作成する
   - `process.env.NEXT_PUBLIC_CONTACT_FORM_URL` がセットされている場合にそのURLを返すこと、および未定義時にデフォルトURLへフォールバックすることをJestでテストする
   - 完了基準：`npm run test` もしくは該当テストが単体でパスすること
