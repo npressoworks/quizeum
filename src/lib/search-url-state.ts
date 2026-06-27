@@ -14,15 +14,17 @@ export { DISCOVERY_CAROUSEL_SIZE };
 
 export type SearchPlayStatus = 'all' | 'unplayed' | 'played';
 
+export type SearchFeedTab = Exclude<QuizFeedTabKind, 'author'>;
+
 export interface SearchUrlState {
-  tab: QuizFeedTabKind;
+  tab: SearchFeedTab;
   filters: HomeFeedFilters;
   openFilters: boolean;
   /** UI 専用。URL には `playStatus` として反映可 */
   playStatus: SearchPlayStatus;
 }
 
-const VALID_TABS = new Set<QuizFeedTabKind>(['latest', 'popular', 'trending', 'timeline']);
+const VALID_TABS = new Set<SearchFeedTab>(['latest', 'popular', 'trending', 'timeline']);
 const VALID_PLAY_STATUS = new Set<SearchPlayStatus>(['all', 'unplayed', 'played']);
 const VALID_FORMATS = new Set<string>(EXPLORE_FORMAT_OPTIONS.map((o) => o.id));
 
@@ -51,9 +53,9 @@ function clampInt(raw: string | undefined, min: number, max: number, fallback: n
   return Math.min(max, Math.max(min, parsed));
 }
 
-function parseTab(raw: string | undefined): QuizFeedTabKind {
-  if (raw && VALID_TABS.has(raw as QuizFeedTabKind)) {
-    return raw as QuizFeedTabKind;
+function parseTab(raw: string | undefined): SearchFeedTab {
+  if (raw && VALID_TABS.has(raw as SearchFeedTab)) {
+    return raw as SearchFeedTab;
   }
   return 'latest';
 }
