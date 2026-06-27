@@ -156,4 +156,41 @@
 ## 4. 参照 (References)
 - `src/app/profile/[uid]/profile-client.tsx` — 変更対象コンポーネント
 
+---
+
+# Phase 28: 好きなジャンルの設定と表示（2026-06-27）
+
+## 1. 調査と分析のサマリー
+- **機能**: プロフィール編集（`/profile/edit`）で好きなジャンルを設定し、プロフィール詳細（`/profile/[uid]`）で設定したジャンルをチップ表示するUI要件の追加。
+- **データ層**:
+  - `User` ドキュメントの `followedGenres: string[]`（ジャンルIDの配列）を「好きなジャンル」の保存先として利用する。
+  - プロフィール更新用APIである `updateProfile` メソッド（`src/services/user.ts`）は、すでに `followedGenres` の部分更新をサポートしている。
+- **ジャンル一覧取得**:
+  - 有効なジャンル一覧は、`@/hooks/useActiveGenres` フック（または `listActiveGenres` サービス）を用いて `metadata_genres` コレクションから動的に取得できる。
+
+## 2. 設計上の決定とトレードオフ
+
+### 決定: データ層の `followedGenres` を好きなジャンルとしてマッピング
+- **Rationale**: 既にユーザーモデル内に `followedGenres`（フォロー中のジャンル名の配列）が存在し、DB設計ドキュメントでも「ユーザーがフォロー・関心のあるジャンル名の配列」として定義されている。新しく `favoriteGenres` フィールドを追加するのではなく、既存の `followedGenres` を「好きなジャンル」として再利用することで、スキーマ変更コストおよびマイグレーションの必要性を排除できる。
+
+### 決定: プロフィール編集画面での複数選択UIの提供
+- **Rationale**: ユーザーは複数のジャンルに関心があることが一般的であるため、チェックボックスや選択可能チップなどの複数選択UI（Multi-select）を提供する。
+- **実装手法**: `ProfileEditClient` 内で `useActiveGenres` を用いて有効なジャンル一覧を読み込み、現在登録されているジャンルを初期チェック状態にする。チェック状態のトグルで選択状態を管理し、保存時に `updateProfile` へ送信する。
+
+### 決定: プロフィール表示画面でのアイコン画像付きチップの表示
+- **Rationale**: 単なるテキスト表示ではなく、ジャンルに設定されているアイコン画像（`iconImageUrl`）をチップ内に表示することで、プレミアム感のある美しいデザインを実現する。
+- **実装手法**: `ProfileClient` 内で `useActiveGenres` を利用し、マスタデータの ID-表示名・アイコンのマッピングを解決して、対象ユーザーがフォロー中のジャンルをチップ表示する。
+
+## 3. Risks & Mitigations
+- **ジャンルマスタ読み込み中のUI表示**: マスタデータの読み込み中にUIが壊れたり、保存が完了する前に不整合が起きるリスクがある。
+  - **緩和策**: 編集画面および詳細画面において、ジャンル一覧の取得中はローディング状態を適切にハンドリングし、マスタの取得が失敗した場合はログを出力してフォールバック表示（テキストのみのチップ等）を行う。
+- **表示崩れリスク**: 好きなジャンルの数が多い場合、プロフィールカード内で表示が崩れたりあふれたりするリスクがある。
+  - **緩和策**: チップの一覧は `flex-wrap` を用いて適切に折り返すレスポンシブレイアウトとし、スクロール/折り返しで綺麗に収まる Vanilla CSS を実装する。
+
+## 4. 参照 (References)
+- `src/services/user.ts` — `updateProfile`, `UpdateProfileData`
+- `src/hooks/useActiveGenres.ts` — `useActiveGenres`
+- `src/app/profile/edit/profile-edit-client.tsx` — 編集画面
+- `src/app/profile/[uid]/profile-client.tsx` — 表示画面
+
 

@@ -36,8 +36,12 @@ function encodePayload(payload: unknown): string {
     });
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
-  // Node.js環境ではBufferを使用
-  return Buffer.from(json, 'utf8').toString('base64url');
+  // Node.js環境ではBufferを使用し、Base64URLに手動置換
+  return Buffer.from(json, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 function decodePayload<T>(cursor: string): T {
@@ -50,8 +54,12 @@ function decodePayload<T>(cursor: string): T {
       const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
       json = new TextDecoder().decode(bytes);
     } else {
-      // Node.js環境ではBufferを使用
-      json = Buffer.from(cursor, 'base64url').toString('utf8');
+      // Node.js環境ではBufferのBase64から復元
+      let padded = cursor.replace(/-/g, '+').replace(/_/g, '/');
+      while (padded.length % 4) {
+        padded += '=';
+      }
+      json = Buffer.from(padded, 'base64').toString('utf8');
     }
     return JSON.parse(json) as T;
   } catch {

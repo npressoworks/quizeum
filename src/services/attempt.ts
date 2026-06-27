@@ -405,17 +405,23 @@ function toDate(value: unknown): Date {
 }
 
 function encodePlayHistoryCursor(completedAt: Date, attemptId: string): string {
-  return Buffer.from(
-    JSON.stringify({ completedAt: completedAt.toISOString(), attemptId }),
-    'utf8'
-  ).toString('base64url');
+  const str = JSON.stringify({ completedAt: completedAt.toISOString(), attemptId });
+  return Buffer.from(str, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 function decodePlayHistoryCursor(
   cursor: string
 ): { completedAt: Date; attemptId: string } | null {
   try {
-    const raw = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+    let padded = cursor.replace(/-/g, '+').replace(/_/g, '/');
+    while (padded.length % 4) {
+      padded += '=';
+    }
+    const raw = JSON.parse(Buffer.from(padded, 'base64').toString('utf8')) as {
       completedAt: string;
       attemptId: string;
     };

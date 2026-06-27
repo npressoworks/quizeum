@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, notFound, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { useActiveGenres } from '@/hooks/useActiveGenres';
 import {
   getUser,
   followUser,
@@ -97,6 +98,9 @@ export function ProfileClient() {
   const [snsLogoUrls, setSnsLogoUrls] = useState<Record<string, string>>({});
 
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+
+  const { genres, loading: genresLoading } = useActiveGenres();
+  const favoriteGenres = genres.filter(g => profileUser?.followedGenres?.includes(g.id));
 
   useEffect(() => {
     async function loadBookmarks() {
@@ -287,6 +291,37 @@ export function ProfileClient() {
               <p className="text-muted-foreground">
                 {profileUser.bio || '自己紹介はまだ登録されていません。'}
               </p>
+
+              {/* 好きなジャンル表示 (Phase 28) */}
+              <div data-testid="profile-favorite-genres">
+                {favoriteGenres.length > 0 ? (
+                  <div className="flex flex-col gap-2 mt-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground">好きなジャンル</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {favoriteGenres.map(genre => (
+                        <div
+                          key={genre.id}
+                          className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm"
+                        >
+                          {genre.iconImageUrl && (
+                            <img src={genre.iconImageUrl} alt="" className="size-4 object-contain" />
+                          )}
+                          <span>{genre.displayName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  isMyProfile && (
+                    <div className="mt-4 text-xs text-muted-foreground">
+                      好きなジャンルが設定されていません。
+                      <Link href="/profile/edit" className="text-primary hover:underline ml-1">
+                        登録する
+                      </Link>
+                    </div>
+                  )
+                )}
+              </div>
 
               {profileUser.snsLinks && Object.values(profileUser.snsLinks).some(Boolean) && (
                 <div className="flex flex-wrap gap-3 items-center mt-3" data-testid="sns-links-container">

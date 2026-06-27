@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useActiveGenres } from '@/hooks/useActiveGenres';
 
 export function ProfileEditClient() {
   const { user: currentUser, loading: authLoading } = useAuth();
@@ -34,10 +35,21 @@ export function ProfileEditClient() {
   const [x, setX] = useState('');
   const [instagram, setInstagram] = useState('');
   const [tiktok, setTiktok] = useState('');
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<ProfileValidationError[]>([]);
   const [submitError, setSubmitError] = useState('');
+
+  const { genres, loading: genresLoading } = useActiveGenres();
+
+  const handleGenreToggle = (genreId: string) => {
+    setSelectedGenres(prev =>
+      prev.includes(genreId)
+        ? prev.filter(id => id !== genreId)
+        : [...prev, genreId]
+    );
+  };
 
   useEffect(() => {
     async function loadUserData() {
@@ -51,6 +63,7 @@ export function ProfileEditClient() {
         if (userData) {
           setDisplayName(userData.displayName || '');
           setBio(userData.bio || '');
+          setSelectedGenres(userData.followedGenres || []);
           if (userData.snsLinks) {
             setYoutube(userData.snsLinks.youtube || '');
             setX(userData.snsLinks.x || '');
@@ -89,6 +102,7 @@ export function ProfileEditClient() {
       await updateProfile(currentUser.id, {
         displayName,
         bio,
+        followedGenres: selectedGenres,
         snsLinks: { youtube, x, instagram, tiktok }
       });
       router.push(`/profile/${currentUser.id}`);
@@ -179,6 +193,39 @@ export function ProfileEditClient() {
                   {bio.length} / 200
                 </span>
               </div>
+            </div>
+
+            {/* 好きなジャンル選択 */}
+            <div className="flex flex-col gap-2" data-testid="profile-genre-select">
+              <Label>好きなジャンル</Label>
+              {genresLoading ? (
+                <span className="text-sm text-muted-foreground">ジャンル一覧を読み込み中...</span>
+              ) : (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {genres.map(genre => {
+                    const isSelected = selectedGenres.includes(genre.id);
+                    return (
+                      <button
+                        key={genre.id}
+                        type="button"
+                        onClick={() => handleGenreToggle(genre.id)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors cursor-pointer",
+                          isSelected
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card text-muted-foreground hover:bg-accent border-input"
+                        )}
+                        disabled={submitting}
+                      >
+                        {genre.iconImageUrl && (
+                          <img src={genre.iconImageUrl} alt="" className="size-4 object-contain" />
+                        )}
+                        <span>{genre.displayName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* SNS Links */}

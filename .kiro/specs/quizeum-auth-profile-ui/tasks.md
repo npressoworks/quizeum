@@ -290,3 +290,54 @@
 
 
 
+
+### 13. Phase 28: 好きなジャンルの設定と表示EEhase 28EE
+
+> **前提**: `quizetika-core` におけめE`UserService.updateProfile` および `@/hooks/useActiveGenres` などのマスタチEEタ取得機Eが有効であること、E
+
+- [x] 13.1 (P) プロフィール編雁E面での好きなジャンル選択UIおよび初期表示の実裁E
+  - `src/app/profile/edit/profile-edit-client.tsx` において、`useActiveGenres` を用ぁE有効ジャンルマスタを取得し、褁Eトグル選択できるボタン/チップ型UIを表示する、E
+  - ユーザーチEEタの `followedGenres` が既に存在する場合E、それを初期選択状態に反映させる、E
+  - ジャンル選択UIコンチEに `data-testid="profile-genre-select"` を付与する、E
+  - **完亁E慁E*: 編雁E面で利用可能なジャンル一覧が描画され、クリチE操作で選抁E解除のトグルが機Eすること、E
+  - _Requirements: 14.1, 14.2, 14.7_
+  - _Boundary: ProfileEditClient_
+
+- [x] 13.2 (P) 好きなジャンルの保存E琁EE実裁E
+  - プロフィール編雁E面の保存E琁Eに、E択されたジャンルIDリストを `followedGenres` フィールドにアタチEし、`UserService.updateProfile` を呼び出して保存する、E
+  - 保存E功後、E動的にユーザー自身のプロフィール詳細画面EE/profile/[uid]`Eへ遷移させる、E
+  - **完亁E慁E*: 保存EタンをクリチEした際、変更された好きなジャンル惁Eが正常に保存され、詳細画面へリダイレクトされること、E
+  - _Requirements: 14.3_
+  - _Depends: 13.1_
+  - _Boundary: ProfileEditClient_
+
+- [x] 13.3 (P) プロフィール表示画面での好きなジャンルチップ表示の実裁E
+  - `src/app/profile/[uid]/profile-client.tsx` にて `useActiveGenres` からジャンルマスタをロードし、対象ユーザーの `followedGenres`EジャンルID配EEを解決する、E
+  - 解決された各ジャンルにつぁE、表示名テキストとアイコン画像！EiconImageUrl`Eを含むチップを「好きなジャンル」として基本惁E領域に表示する、E
+  - ジャンルが未設定で本人の場合、「好きなジャンルを登録しましょぁEテキストと `/profile/edit` への遷移リンクを表示する、E
+  - ジャンルが未設定で他人の場合、好きなジャンル表示領域自体を非表示とする、E
+  - 表示領域のコンチEに `data-testid="profile-favorite-genres"` を付与する、E
+  - **完亁E慁E*: プロフィール詳細画面にて設定されたジャンルチップが正しくレンダリングされ、未登録時E条件刁E（本人/他人Eが動作すること、E
+  - _Requirements: 14.4, 14.5, 14.6, 14.7_
+  - _Boundary: ProfileClient_
+
+- [x] 13.4 単体テストERTLチEトE作E/更新
+  - `ProfileEditClient` および `ProfileClient` のチEトファイルを更新EまたE新規作EEし、ジャンルの褁E選択、E期表示、保存時の `updateProfile` 呼び出し、チチEEのマスタ解決表示、未登録時E表示刁EロジチEが正常に動作することめEJest 等で検証する、E
+  - **完亁E慁E*: 追加・更新した単体テストスイートがすべてグリーンEEASSEであること、E
+  - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
+  - _Depends: 13.2, 13.3_
+  - _Boundary: Testing_
+
+- [x] 13.5 (P) E2EチEトE作E/更新
+  - `e2e/auth-profile.spec.ts` などの Playwright E2EチEトを更新し、テストユーザーでログイン後、Eロフィール編雁E面から好きなジャンルを褁E選択して保存し、詳細画面でチップが正しく表示される統合シナリオを検証する。また未登録時E本人・他人の表示条件を検証する、E
+  - **完亁E慁E*: E2EチEトスイートがパスすること、E
+  - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7_
+  - _Depends: 13.4_
+  - _Boundary: Testing_
+
+- [x] 13.6 Phase 28 統合検証
+  - 好きなジャンル設定E表示機Eを含め、`npm run build` および `npm test` がエラーなく通ることを確認する、E
+  - **完亁E慁E*: ビルドと全チEト！Eest、E2EEが成功すること、E
+  - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7_
+  - _Depends: 13.5_
+  - _Boundary: Integration_

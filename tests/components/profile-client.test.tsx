@@ -52,6 +52,22 @@ jest.mock('@/services/storage', () => ({
   getSnsLogoUrl: jest.fn().mockResolvedValue(''),
 }));
 
+jest.mock('@/hooks/useActiveGenres', () => ({
+  useActiveGenres: jest.fn().mockReturnValue({
+    genres: [
+      { id: 'genre-1', displayName: 'プログラミング', iconImageUrl: '/icons/prog.png' },
+      { id: 'genre-2', displayName: '歴史', iconImageUrl: '' },
+    ],
+    loading: false,
+    error: null,
+    genreLabelById: new Map([
+      ['genre-1', 'プログラミング'],
+      ['genre-2', '歴史'],
+    ]),
+    refetch: jest.fn(),
+  }),
+}));
+
 // 共通UI用の IntersectionObserver の簡易モック
 class IntersectionObserverMock {
   observe() {}
@@ -199,6 +215,93 @@ describe('ProfileClient - Created Quizzes Search & Hybrid Infinite Scroll', () =
 
     await waitFor(() => {
       expect(toggleBookmark).toHaveBeenCalledWith('user-1', 'quiz-1', 'quiz');
+    });
+  });
+
+  describe('好きなジャンル表示機能 (Phase 28)', () => {
+    it('登録された好きなジャンルがチップ形式（アイコン・表示名）で表示されること', async () => {
+      const { getUser } = require('@/services/user');
+      (getUser as jest.Mock).mockResolvedValueOnce({
+        id: 'user-1',
+        displayName: 'テストユーザー',
+        reputationScore: 100,
+        followersCount: 10,
+        followingCount: 5,
+        bio: 'プロフィール自己紹介',
+        badges: [],
+        deleteStatus: 'active',
+        totalFailedQuestionsCount: 0,
+        followedGenres: ['genre-1', 'genre-2'],
+      });
+
+      render(<ProfileClient />);
+
+      await waitFor(() => {
+        const favoriteGenresSection = screen.getByTestId('profile-favorite-genres');
+        expect(favoriteGenresSection).toBeInTheDocument();
+        expect(screen.getByText('プログラミング')).toBeInTheDocument();
+        expect(screen.getByText('歴史')).toBeInTheDocument();
+        
+        // アイコン画像が表示されていること
+        const progIcon = document.querySelector('img[src="/icons/prog.png"]');
+        expect(progIcon).toBeInTheDocument();
+      });
+    });
+
+    it('好きなジャンルが未設定で本人プロフィールのとき、登録を促すリンクが表示されること', async () => {
+      const { getUser } = require('@/services/user');
+      (getUser as jest.Mock).mockResolvedValueOnce({
+        id: 'user-1',
+        displayName: 'テストユーザー',
+        reputationScore: 100,
+        followersCount: 10,
+        followingCount: 5,
+        bio: 'プロフィール自己紹介',
+        badges: [],
+        deleteStatus: 'active',
+        totalFailedQuestionsCount: 0,
+        followedGenres: [],
+      });
+
+      render(<ProfileClient />);
+
+      await waitFor(() => {
+        const favoriteGenresSection = screen.getByTestId('profile-favorite-genres');
+        expect(favoriteGenresSection).toBeInTheDocument();
+        expect(screen.getByText(/好きなジャンルが設定されていません/)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /登録する/ })).toBeInTheDocument();
+      });
+    });
+
+    it('好きなジャンルが未設定で他人プロフィールのとき、表示領域自体が描画されないこと', async () => {
+      const { getUser } = require('@/services/user');
+      (getUser as jest.Mock).mockResolvedValueOnce({
+        id: 'user-2', // 他人
+        displayName: '他人ユーザー',
+        reputationScore: 50,
+        followersCount: 2,
+        followingCount: 2,
+        bio: '他人の自己紹介',
+        badges: [],
+        deleteStatus: 'active',
+        totalFailedQuestionsCount: 0,
+        followedGenres: [],
+      });
+      
+      // paramsを他人にするため、mockParams を一時的に書き換え
+      const originalParams = { ...mockParams };
+      mockParams.uid = 'user-2';
+
+      try {
+        render(<ProfileClient />);
+
+        await waitFor(() => {
+          // 他人のプロフィールでジャンル未設定時は、領域が非表示であること
+          expect(screen.queryByTestId('profile-favorite-genres')).not.toBeInTheDocument();
+        });
+      } finally {
+        mockParams.uid = originalParams.uid; // 元に戻す
+      }
     });
   });
 });

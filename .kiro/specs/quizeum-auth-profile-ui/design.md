@@ -14,11 +14,13 @@
 ### Goals
 - 画面群の基礎となるデザインシステム（カジュアルモダンなUI）トークンおよびレイアウトの維持。
 - ソーシャルサインイン（Google / X / Microsoft）とセッションに基づくリダイレクト。
-- プロフィール画面でのアバター、バッジ、評価、投稿クイズ／リスト／**本人のみプレイ履歴**のタブ切替表示。
+- プロフィール画面でのアバター, バッジ, 評価, 投稿クイズ／リスト／**本人のみプレイ履歴**のタブ切替表示。
 - 退会処理中（`delete_pending`）の404フォールバック。
 - **Phase 5**: プレイ履歴専用タブ、カーソルページング、クイズ詳細へのリンク、E2E `data-testid` 契約。
 - **Phase 8**: リストカードの `listType` バッジ、種別に応じた収録件数、任意フィルタ、E2E `data-testid` 契約。
 - **Phase 23**: 本人プロフィール `profileActions` からリアクション履歴リンク（Heart アイコン付き）の削除。編集・弱点克服等の現行有効導線は維持。
+- **Phase 27**: 「作成したクイズ」タブ内でのキーワード検索とページングUI（1ページあたり9件）、共通クイズカード `QuizCard` の適用とブックマーク状態解決およびトグル機能。
+- **Phase 28**: 好きなジャンルの複数選択・保存UI（編集画面）およびアイコン画像付きジャンルチップ表示（詳細画面）。
 
 ### Non-Goals
 - クイズプレイ・作成・モデレーション画面（各専用スペック）。
@@ -39,6 +41,8 @@
 - **Phase 5**: `ProfilePlayHistoryPanel` — 本人プロフィール第3タブ「プレイ履歴」の取得・表示・追加読み込み。
 - **Phase 8**: `ProfileListsPanel` / `ProfileListCard` — 「作成したリスト」タブの `listType` 表示・件数・任意フィルタ・詳細遷移。
 - **Phase 23**: `ProfileClient` — 本人 `profileActions` からリアクション履歴導線の削除（`/profile/[uid]/likes` ルート本体はレガシー存続）。
+- **Phase 27**: `ProfileClient` — 「作成したクイズ」タブ内でのクライアントサイド検索・ページング状態管理およびUI描画、共通 `QuizCard` のアタッチとブックマーク状態のトグル・遷移処理。
+- **Phase 28**: `ProfileEditClient` における好きなジャンル（`followedGenres`）の複数選択および保存、`ProfileClient` における好きなジャンルチップ（マスタ解決後の表示名・アイコン）の表示。
 
 ### Out of Boundary
 - Firestoreセキュリティルール、バッジ自動付与サーバー処理。
@@ -49,6 +53,7 @@
 - **`quizetika-core`**: `UserService`, `AuthContext`, **`PlayHistoryPage` / `PlayHistoryEntry` 型（`@/types`）**
 - **`GET /api/user/play-history`**: Bearer ID トークン（`auth.currentUser.getIdToken()`）
 - **`@mui/icons-material`**
+- **`metadata_genres`**: `useActiveGenres`（`@/hooks/useActiveGenres`）を呼び出し、ジャンルの表示名とアイコン画像を解決する。
 - **Phase 8**: `getQuizListsByAuthor`（`@/services/quiz-list`）、`resolveListType`（`@/types`）。任意フィルタ時は既取得配列のクライアント絞り込みを優先（再フェッチは `options.listType` 利用可だが初版は不要）。
 
 ### Revalidation Triggers
@@ -120,6 +125,10 @@ src/
 ### Modified Files（Phase 5）
 - `src/app/profile/[uid]/page.tsx` — `activeTab` に `'history'` を追加（本人のみタブボタン表示）、`ProfilePlayHistoryPanel` をタブパネルに配置。
 - `src/app/profile/[uid]/profile.module.css` — 履歴リスト行スタイル（必要に応じてパネルCSSへ移管）。
+
+### Modified Files（Phase 28）
+- `src/app/profile/edit/profile-edit-client.tsx` — `useActiveGenres` を用いた好きなジャンル選択UI（複数選択可能、保存処理）の追加。
+- `src/app/profile/[uid]/profile-client.tsx` — ユーザーの `followedGenres` に対し、マスタ解決を行って好きなジャンルをアイコン付きのチップで表示するUIの追加。
 
 ### Modified Files（既存）
 - `src/app/globals.css` — 共通トークン。
@@ -247,12 +256,12 @@ sequenceDiagram
 | Component                 | Domain/Layer   | Intent                                               | Req Coverage                 | Key Dependencies           | Contracts      |
 | ------------------------- | -------------- | ---------------------------------------------------- | ---------------------------- | -------------------------- | -------------- |
 | `LoginPage`               | UI / Page      | 認証の開始とリダイレクト制御                         | 1.1, 1.2, 1.3, 1.4, 1.5      | `useAuth`, Firebase Auth   | State          |
-| `ProfileClient`           | UI / Client    | プロフィール閲覧 UI、本人アクション、タブ、フォロー  | 2.1–2.7, 7.1, 8.1, 10.1–10.3 | `UserService`, `useAuth`   | State          |
+| `ProfileClient`           | UI / Client    | プロフィール閲覧 UI、本人アクション、タブ、フォロー  | 2.1–2.7, 7.1, 8.1, 10.1–10.3, 12.1–12.8, 13.1–13.5, 14.4–14.7 | `UserService`, `useAuth`, `useActiveGenres`, `QuizCard` | State |
 | `ProfilePage`             | UI / Page      | プロフィール RSC シェル、Suspense 境界               | 9.9–9.11                     | `ProfileClient`            | Server         |
 | `ProfileListsPanel`       | UI / Component | 作成リストタブの一覧・空状態・任意フィルタ           | 8.1, 8.6, 8.7                | `ProfileListCard`          | State          |
 | `ProfileListCard`         | UI / Component | リスト1件のカード（種別・件数・リンク）              | 8.2–8.5, 8.9                 | `profile-list-display`     | Presentational |
 | `ProfilePlayHistoryPanel` | UI / Component | プレイ履歴専用タブの一覧・ページング                 | 7.2–7.7                      | `play-history-client` (P0) | State, API     |
-| `ProfileEditPage`         | UI / Page      | プロフィール表示名・自己紹介の編集・バリデーション   | 3.1, 3.2, 3.3                | `UserService`, Zod Schema  | FormState      |
+| `ProfileEditPage`         | UI / Page      | プロフィール表示名・自己紹介の編集・バリデーション   | 3.1, 3.2, 3.3, 14.1–14.3, 14.7 | `UserService`, Zod Schema  | FormState      |
 | `ConnectionsPage`         | UI / Page      | フォロー/フォロワーのタブ切替一覧と直接フォロー制御  | 4.1, 4.2                     | `UserService`              | State          |
 | `NotificationsPage`       | UI / Page      | アクティビティ通知一覧の表示と詳細遷移               | 5.1, 5.2                     | `NotificationService`      | State          |
 | `LikesPage`               | UI / Page      | リアクション履歴（レガシー・直接 URL のみ）          | 6.2（メンテナンス対象外）    | `ReactionService`          | State          |
@@ -415,6 +424,10 @@ export interface ProfileEditFormInput {
   - カードクリックで `/list/[id]` へ遷移すること。
   - 本人0件時に `/list/create` 導線が表示されること。
 - フィルタ適用で0件・全体1件以上のとき `profile-list-filter-empty` が表示され、フィルタ解除で一覧が復帰すること。
+- **好きなジャンル（Phase 28）**:
+  - `profile-genre-select` でジャンルが複数選択でき、保存完了後にプロフィール詳細画面に遷移すること。
+  - プロフィール詳細画面に `profile-favorite-genres` が表示され、設定されたジャンルチップ（表示名とアイコン画像）が表示されること。
+  - 未登録時、本人の場合は「好きなジャンルを登録しましょう」が表示され、他人の場合はジャンルエリアが非表示であること。
 
 ---
 
@@ -783,6 +796,172 @@ import { toggleBookmark, getBookmarkedQuizIds } from '@/services/bookmark';
   onPlayClick={handleCardClick}
 />
 ```
+
+#### 10. Requirements Traceability（Phase 27 拡張）
+
+| 要件 ID | 要件サマリー | 該当コンポーネント | インターフェース / 責務 | フロー / 挙動 |
+| :--- | :--- | :--- | :--- | :--- |
+| 13.1 | 共通 `QuizCard` コンポーネントの適用 | `ProfileClient` | 独自クイズカードを廃止し、`QuizCard` を使用する | 表示フロー |
+| 13.2 | ブックマーク状態（`isBookmarked`）の反映 | `ProfileClient` | ログインユーザーの `bookmarkedIds` を解決して `QuizCard` に反映する | データフロー |
+| 13.3 | ブックマーク切り替え操作とログイン画面リダイレクト | `ProfileClient` | クリック時に `toggleBookmark` を呼び出す。未ログイン時は `/login` へ | ブックマークフロー |
+| 13.4 | クイズカードクリックでの詳細画面遷移 | `ProfileClient` | `QuizCard` のカードまたは「挑戦する」クリックで `/quiz/[id]` へ遷移 | 画面遷移 |
+| 13.5 | E2E用 `data-testid="quiz-card"` 契約 | `ProfileClient` | 共通 `QuizCard` が `data-testid="quiz-card"` を持つことを保証 | テスト支援 |
+
+#### 11. Testing Strategy（Phase 27 拡張）
+
+##### 手動確認
+- 「作成したクイズ」タブの各クイズカードが、ホームや検索画面と同様の共通 `QuizCard` デザインで表示されること。
+- ログイン状態でクイズカードのブックマークアイコンをクリックしたとき、ブックマーク状態が正常にトグルされ、データストア（`bookmarkedIds`）に反映されること。
+- 未ログイン状態でブックマークアイコンをクリックしたとき、ログイン画面（`/login`）へリダイレクトされること。
+- クイズカードの「挑戦する」ボタンまたはカード自体をクリックしたとき、該当クイズの詳細画面（`/quiz/[id]`）へ遷移すること。
+
+##### E2Eテスト
+- `data-testid="quiz-card"` が各クイズカードに付与されており、一覧表示されていることを検証する。
+- 共通 `QuizCard` 内のブックマークトグル操作によって状態が変更できることを検証する。
+
+---
+
+## Phase 28: 好きなジャンルの設定と表示設計（2026-06-27）
+
+### 概要
+ユーザープロフィールにおいて、ユーザー自身が好きな（関心のある）クイズのジャンルを複数選択して設定し、プロフィール表示画面でそれらをチップ形式で表示する機能を実装します。データモデルには既存の `followedGenres: string[]`（ジャンルIDの配列）を活用し、新設する UI コンポーネントは既存のデザインシステムトークンおよび Vanilla CSS に準拠して構築します。
+
+### 5. Requirements Traceability（Phase 28）
+
+| 要件 ID | 要件サマリー | 該当コンポーネント | インターフェース / 責務 | フロー / 挙動 |
+| :--- | :--- | :--- | :--- | :--- |
+| 14.1 | 好きなジャンルを複数選択可能なUI表示 | `ProfileEditClient` | `useActiveGenres` を利用し、選択可能なジャンル一覧を表示する | 編集表示フロー |
+| 14.2 | 既に登録されているジャンルの選択状態表示 | `ProfileEditClient` | ロード完了時にユーザーの `followedGenres` を選択状態に反映する | データ初期化 |
+| 14.3 | ジャンル保存と詳細画面への遷移 | `ProfileEditClient` | 保存時に `updateProfile` を呼び出し、完了後に `/profile/[uid]` へ遷移 | 保存フロー |
+| 14.4 | 好きなジャンルチップ一覧（表示名・アイコン画像）の表示 | `ProfileClient` | `followedGenres` をマスタ解決し、基本情報領域にチップ一覧を表示する | 詳細表示フロー |
+| 14.5 | ジャンル未設定かつ本人時の登録促し表示 | `ProfileClient` | 好きなジャンルが0件かつマイプロフィールの場合に登録リンクを表示する | 詳細表示フロー |
+| 14.6 | ジャンル未設定かつ他人時の表示領域非表示 | `ProfileClient` | 好きなジャンルが0件かつ他ユーザーの場合は領域全体を非表示とする | 詳細表示フロー |
+| 14.7 | E2E用 `data-testid` 契約 | `ProfileClient`, `ProfileEditClient` | `profile-genre-select` と `profile-favorite-genres` を付与 | テスト支援 |
+
+### 1. 状態管理とデータフロー
+
+#### A. プロフィール編集画面 (`/profile/edit` の `ProfileEditClient`)
+- **ジャンル一覧取得**: `@/hooks/useActiveGenres` を呼び出して `genres: GenreMetadata[]` 一覧を取得します。
+- **選択状態管理**: 選択されたジャンルID群をローカルステート（`selectedGenres: string[]`）として管理します。
+  - 初期ロード完了時 (`useEffect`): 取得したユーザーデータの `followedGenres` 配列を `selectedGenres` の初期値として設定します。
+- **トグル処理**: ジャンル選択時に、該当 ID が `selectedGenres` に存在しなければ追加し、存在すれば削除します。
+- **保存処理**: フォーム送信時に、`UserService.updateProfile(uid, { displayName, bio, followedGenres: selectedGenres, snsLinks })` を実行します。
+
+#### B. プロフィール詳細画面 (`/profile/[uid]` の `ProfileClient`)
+- **ジャンル一覧取得**: `@/hooks/useActiveGenres` を呼び出し、マスタデータをロードします。
+- **表示名の解決**: `profileUser.followedGenres`（ジャンルID配列）に含まれる各IDについて、`useActiveGenres` が提供する `genres`（または `genreLabelById`）から該当する `displayName` および `iconImageUrl` を特定します。
+- **レンダリング**: 
+  - 1つ以上のジャンルが登録されている場合、アバター・自己紹介エリアの下部（SNSリンクの周辺）に「好きなジャンル」セクションを描画し、アイコン画像とラベルを含むチップを `flex-wrap` レイアウトで表示します。
+  - 未登録かつ本人の場合、「好きなジャンルを登録しましょう（編集へのリンク）」等の控えめなプロンプトを表示します。
+  - 未登録かつ他人の場合、セクション自体を描画しません。
+
+### 2. インターフェース設計
+
+#### 編集画面でのジャンル選択 UI (JSXイメージ)
+```tsx
+import { useActiveGenres } from '@/hooks/useActiveGenres';
+
+export function ProfileEditClient() {
+  const { genres, loading: genresLoading } = useActiveGenres();
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+
+  // 選択トグル
+  const handleGenreToggle = (genreId: string) => {
+    setSelectedGenres(prev =>
+      prev.includes(genreId)
+        ? prev.filter(id => id !== genreId)
+        : [...prev, genreId]
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-2" data-testid="profile-genre-select">
+      <Label>好きなジャンル</Label>
+      {genresLoading ? (
+        <span className="text-sm text-muted-foreground">ジャンル一覧を読み込み中...</span>
+      ) : (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {genres.map(genre => {
+            const isSelected = selectedGenres.includes(genre.id);
+            return (
+              <button
+                key={genre.id}
+                type="button"
+                onClick={() => handleGenreToggle(genre.id)}
+                className={cn(
+                  "flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors",
+                  isSelected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground hover:bg-accent"
+                )}
+              >
+                {genre.iconImageUrl && (
+                  <img src={genre.iconImageUrl} alt="" className="size-4 object-contain" />
+                )}
+                <span>{genre.displayName}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+#### プロフィール画面でのジャンル表示 UI (JSXイメージ)
+```tsx
+export function ProfileClient() {
+  const { genres, loading: genresLoading } = useActiveGenres();
+  
+  // profileUser.followedGenres に基づきマスタを解決
+  const favoriteGenres = genres.filter(g => profileUser.followedGenres?.includes(g.id));
+
+  return (
+    <div data-testid="profile-favorite-genres">
+      {favoriteGenres.length > 0 ? (
+        <div className="flex flex-col gap-2 mt-4">
+          <h3 className="text-sm font-semibold text-muted-foreground">好きなジャンル</h3>
+          <div className="flex flex-wrap gap-2">
+            {favoriteGenres.map(genre => (
+              <div
+                key={genre.id}
+                className="flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm"
+              >
+                {genre.iconImageUrl && (
+                  <img src={genre.iconImageUrl} alt="" className="size-4 object-contain" />
+                )}
+                <span>{genre.displayName}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        isMyProfile && (
+          <div className="mt-4 text-xs text-muted-foreground">
+            好きなジャンルが設定されていません。
+            <Link href="/profile/edit" className="text-primary hover:underline ml-1">
+              登録する
+            </Link>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+```
+
+### 3. スタイリングとレスポンシブ対応
+- Vanilla CSS / CSS Modules を用い、チップは画面幅に応じて折り返す (`flex-wrap gap-2`) スタイルを適用します。
+- アイコン画像は `object-contain size-4` に統一し、画像が未設定またはロード失敗した場合は表示名テキストのみを表示します。
+- プレミアムな印象を与えるため、選択時とホバー時のマイクロアニメーション（微細なトランジション）を付与します。
+
+### 4. 開発見積もりとマイルストーン
+- **開発工数**: 0.5人日
+- **マイルストーン**:
+  1. `profile-edit-client.tsx` への `useActiveGenres` 組み込みと複数選択UI実装・テスト。
+  2. `profile-client.tsx` への `useActiveGenres` 解決とアイコン付きチップ表示実装・テスト。
+  3. 全体結合テスト（RSC サスペンス、E2Eテスト確認）。
 
 
 
