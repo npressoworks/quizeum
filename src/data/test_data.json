@@ -7,8 +7,8 @@
       "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=e2e-test-uid-123456",
       "bio": "E2Eテスト用の管理者アカウントです。",
       "followedGenres": [
-        "entertainment",
-        "trivia"
+        "entertainment-idol",
+        "hobby-culture"
       ],
       "badges": [
         {
@@ -48,8 +48,8 @@
       "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=creator-uid-789",
       "bio": "面白いクイズをたくさん作ります！",
       "followedGenres": [
-        "anime-game",
-        "academic"
+        "anime-manga",
+        "history-geography"
       ],
       "badges": [
         {
@@ -80,7 +80,7 @@
       "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=voter-uid-abc",
       "bio": "辛口レビュー多めです。",
       "followedGenres": [
-        "riddle-puzzle"
+        "hobby-culture"
       ],
       "badges": [],
       "createdQuizzesCount": 0,
@@ -99,10 +99,10 @@
   ],
   "metadata_genres": [
     {
-      "id": "entertainment",
-      "displayName": "芸能・エンタメ",
-      "description": "テレビ、ラジオ、YouTuber、アイドル、お笑い、セレブなどに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=entertainment",
+      "id": "anime-manga",
+      "displayName": "アニメ・漫画",
+      "description": "漫画、アニメ、声優、ライトノベルなどに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=anime-manga",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -110,10 +110,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "anime-game",
-      "displayName": "アニメ・ゲーム",
-      "description": "漫画、アニメ、ゲーム、声優、ライトノベルなどに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=anime-game",
+      "id": "game",
+      "displayName": "ゲーム",
+      "description": "家庭用ゲーム、スマホアプリ、レトロゲーム、ボードゲーム、eスポーツなどに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=game",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -121,10 +121,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "music-movie",
-      "displayName": "音楽・映画",
-      "description": "邦楽、洋楽、映画、ドラマ、ミュージカル、舞台などに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=music-movie",
+      "id": "movie-drama-tv",
+      "displayName": "映画・ドラマ・TV",
+      "description": "映画、ドラマ、バラエティ番組、ドキュメンタリー、CMなどに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=movie-drama-tv",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -132,10 +132,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "sports",
-      "displayName": "スポーツ",
-      "description": "野球、サッカー、オリンピック、格闘技、eスポーツなどに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=sports",
+      "id": "music-artist",
+      "displayName": "音楽・アーティスト",
+      "description": "邦楽、洋楽、歌手、バンド、クラシック、楽器、音楽史などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=music-artist",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -143,10 +143,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "trivia",
-      "displayName": "雑学・トリビア",
-      "description": "日常の疑問、言葉の由来、ブランド、食文化、生活の知恵などに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=trivia",
+      "id": "entertainment-idol",
+      "displayName": "芸能・アイドル",
+      "description": "タレント、お笑い芸人、女性アイドル、男性アイドル、モデルなどに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=entertainment-idol",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -154,10 +154,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "academic",
-      "displayName": "学問・教養",
-      "description": "歴史、地理、科学、数学、文学、語学、政治・経済、時事問題などに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=academic",
+      "id": "sns-netculture",
+      "displayName": "SNS・ネットカルチャー",
+      "description": "YouTuber、VTuber、SNS、ネットスラング、WEBサービスなどに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=sns-netculture",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -165,10 +165,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "riddle-puzzle",
-      "displayName": "ひらめき・謎解き",
-      "description": "謎解き、ウミガメのスープ、あるなしクイズ、パズル、IQテストなどに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=riddle-puzzle",
+      "id": "gourmet-food",
+      "displayName": "グルメ・食",
+      "description": "料理、スイーツ、食材、お酒、飲食店、世界の食文化などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=gourmet-food",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -176,10 +176,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "local-world",
-      "displayName": "ローカル・ご当地",
-      "description": "都道府県、世界の国々、観光地、方言、ご当地グルメなどに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=local-world",
+      "id": "sports-outdoor",
+      "displayName": "スポーツ・アウトドア",
+      "description": "野球、サッカー、五輪、キャンプ、登山、マリンスポーツなどに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=sports-outdoor",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -187,10 +187,10 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "subculture-hobby",
-      "displayName": "サブカル・ホビー",
-      "description": "ファッション、乗り物（鉄道・車）、ミリタリー、占い、オカルトなどに関するクイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=subculture-hobby",
+      "id": "travel-local",
+      "displayName": "トラベル・ご当地",
+      "description": "都道府県、観光地、温泉、方言、特産品、世界の国々などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=travel-local",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -198,10 +198,76 @@
       "updatedAt": "2026-06-01T00:00:00Z"
     },
     {
-      "id": "general",
-      "displayName": "ノンジャンル・総合",
-      "description": "複数のジャンルにまたがるクイズや、定番のベタ問、検定試験風クイズ",
-      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=general",
+      "id": "hobby-culture",
+      "displayName": "趣味・カルチャー",
+      "description": "車、バイク、鉄道、ファッション、カメラ、占い、ペット、日曜大工などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=hobby-culture",
+      "canonicalId": null,
+      "mergedGenreIds": [],
+      "isActive": true,
+      "createdAt": "2026-06-01T00:00:00Z",
+      "updatedAt": "2026-06-01T00:00:00Z"
+    },
+    {
+      "id": "news-trend",
+      "displayName": "最新ニュース・トレンド",
+      "description": "最近のニュース、話題のイベント、流行、時事問題、話題の人物などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=news-trend",
+      "canonicalId": null,
+      "mergedGenreIds": [],
+      "isActive": true,
+      "createdAt": "2026-06-01T00:00:00Z",
+      "updatedAt": "2026-06-01T00:00:00Z"
+    },
+    {
+      "id": "history-geography",
+      "displayName": "歴史・地理",
+      "description": "日本史、世界史、戦国時代、地図、地形、都市、世界遺産などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=history-geography",
+      "canonicalId": null,
+      "mergedGenreIds": [],
+      "isActive": true,
+      "createdAt": "2026-06-01T00:00:00Z",
+      "updatedAt": "2026-06-01T00:00:00Z"
+    },
+    {
+      "id": "science-technology",
+      "displayName": "科学・テクノロジー",
+      "description": "宇宙、物理、化学、生物、IT、AI、最新技術、数学などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=science-technology",
+      "canonicalId": null,
+      "mergedGenreIds": [],
+      "isActive": true,
+      "createdAt": "2026-06-01T00:00:00Z",
+      "updatedAt": "2026-06-01T00:00:00Z"
+    },
+    {
+      "id": "language-literature",
+      "displayName": "語学・文学",
+      "description": "日本語、英語、ことわざ、四字熟語、小説、作家、名著などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=language-literature",
+      "canonicalId": null,
+      "mergedGenreIds": [],
+      "isActive": true,
+      "createdAt": "2026-06-01T00:00:00Z",
+      "updatedAt": "2026-06-01T00:00:00Z"
+    },
+    {
+      "id": "art",
+      "displayName": "アート・芸術",
+      "description": "美術、絵画、建築、デザイン、彫刻、演劇、伝統芸能、クラシックバレエなどに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=art",
+      "canonicalId": null,
+      "mergedGenreIds": [],
+      "isActive": true,
+      "createdAt": "2026-06-01T00:00:00Z",
+      "updatedAt": "2026-06-01T00:00:00Z"
+    },
+    {
+      "id": "society-politics-economy",
+      "displayName": "社会・政治・経済",
+      "description": "政治、経済、ビジネス、法律、社会制度、国際情勢などに関するクイズ",
+      "iconImageUrl": "https://api.dicebear.com/7.x/identicon/svg?seed=society-politics-economy",
       "canonicalId": null,
       "mergedGenreIds": [],
       "isActive": true,
@@ -549,7 +615,7 @@
       "description": "モダンWeb開発に必須となるReactとJavaScriptの基礎知識を試す問題です。中級者向け。",
       "thumbnailUrl": null,
       "difficulty": 4,
-      "genre": "anime-game",
+      "genre": "anime-manga",
       "tags": [
         "react",
         "javascript"
@@ -641,7 +707,7 @@
       "reviewBadge": "mostly_positive",
       "isReviewMasked": false,
       "activeResetRequestId": null,
-      "canonicalGenreId": "anime-game",
+      "canonicalGenreId": "anime-manga",
       "canonicalTagIds": [
         "react",
         "javascript"
@@ -669,7 +735,7 @@
       "description": "さまざまなジャンルの記述式（タイピング解答）問題を揃えたクイズです。手応えあり！",
       "thumbnailUrl": null,
       "difficulty": 5,
-      "genre": "academic",
+      "genre": "history-geography",
       "tags": [
         "math",
         "history"
@@ -747,7 +813,7 @@
       "reviewBadge": "overwhelmingly_positive",
       "isReviewMasked": false,
       "activeResetRequestId": null,
-      "canonicalGenreId": "academic",
+      "canonicalGenreId": "history-geography",
       "canonicalTagIds": [
         "math",
         "history"
@@ -767,7 +833,7 @@
       "description": "文字が順に流れる早押し形式で世界の首都を答えるスリリングなクイズです。",
       "thumbnailUrl": null,
       "difficulty": 3,
-      "genre": "trivia",
+      "genre": "travel-local",
       "tags": [
         "quick"
       ],
@@ -808,7 +874,7 @@
       "reviewBadge": "mostly_positive",
       "isReviewMasked": false,
       "activeResetRequestId": null,
-      "canonicalGenreId": "trivia",
+      "canonicalGenreId": "travel-local",
       "canonicalTagIds": [
         "quick"
       ],
@@ -827,7 +893,7 @@
       "description": "日本の歴史的な出来事を古い順にドラッグ＆ドロップで並び替えるクイズです。",
       "thumbnailUrl": null,
       "difficulty": 5,
-      "genre": "academic",
+      "genre": "history-geography",
       "tags": [
         "history"
       ],
@@ -886,7 +952,7 @@
       "reviewBadge": "mostly_positive",
       "isReviewMasked": false,
       "activeResetRequestId": null,
-      "canonicalGenreId": "academic",
+      "canonicalGenreId": "history-geography",
       "canonicalTagIds": [
         "history"
       ],
@@ -905,7 +971,7 @@
       "description": "段階的に提示されるヒントを元に、正解となる単語をタイピングで解答するクイズです。",
       "thumbnailUrl": null,
       "difficulty": 4,
-      "genre": "riddle-puzzle",
+      "genre": "hobby-culture",
       "tags": [
         "puzzle"
       ],
@@ -954,7 +1020,7 @@
       "reviewBadge": "overwhelmingly_positive",
       "isReviewMasked": false,
       "activeResetRequestId": null,
-      "canonicalGenreId": "riddle-puzzle",
+      "canonicalGenreId": "hobby-culture",
       "canonicalTagIds": [
         "puzzle"
       ],
@@ -973,7 +1039,7 @@
       "description": "古典的な水平思考推理ゲーム「ウミガメのスープ」です。AIの質問判定機能を使って真相を解き明かしてください。",
       "thumbnailUrl": null,
       "difficulty": 4,
-      "genre": "riddle-puzzle",
+      "genre": "hobby-culture",
       "tags": [
         "umigame"
       ],
@@ -1020,7 +1086,7 @@
       "reviewBadge": null,
       "isReviewMasked": false,
       "activeResetRequestId": null,
-      "canonicalGenreId": "riddle-puzzle",
+      "canonicalGenreId": "hobby-culture",
       "canonicalTagIds": [
         "umigame"
       ],
@@ -1039,7 +1105,7 @@
       "description": "これは公開されていない下書き状態のクイズです。",
       "thumbnailUrl": null,
       "difficulty": 1,
-      "genre": "general",
+      "genre": "hobby-culture",
       "tags": [
         "react"
       ],
@@ -1090,7 +1156,7 @@
       "reviewBadge": null,
       "isReviewMasked": false,
       "activeResetRequestId": null,
-      "canonicalGenreId": "general",
+      "canonicalGenreId": "hobby-culture",
       "canonicalTagIds": [
         "react"
       ],
